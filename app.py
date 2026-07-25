@@ -5,7 +5,12 @@ from zoneinfo import ZoneInfo
 
 from flask import Flask, Response, redirect, render_template, request, url_for
 
-from interactive_plot import PLOTLY_CONFIG, build_interactive_figure, plotly_javascript
+from interactive_plot import (
+    PLOTLY_CONFIG,
+    build_insights_figure,
+    build_interactive_figure,
+    plotly_javascript,
+)
 from weight_data import parse_weight, read_series, store_weight
 
 BASE_DIR = Path(__file__).parent
@@ -26,12 +31,14 @@ def index():
         latest = {"date": dates[-1], "weight": weights[-1]}
 
     figure = build_interactive_figure(dates, weights, plan_dates, plan)
+    insights_figure = build_insights_figure(dates, weights, plan_dates, plan)
     return render_template(
         "index.html",
         latest=latest,
         saved=request.args.get("saved"),
         error=request.args.get("error"),
         graph_json=figure.to_json(),
+        insights_json=insights_figure.to_json(),
         plotly_config=PLOTLY_CONFIG,
         plotly_version=PLOTLY_VERSION,
     )

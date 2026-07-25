@@ -1,8 +1,15 @@
 import json
 import math
-from datetime import date
+from datetime import date, timedelta
 
-from interactive_plot import PLOTLY_CONFIG, build_interactive_figure, plotly_javascript
+import pytest
+
+from interactive_plot import (
+    PLOTLY_CONFIG,
+    build_insights_figure,
+    build_interactive_figure,
+    plotly_javascript,
+)
 
 
 def test_build_interactive_figure_preserves_style_and_gaps():
@@ -41,6 +48,55 @@ def test_build_interactive_figure_supports_empty_data():
     serialized = json.loads(serialized_json)
     assert not serialized["data"]
     assert "annotations" not in serialized["layout"]
+
+
+def test_build_insights_figure_shows_difference_and_28_day_rates():
+    start = date(2026, 1, 1)
+    dates = [start + timedelta(days=offset) for offset in range(35)]
+    weights = [100 - offset / 7 for offset in range(35)]
+    plan = [100 - 2 * offset / 7 for offset in range(35)]
+
+    serialized_json = build_insights_figure(dates, weights, dates, plan).to_json()
+    assert isinstance(serialized_json, str)
+    serialized = json.loads(serialized_json)
+    difference_trace, recorded_rate_trace, planned_rate_trace = serialized["data"]
+
+    assert difference_trace["name"] == "Difference"
+    assert difference_trace["y"][0] == 0
+    assert difference_trace["y"][-1] == pytest.approx(34 / 7)
+    assert difference_trace["marker"]["color"][-1] == "#ef6f6c"
+    assert recorded_rate_trace["name"] == "Recorded rate"
+    assert recorded_rate_trace["y"][:27] == [None] * 27
+    assert recorded_rate_trace["y"][-1] == pytest.approx(-1)
+    assert planned_rate_trace["name"] == "Planned rate"
+    assert planned_rate_trace["y"][-1] == pytest.approx(-2)
+    assert serialized["layout"]["yaxis"]["title"]["text"] == "kg"
+    assert serialized["layout"]["yaxis2"]["title"]["text"] == "kg/week"
+
+
+def test_build_insights_figure_preserves_plan_rate_gaps():
+    start = date(2026, 1, 1)
+    dates = [start + timedelta(days=offset) for offset in range(60)]
+    weights = [100 - offset / 14 for offset in range(60)]
+    plan = list(weights)
+    plan[30] = math.nan
+
+    serialized_json = build_insights_figure(dates, weights, dates, plan).to_json()
+    assert isinstance(serialized_json, str)
+    serialized = json.loads(serialized_json)
+    planned_rate_trace = serialized["data"][2]
+
+    assert planned_rate_trace["connectgaps"] is False
+    assert planned_rate_trace["y"][30:58] == [None] * 28
+    assert planned_rate_trace["y"][58] == pytest.approx(-0.5)
+
+
+def test_build_insights_figure_supports_empty_data():
+    serialized_json = build_insights_figure([], [], [], []).to_json()
+    assert isinstance(serialized_json, str)
+    serialized = json.loads(serialized_json)
+
+    assert not serialized["data"]
 
 
 def test_plotly_runtime_is_local_and_interactive():

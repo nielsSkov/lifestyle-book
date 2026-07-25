@@ -35,12 +35,17 @@
     <section class="graph-card">
       <div id="weight-plot" role="region" aria-label="Interactive recorded and planned weight chart"></div>
     </section>
+    <section class="graph-card">
+      <div id="insights-plot" role="region" aria-label="Interactive plan difference and rate of change charts"></div>
+    </section>
   </main>
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
   <script>
     const weightFigure = {{ graph_json | safe }};
+    const insightsFigure = {{ insights_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};
     Plotly.newPlot("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig);
+    Plotly.newPlot("insights-plot", insightsFigure.data, insightsFigure.layout, plotlyConfig);
   </script>
 </body>
 </html>

@@ -144,14 +144,24 @@ input {
 }
 
 .graph-card {
+  margin-bottom: 20px;
   padding: 12px;
   overflow: hidden;
 }
 
-#weight-plot {
+#weight-plot,
+#insights-plot {
   width: 100%;
+}
+
+#weight-plot {
   height: min(70vh, 680px);
   min-height: 480px;
+}
+
+#insights-plot {
+  height: min(90vh, 820px);
+  min-height: 680px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -180,5 +190,10 @@ input {
   #weight-plot {
     height: min(72vh, 560px);
     min-height: 420px;
+  }
+
+  #insights-plot {
+    height: min(100vh, 760px);
+    min-height: 680px;
   }
 }
