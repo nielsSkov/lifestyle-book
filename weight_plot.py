@@ -51,6 +51,7 @@ def build_figure(
     period_start: date,
     period_end: date,
     mobile: bool = False,
+    figure: Figure | None = None,
 ) -> Figure:
     visible_weight_dates, visible_weights = within_period(
         weight_dates, weights, period_start, period_end
@@ -59,11 +60,12 @@ def build_figure(
     visible_weight_x = mdates.date2num(visible_weight_dates)
     visible_plan_x = mdates.date2num(visible_plan_dates)
 
-    figure = Figure(
-        figsize=(7, 7) if mobile else (12, 6),
-        layout="constrained",
-        facecolor="#15111f",
-    )
+    if figure is None:
+        figure = Figure(
+            figsize=(7, 7) if mobile else (12, 6),
+            layout="constrained",
+            facecolor="#15111f",
+        )
     axis = figure.subplots()
     axis.set_facecolor("#15111f")
     axis.grid(color="#383047", linewidth=0.8)

@@ -1,5 +1,7 @@
 from datetime import date
 
+from matplotlib.figure import Figure
+
 from weight_plot import build_figure, period_bounds, shift_year, within_period
 
 
@@ -27,6 +29,7 @@ def test_within_period():
 
 
 def test_build_figure():
+    supplied_figure = Figure(figsize=(7, 7))
     figure = build_figure(
         [date(2026, 7, 24), date(2026, 7, 25)],
         [109.8, 109.4],
@@ -35,9 +38,11 @@ def test_build_figure():
         date(2026, 7, 19),
         date(2026, 7, 25),
         mobile=True,
+        figure=supplied_figure,
     )
 
     axis = figure.axes[0]
+    assert figure is supplied_figure
     assert tuple(figure.get_size_inches()) == (7.0, 7.0)
     assert axis.get_title() == "Recorded Weight and Plan"
     assert [line.get_label() for line in axis.lines] == ["Plan", "Recorded weight"]

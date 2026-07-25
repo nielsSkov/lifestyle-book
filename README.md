@@ -124,7 +124,9 @@ Create the paired notebook from the tracked Jupytext source:
 uv run jupytext --sync planning/plan.py
 ```
 
-Open `planning/plan.ipynb` and edit the control points to build a daily piecewise-linear candidate; equal-weight points create plateaus. The notebook uses the same plotting code as the application to compare the existing and candidate plans.
+Open `planning/plan.ipynb` and edit the control points to build a daily candidate; equal-weight points create plateaus. The notebook uses the same plotting code as the application and shows one continuous plan made from historical plan data followed by the new candidate.
+
+Control-point values can also be functions of elapsed days. Each function runs from its control-point date until the next entry; numeric entries continue to use linear interpolation, and equal numeric entries create plateaus. `planning/planning_helpers.py` also provides the notebook's loading, merging, and plotting helpers.
 
 The generated notebook is ignored, while `planning/plan.py` is the tracked source. The workflow only reads `weight.csv` and `plan.csv`: it does not save or deploy the candidate yet.
 

@@ -11,6 +11,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ipykernel",
+    "ipympl",
     "jupytext",
     "pyright",
     "pytest",
@@ -31,6 +32,10 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["B", "BLE", "C", "E", "F", "I", "N", "PT", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"planning/plan.py" = ["F401"]
+"planning/planning_helpers.py" = ["E402"]
 
 [tool.pyright]
 pythonVersion = "3.13"
