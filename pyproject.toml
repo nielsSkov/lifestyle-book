@@ -37,4 +37,10 @@ pythonVersion = "3.13"
 typeCheckingMode = "standard"
 venvPath = "."
 venv = ".venv"
-exclude = [".venv", ".uv-cache", "**/__pycache__"]
+exclude = [
+    ".venv",
+    ".uv-cache",
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+]
