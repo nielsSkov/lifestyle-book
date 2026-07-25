@@ -16,13 +16,17 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-          cache: pip
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v9
+        with:
+          enable-cache: true
+
+      - name: Sync environment
+        run: uv sync
 
       - name: Run tests
-        run: python -m unittest -v
+        run: uv run python -m unittest -v
 
       - name: Check application configuration
-        run: gunicorn --check-config app:app
+        run: uv run gunicorn --check-config app:app

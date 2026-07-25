@@ -31,12 +31,11 @@ Real CSV files are ignored by Git. Fictional examples are available under `examp
 ## Local development
 
 ```sh
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+uv sync
 cp examples/weight.example.csv weight.csv
 cp examples/plan.example.csv plan.csv
-.venv/bin/python -m unittest -v
-.venv/bin/flask --app app run --port 8000
+uv run python -m unittest -v
+uv run flask --app app run --port 8000
 ```
 
 Open <http://127.0.0.1:8000>.
@@ -49,12 +48,13 @@ On Debian:
 
 ```sh
 sudo apt update
-sudo apt install git python3-venv
+sudo apt install curl git
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source "$HOME/.local/bin/env"
 git clone https://github.com/nielsSkov/weight-tracker.git /home/YOUR_USER/weight-tracker
 cd /home/YOUR_USER/weight-tracker
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python -m unittest -v
+uv sync --no-dev
+uv run --no-dev python -m unittest -v
 ```
 
 Create or copy `weight.csv` and `plan.csv` into the checkout, then restrict their permissions:
@@ -82,8 +82,8 @@ Deploy only commits that have passed CI:
 ```sh
 cd /home/YOUR_USER/weight-tracker
 git pull --ff-only origin main
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python -m unittest -v
+uv sync --no-dev
+uv run --no-dev python -m unittest -v
 sudo systemctl restart weight-tracker.service
 git rev-parse HEAD
 ```
