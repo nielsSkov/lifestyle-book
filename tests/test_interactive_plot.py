@@ -28,7 +28,7 @@ def test_build_interactive_figure_preserves_style_and_gaps():
     assert serialized["layout"]["paper_bgcolor"] == "#15111f"
     assert serialized["layout"]["plot_bgcolor"] == "#15111f"
     assert serialized["layout"]["hoverlabel"]["bgcolor"] == "#2c2340"
-    assert serialized["layout"]["xaxis"]["rangeslider"]["visible"] is True
+    assert "rangeslider" not in serialized["layout"]["xaxis"]
     assert serialized["layout"]["yaxis"]["fixedrange"] is False
     assert serialized["layout"]["annotations"][0]["text"] == "99.5 kg"
 
