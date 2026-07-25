@@ -1,11 +1,12 @@
-name: Tests
+name: CI
 
 on:
   push:
   pull_request:
 
 jobs:
-  test:
+  quality:
+    name: Code quality
     runs-on: ubuntu-latest
 
     steps:
@@ -33,6 +34,27 @@ jobs:
 
       - name: Type check
         run: uv run pyright
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Sync environment
+        run: uv sync
 
       - name: Run tests
         run: uv run pytest
