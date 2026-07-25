@@ -104,6 +104,12 @@ def build_interactive_figure(
             "title": "Date",
             "gridcolor": "#383047",
             "linecolor": "#524762",
+            "rangeslider": {
+                "visible": True,
+                "bgcolor": "#0f0c16",
+                "bordercolor": "#30283e",
+                "borderwidth": 1,
+            },
         },
         yaxis={
             "title": "Weight (kg)",
