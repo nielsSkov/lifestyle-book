@@ -1,0 +1,16 @@
+[Unit]
+Description=Weight tracker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+Group=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/weight-tracker
+ExecStart=/home/YOUR_USER/weight-tracker/.venv/bin/gunicorn --workers 1 --worker-class gthread --threads 1 --keep-alive 15 --bind SERVER_IP:8000 app:app
+Restart=on-failure
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

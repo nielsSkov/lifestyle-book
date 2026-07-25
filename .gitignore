@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+
+# Personal measurements, plans, and deployment details
+/weight.csv
+/plan.csv
+/deploy.local.json
+/backups/
+
+# Generated plots and local tooling
+*.png
+.pytest_cache/
+.ruff_cache/

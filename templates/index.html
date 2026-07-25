@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weight</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main>
+    <section class="entry-card">
+      <div class="heading">
+        <div>
+          <p class="eyebrow">Daily record</p>
+          <h1>Weight</h1>
+        </div>
+        {% if latest %}
+          <p class="latest"><strong>{{ "%.1f"|format(latest.weight) }}</strong> kg<br><span>{{ latest.date.strftime("%d %b %Y") }}</span></p>
+        {% endif %}
+      </div>
+
+      {% if saved %}<p class="message success">Saved {{ saved }} kg.</p>{% endif %}
+      {% if error %}<p class="message error">{{ error }}</p>{% endif %}
+
+      <form action="{{ url_for('save_weight') }}" method="post">
+        <label for="weight">Today's weight</label>
+        <div class="input-row">
+          <input id="weight" name="weight" type="number" inputmode="decimal" step="0.1" min="30" max="300" required>
+          <span>kg</span>
+        </div>
+        <button type="submit">Save weight</button>
+      </form>
+    </section>
+
+    <section class="graph-card">
+      <nav class="range-picker" aria-label="Graph range">
+        <a href="{{ url_for('index', window='7d') }}" class="{{ 'active' if window == '7d' else '' }}">7 days</a>
+        <a href="{{ url_for('index', window='4w') }}" class="{{ 'active' if window == '4w' else '' }}">4 weeks</a>
+        <a href="{{ url_for('index', window='1y') }}" class="{{ 'active' if window == '1y' else '' }}">1 year</a>
+        <a href="{{ url_for('index', window='all') }}" class="{{ 'active' if window == 'all' else '' }}">All</a>
+      </nav>
+      <nav class="graph-toolbar" aria-label="Graph period">
+        {% if can_go_back %}
+          <a href="{{ url_for('index', window=window, period=period + 1) }}" aria-label="Show previous period">&larr;</a>
+        {% else %}
+          <span class="disabled" aria-hidden="true">&larr;</span>
+        {% endif %}
+        <strong>{{ period_start.strftime("%d %b %Y") }} &ndash; {{ period_end.strftime("%d %b %Y") }}</strong>
+        {% if period > 0 and window != 'all' %}
+          <a href="{{ url_for('index', window=window, period=period - 1) }}" aria-label="Show next period">&rarr;</a>
+        {% else %}
+          <span class="disabled" aria-hidden="true">&rarr;</span>
+        {% endif %}
+      </nav>
+      <picture>
+        <source media="(max-width: 600px)" srcset="{{ url_for('plot', window=window, period=period, mobile=1, v=graph_version) }}">
+        <img src="{{ url_for('plot', window=window, period=period, v=graph_version) }}" alt="Recorded weight and planned weight for the selected period">
+      </picture>
+    </section>
+  </main>
+</body>
+</html>
