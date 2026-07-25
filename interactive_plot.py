@@ -72,8 +72,10 @@ def build_interactive_figure(
             y=latest_weight,
             text=f"{latest_weight:.1f} kg",
             showarrow=False,
-            xshift=12,
-            yshift=12,
+            xanchor="left",
+            yanchor="bottom",
+            xshift=8,
+            yshift=8,
             font={"color": "#a78bfa", "size": 13},
         )
 
@@ -94,7 +96,7 @@ def build_interactive_figure(
             "font": {"color": "#f4f0fa"},
         },
         uirevision="weight-tracker",
-        margin={"l": 64, "r": 24, "t": 70, "b": 48},
+        margin={"l": 64, "r": 72, "t": 70, "b": 48},
         legend={
             "orientation": "h",
             "x": 0,
@@ -236,6 +238,7 @@ def build_insights_figure(
     )
     figure.update_yaxes(title="kg", row=1, col=1)
     figure.update_xaxes(title="Date", row=2, col=1)
+    figure.update_xaxes(matches="x", row=2, col=1)
     figure.update_yaxes(title="kg/week", row=2, col=1)
     return figure
 

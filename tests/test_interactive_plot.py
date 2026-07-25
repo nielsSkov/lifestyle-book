@@ -38,6 +38,9 @@ def test_build_interactive_figure_preserves_style_and_gaps():
     assert serialized["layout"]["xaxis"]["rangeslider"]["visible"] is True
     assert serialized["layout"]["yaxis"]["fixedrange"] is False
     assert serialized["layout"]["annotations"][0]["text"] == "99.5 kg"
+    assert serialized["layout"]["annotations"][0]["xanchor"] == "left"
+    assert serialized["layout"]["annotations"][0]["yanchor"] == "bottom"
+    assert serialized["layout"]["margin"]["r"] == 72
 
 
 def test_build_interactive_figure_supports_empty_data():
@@ -71,6 +74,7 @@ def test_build_insights_figure_shows_difference_and_28_day_rates():
     assert planned_rate_trace["name"] == "Planned rate"
     assert planned_rate_trace["y"][-1] == pytest.approx(-2)
     assert serialized["layout"]["yaxis"]["title"]["text"] == "kg"
+    assert serialized["layout"]["xaxis2"]["matches"] == "x"
     assert serialized["layout"]["yaxis2"]["title"]["text"] == "kg/week"
 
 

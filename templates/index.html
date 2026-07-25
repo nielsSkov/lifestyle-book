@@ -44,8 +44,46 @@
     const weightFigure = {{ graph_json | safe }};
     const insightsFigure = {{ insights_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};
-    Plotly.newPlot("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig);
-    Plotly.newPlot("insights-plot", insightsFigure.data, insightsFigure.layout, plotlyConfig);
+    Promise.all([
+      Plotly.newPlot("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig),
+      Plotly.newPlot("insights-plot", insightsFigure.data, insightsFigure.layout, plotlyConfig),
+    ]).then(([weightPlot, insightsPlot]) => {
+      let syncingXAxes = false;
+
+      function readXRange(update) {
+        for (const axis of ["xaxis", "xaxis2"]) {
+          const range = update[`${axis}.range`];
+          if (Array.isArray(range)) return range;
+
+          const start = update[`${axis}.range[0]`];
+          const end = update[`${axis}.range[1]`];
+          if (start !== undefined && end !== undefined) return [start, end];
+        }
+        return null;
+      }
+
+      function resetsXRange(update) {
+        return ["xaxis", "xaxis2"].some((axis) => update[`${axis}.autorange`] === true);
+      }
+
+      for (const source of [weightPlot, insightsPlot]) {
+        source.on("plotly_relayout", (update) => {
+          if (syncingXAxes) return;
+
+          const range = readXRange(update);
+          if (!range && !resetsXRange(update)) return;
+
+          syncingXAxes = true;
+          const target = source === weightPlot ? insightsPlot : weightPlot;
+          const linkedUpdate = range
+            ? {"xaxis.range": range}
+            : {"xaxis.autorange": true};
+          Plotly.relayout(target, linkedUpdate).finally(() => {
+            syncingXAxes = false;
+          });
+        });
+      }
+    });
   </script>
 </body>
 </html>

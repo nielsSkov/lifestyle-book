@@ -31,6 +31,8 @@ def test_index_renders_interactive_plotly_chart(client):
     assert b'id="insights-plot"' in response.data
     assert b"Plotly.newPlot" in response.data
     assert b'Plotly.newPlot("insights-plot"' in response.data
+    assert b"plotly_relayout" in response.data
+    assert b"Plotly.relayout(target, linkedUpdate)" in response.data
     assert b'"modeBarButtons": [["zoom2d", "pan2d", "resetScale2d"]]' in response.data
     assert b'"name":"Recorded weight"' in response.data
     assert b'"name":"Difference"' in response.data
