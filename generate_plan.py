@@ -5,7 +5,6 @@ from pathlib import Path
 
 from deploy_plan import validate_plan
 
-
 PLAN_FILE = Path(__file__).parent / "plan.csv"
 
 
@@ -17,7 +16,9 @@ def build_plan():
 def main():
     rows = build_plan()
     if not rows:
-        raise SystemExit("No plan generated. Implement build_plan() first; plan.csv was not changed.")
+        raise SystemExit(
+            "No plan generated. Implement build_plan() first; plan.csv was not changed."
+        )
 
     temporary = PLAN_FILE.with_suffix(".csv.tmp")
     try:

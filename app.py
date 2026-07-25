@@ -11,7 +11,6 @@ from flask import Flask, redirect, render_template, request, send_file, url_for
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
-
 BASE_DIR = Path(__file__).parent
 WEIGHT_CSV = BASE_DIR / "weight.csv"
 PLAN_CSV = BASE_DIR / "plan.csv"
@@ -79,7 +78,9 @@ def period_bounds(window, period, all_dates=None, today=None):
 
 
 def within_period(dates, weights, start, end):
-    points = [(day, weight) for day, weight in zip(dates, weights) if start <= day <= end]
+    points = [
+        (day, weight) for day, weight in zip(dates, weights, strict=True) if start <= day <= end
+    ]
     return [point[0] for point in points], [point[1] for point in points]
 
 
@@ -159,7 +160,11 @@ def plot():
     weight_dates, weights = within_period(weight_dates, weights, period_start, period_end)
     plan_dates, plan = within_period(plan_dates, plan, period_start, period_end)
 
-    figure = Figure(figsize=(7, 7) if mobile else (12, 6), layout="constrained", facecolor="#15111f")
+    figure = Figure(
+        figsize=(7, 7) if mobile else (12, 6),
+        layout="constrained",
+        facecolor="#15111f",
+    )
     axis = figure.subplots()
     axis.set_facecolor("#15111f")
     axis.grid(color="#383047", linewidth=0.8)

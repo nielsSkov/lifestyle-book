@@ -34,6 +34,8 @@ Real CSV files are ignored by Git. Fictional examples are available under `examp
 uv sync
 cp examples/weight.example.csv weight.csv
 cp examples/plan.example.csv plan.csv
+uv run ruff check .
+uv run ruff format --check .
 uv run pytest
 uv run flask --app app run --port 8000
 ```

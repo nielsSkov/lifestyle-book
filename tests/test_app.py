@@ -12,9 +12,19 @@ def test_parse_weight():
     assert parse_weight("109.8") == Decimal("109.8")
 
 
-@pytest.mark.parametrize("value", [None, "", "hello", "NaN", "29", "301"])
-def test_parse_weight_rejects_invalid_values(value):
-    with pytest.raises(ValueError):
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        (None, "Enter a valid weight"),
+        ("", "Enter a valid weight"),
+        ("hello", "Enter a valid weight"),
+        ("NaN", "Weight must be between 30 and 300 kg"),
+        ("29", "Weight must be between 30 and 300 kg"),
+        ("301", "Weight must be between 30 and 300 kg"),
+    ],
+)
+def test_parse_weight_rejects_invalid_values(value, message):
+    with pytest.raises(ValueError, match=message):
         parse_weight(value)
 
 

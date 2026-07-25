@@ -13,6 +13,7 @@ dev = [
     "ipykernel",
     "jupytext",
     "pytest",
+    "ruff",
 ]
 
 [tool.uv]
@@ -22,3 +23,11 @@ upgrade = true
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = [".venv", ".uv-cache"]
+
+[tool.ruff.lint]
+select = ["B", "BLE", "C", "E", "F", "I", "N", "PT", "UP"]

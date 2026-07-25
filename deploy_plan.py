@@ -9,7 +9,6 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-
 PROJECT_DIR = Path(__file__).parent
 
 
@@ -75,12 +74,15 @@ def deploy(plan_path, config_path):
 
     subprocess.run(["scp", str(plan_path), f"{target}:{remote_upload}"], check=True)
 
-    quoted = {name: shlex.quote(value) for name, value in {
-        "directory": directory,
-        "plan": remote_plan,
-        "upload": remote_upload,
-        "backup": remote_backup,
-    }.items()}
+    quoted = {
+        name: shlex.quote(value)
+        for name, value in {
+            "directory": directory,
+            "plan": remote_plan,
+            "upload": remote_upload,
+            "backup": remote_backup,
+        }.items()
+    }
     remote_command = (
         f"mkdir -p {quoted['directory']}/backups && "
         f"if [ -f {quoted['plan']} ]; then cp -p {quoted['plan']} {quoted['backup']}; fi && "
