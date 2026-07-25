@@ -26,7 +26,7 @@ jobs:
         run: uv sync
 
       - name: Run tests
-        run: uv run python -m unittest -v
+        run: uv run pytest
 
       - name: Check application configuration
         run: uv run gunicorn --check-config app:app

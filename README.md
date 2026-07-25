@@ -34,7 +34,7 @@ Real CSV files are ignored by Git. Fictional examples are available under `examp
 uv sync
 cp examples/weight.example.csv weight.csv
 cp examples/plan.example.csv plan.csv
-uv run python -m unittest -v
+uv run pytest
 uv run flask --app app run --port 8000
 ```
 
@@ -54,7 +54,7 @@ source "$HOME/.local/bin/env"
 git clone https://github.com/nielsSkov/weight-tracker.git /home/YOUR_USER/weight-tracker
 cd /home/YOUR_USER/weight-tracker
 uv sync --no-dev
-uv run --no-dev python -m unittest -v
+uv run --no-dev gunicorn --check-config app:app
 ```
 
 Create or copy `weight.csv` and `plan.csv` into the checkout, then restrict their permissions:
@@ -83,7 +83,7 @@ Deploy only commits that have passed CI:
 cd /home/YOUR_USER/weight-tracker
 git pull --ff-only origin main
 uv sync --no-dev
-uv run --no-dev python -m unittest -v
+uv run --no-dev gunicorn --check-config app:app
 sudo systemctl restart weight-tracker.service
 git rev-parse HEAD
 ```

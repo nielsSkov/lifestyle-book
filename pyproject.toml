@@ -12,8 +12,13 @@ dependencies = [
 dev = [
     "ipykernel",
     "jupytext",
+    "pytest",
 ]
 
 [tool.uv]
 package = false
 upgrade = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
