@@ -118,15 +118,17 @@ uv run fetch_weight.py
 
 The fetch command downloads to a temporary file, validates the CSV, compares its checksum with the server, and only then atomically replaces local `weight.csv`.
 
-`generate_plan.py` is a safe skeleton. Implement `build_plan()` so it returns chronological `(date, weight_kg)` rows, then run:
+Create the paired notebook from the tracked Jupytext source:
 
 ```sh
-./generate_plan.py
+uv run jupytext --sync planning/plan.py
 ```
 
-An empty generator exits without changing the existing plan. Generated rows are validated before replacing local `plan.csv`.
+Open `planning/plan.ipynb` and edit the control points to build a daily piecewise-linear candidate; equal-weight points create plateaus. The notebook uses the same plotting code as the application to compare the existing and candidate plans.
 
-Then deploy:
+The generated notebook is ignored, while `planning/plan.py` is the tracked source. The workflow only reads `weight.csv` and `plan.csv`: it does not save or deploy the candidate yet.
+
+After separately saving a validated candidate as `plan.csv`, deploy it with:
 
 ```sh
 ./deploy_plan.py

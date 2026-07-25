@@ -11,5 +11,6 @@ __pycache__/
 
 # Generated plots and local tooling
 *.png
+/planning/plan.ipynb
 .pytest_cache/
 .ruff_cache/
