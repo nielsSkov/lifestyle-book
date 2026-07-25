@@ -1,11 +1,13 @@
 import csv
+import math
+import stat
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
-from weight_data import parse_weight, read_series, store_weight, validate_csv
+from weight_data import parse_weight, read_series, store_series, store_weight, validate_csv
 
 
 def write_csv(tmp_path: Path, content: str) -> Path:
@@ -72,3 +74,28 @@ def test_validate_csv_rejects_bad_header(tmp_path: Path):
     path = write_csv(tmp_path, "day,weight\n2026-07-25,109.8\n")
     with pytest.raises(ValueError, match="Expected header"):
         validate_csv(path)
+
+
+def test_validate_csv_allows_explicit_plan_gaps(tmp_path: Path):
+    path = write_csv(tmp_path, "date,weight_kg\n2026-07-25,100.0\n2026-07-26,NaN\n")
+
+    assert validate_csv(path, allow_gaps=True) == 2
+    with pytest.raises(ValueError, match="between 30 and 300"):
+        validate_csv(path)
+
+
+def test_store_series_atomically_writes_plan_gaps(tmp_path: Path):
+    path = tmp_path / "plan.csv"
+
+    row_count = store_series(
+        path,
+        [date(2026, 8, 1), date(2026, 8, 2), date(2026, 8, 3)],
+        [100.0, math.nan, 95.0],
+        allow_gaps=True,
+    )
+
+    assert row_count == 3
+    assert path.read_text(encoding="utf-8") == (
+        "date,weight_kg\n2026-08-01,100\n2026-08-02,NaN\n2026-08-03,95\n"
+    )
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600

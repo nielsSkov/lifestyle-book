@@ -45,7 +45,8 @@ weight_dates, weights, existing_plan_dates, existing_plan = planning.load_planni
 # control_points = [
 #     (date(2026, 8, 1), 100.0),      # Linear to 98 kg
 #     (date(2026, 9, 1), curved_loss), # Nonlinear to 94 kg
-#     (date(2026, 11, 1), 94.0),      # Flat at 94 kg
+#     (date(2026, 11, 1), None),      # Explicit gap
+#     (date(2026, 11, 2), 94.0),      # Flat at 94 kg
 #     (date(2026, 11, 15), 94.0),
 # ]
 control_points = [
@@ -61,3 +62,7 @@ plan_dates, plan_weights = planning.build_full_plan(
 )
 axis = planning.plot_plan(weight_dates, weights, plan_dates, plan_weights)
 pyplot.show()
+
+# %%
+# Run this cell only after reviewing the candidate plot.
+planning.save_plan(plan_dates, plan_weights)

@@ -128,7 +128,17 @@ Open `planning/plan.ipynb` and edit the control points to build a daily candidat
 
 Control-point values can also be functions of elapsed days. Each function runs from its control-point date until the next entry; numeric entries continue to use linear interpolation, and equal numeric entries create plateaus. `planning/planning_helpers.py` also provides the notebook's loading, merging, and plotting helpers.
 
-The generated notebook is ignored, while `planning/plan.py` is the tracked source. The workflow only reads `weight.csv` and `plan.csv`: it does not save or deploy the candidate yet.
+Use `None` as a control-point value to place an explicit gap in the plan. Saved plans represent gaps as `NaN`; plan deployment and the online graph support them, while recorded measurements still require finite weights.
+
+When the candidate is ready, save it explicitly from a separate notebook cell:
+
+```python
+planning.save_plan(plan_dates, plan_weights)
+```
+
+This validates and atomically replaces the ignored local `plan.csv`; normal notebook execution does not save automatically.
+
+The generated notebook is ignored, while `planning/plan.py` is the tracked source. Saving requires running the separate save cell, and deployment remains a separate command.
 
 After separately saving a validated candidate as `plan.csv`, deploy it with:
 

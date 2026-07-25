@@ -1,3 +1,4 @@
+import math
 from datetime import date
 
 import pytest
@@ -66,6 +67,28 @@ def test_interpolate_plan_can_transition_into_function_interval():
         date(2026, 8, 5),
     ]
     assert weights == [100.0, 99.0, 98.0, 97.0, 96.0]
+
+
+def test_interpolate_plan_supports_explicit_gaps():
+    dates, weights = interpolate_plan(
+        [
+            (date(2026, 8, 1), lambda days: 100.0 - days),
+            (date(2026, 8, 3), None),
+            (date(2026, 8, 4), 95.0),
+            (date(2026, 8, 5), 95.0),
+        ]
+    )
+
+    assert dates == [
+        date(2026, 8, 1),
+        date(2026, 8, 2),
+        date(2026, 8, 3),
+        date(2026, 8, 4),
+        date(2026, 8, 5),
+    ]
+    assert weights[:2] == [100.0, 99.0]
+    assert math.isnan(weights[2])
+    assert weights[3:] == [95.0, 95.0]
 
 
 def test_interpolate_plan_rejects_final_function_without_calling_it():

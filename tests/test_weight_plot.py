@@ -1,4 +1,7 @@
+import math
+from collections.abc import Sequence
 from datetime import date
+from typing import cast
 
 from matplotlib.figure import Figure
 
@@ -46,3 +49,17 @@ def test_build_figure():
     assert tuple(figure.get_size_inches()) == (7.0, 7.0)
     assert axis.get_title() == "Recorded Weight and Plan"
     assert [line.get_label() for line in axis.lines] == ["Plan", "Recorded weight"]
+
+
+def test_build_figure_preserves_plan_gaps():
+    figure = build_figure(
+        [],
+        [],
+        [date(2026, 8, 1), date(2026, 8, 2), date(2026, 8, 3)],
+        [100.0, math.nan, 95.0],
+        date(2026, 8, 1),
+        date(2026, 8, 3),
+    )
+
+    plotted_weights = cast(Sequence[float], figure.axes[0].lines[0].get_ydata())
+    assert math.isnan(plotted_weights[1])

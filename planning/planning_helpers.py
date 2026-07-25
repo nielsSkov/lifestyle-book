@@ -12,10 +12,10 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from plan_model import interpolate_plan
-from weight_data import read_series
+from weight_data import read_series, store_series
 from weight_plot import build_figure
 
-ControlValue = float | Callable[[int], float]
+ControlValue = float | Callable[[int], float] | None
 
 
 def apply_notebook_style() -> None:
@@ -29,6 +29,15 @@ def load_planning_data() -> tuple[list[date], list[float], list[date], list[floa
         raise ValueError("weight.csv has no measurements; run uv run fetch_weight.py first")
     plan_dates, plan_weights = read_series(PROJECT_DIR / "plan.csv")
     return weight_dates, weights, plan_dates, plan_weights
+
+
+def save_plan(plan_dates: Sequence[date], plan_weights: Sequence[float]) -> int:
+    return store_series(
+        PROJECT_DIR / "plan.csv",
+        plan_dates,
+        plan_weights,
+        allow_gaps=True,
+    )
 
 
 def build_full_plan(

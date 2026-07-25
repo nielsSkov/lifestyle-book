@@ -1,5 +1,7 @@
 import csv
+import math
 import os
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -33,7 +35,7 @@ def read_series(path: Path) -> tuple[list[date], list[float]]:
     return dates, weights
 
 
-def validate_csv(path: Path) -> int:
+def validate_csv(path: Path, allow_gaps: bool = False) -> int:
     previous_date = None
     row_count = 0
 
@@ -53,7 +55,9 @@ def validate_csv(path: Path) -> int:
                 weight = Decimal(row[1])
             except InvalidOperation:
                 raise ValueError(f"Line {line_number}: invalid weight {row[1]!r}") from None
-            if not weight.is_finite() or not Decimal("30") <= weight <= Decimal("300"):
+            if row[1] == "NaN" and allow_gaps:
+                pass
+            elif not weight.is_finite() or not Decimal("30") <= weight <= Decimal("300"):
                 raise ValueError(f"Line {line_number}: weight must be between 30 and 300 kg")
             if previous_date is not None and day <= previous_date:
                 raise ValueError(f"Line {line_number}: dates must be unique and increasing")
@@ -63,6 +67,32 @@ def validate_csv(path: Path) -> int:
     if row_count == 0:
         raise ValueError("CSV contains no data rows")
     return row_count
+
+
+def store_series(
+    path: Path,
+    dates: Sequence[date],
+    weights: Sequence[float],
+    allow_gaps: bool = False,
+) -> int:
+    rows = list(zip(dates, weights, strict=True))
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    try:
+        with temporary.open("w", newline="", encoding="utf-8") as csv_file:
+            writer = csv.writer(csv_file, lineterminator="\n")
+            writer.writerow(CSV_HEADER)
+            writer.writerows(
+                (day.isoformat(), "NaN" if math.isnan(weight) else format(weight, "g"))
+                for day, weight in rows
+            )
+            csv_file.flush()
+            os.fsync(csv_file.fileno())
+        row_count = validate_csv(temporary, allow_gaps=allow_gaps)
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+        return row_count
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def store_weight(path: Path, measurement_date: date, weight: Decimal) -> None:

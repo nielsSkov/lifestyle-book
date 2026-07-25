@@ -12,7 +12,7 @@ PROJECT_DIR = Path(__file__).parent
 
 
 def deploy(plan_path, config_path):
-    row_count = validate_csv(plan_path)
+    row_count = validate_csv(plan_path, allow_gaps=True)
     target, directory = load_server_config(config_path)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     remote_plan = f"{directory}/plan.csv"
