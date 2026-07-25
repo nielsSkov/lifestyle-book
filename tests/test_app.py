@@ -37,6 +37,9 @@ def test_index_renders_interactive_plotly_chart(client):
     assert b'"2026-08-01": 100.0' in response.data
     assert b'id="weight-plot"' in response.data
     assert b'id="insights-plot"' in response.data
+    assert b"window.history.replaceState" in response.data
+    assert b"cleanUrl.searchParams.delete(parameter)" in response.data
+    assert b"}, 3000);" in response.data
     assert b"Plotly.newPlot" in response.data
     assert b'Plotly.newPlot("insights-plot"' in response.data
     assert b"plotly_relayout" in response.data
@@ -62,7 +65,8 @@ def test_save_weight_inserts_historical_date_and_advances(client):
     )
 
     assert response.status_code == 200
-    assert b"Saved 100.5 kg." in response.data
+    assert b"Saved 100.5 kg<" in response.data
+    assert b"Saved 100.5 kg." not in response.data
     assert b'value="2026-08-01"' in response.data
     assert app_module.WEIGHT_CSV.read_text(encoding="utf-8") == (
         "date,weight_kg\n2026-07-31,100.5\n2026-08-01,100.0\n2026-08-02,99.5\n"

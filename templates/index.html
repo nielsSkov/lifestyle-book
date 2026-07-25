@@ -19,9 +19,9 @@
         {% endif %}
       </div>
 
-      {% if saved %}<p class="message success">Saved {{ saved }} kg.</p>{% endif %}
-      {% if deleted %}<p class="message success">Deleted entry for {{ deleted }}.</p>{% endif %}
-      {% if error %}<p class="message error">{{ error }}</p>{% endif %}
+      {% if saved %}<p class="message success" data-feedback>Saved {{ saved }} kg</p>{% endif %}
+      {% if deleted %}<p class="message success" data-feedback>Deleted entry for {{ deleted }}.</p>{% endif %}
+      {% if error %}<p class="message error" data-feedback>{{ error }}</p>{% endif %}
 
       <form action="{{ url_for('save_weight') }}" method="post">
         <label for="measurement-date">Measurement date</label>
@@ -48,6 +48,23 @@
   </main>
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
   <script>
+    const feedbackMessages = [...document.querySelectorAll("[data-feedback]")];
+    if (feedbackMessages.length) {
+      const cleanUrl = new URL(window.location.href);
+      for (const parameter of ["saved", "deleted", "error"]) {
+        cleanUrl.searchParams.delete(parameter);
+      }
+      window.history.replaceState(
+        {},
+        "",
+        `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`,
+      );
+
+      window.setTimeout(() => {
+        for (const message of feedbackMessages) message.remove();
+      }, 3000);
+    }
+
     const weightEntries = {{ weight_entries | tojson }};
     const today = {{ today.isoformat() | tojson }};
     const dateInput = document.getElementById("measurement-date");
