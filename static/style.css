@@ -95,6 +95,27 @@ label {
   box-shadow: 0 0 0 3px rgb(131 84 232 / 18%);
 }
 
+.date-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 54px;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.date-row input {
+  padding: 11px 12px;
+  border: 2px solid #4b405d;
+  border-radius: 12px;
+  font-size: 1rem;
+  text-align: center;
+  background: #0f0c16;
+}
+
+.date-row input:focus {
+  border-color: #8354e8;
+  box-shadow: 0 0 0 3px rgb(131 84 232 / 18%);
+}
+
 input {
   width: 100%;
   min-width: 0;
@@ -124,6 +145,20 @@ input {
   font-size: 1rem;
   font-weight: 800;
   cursor: pointer;
+}
+
+.entry-card .date-step {
+  width: 54px;
+  min-height: 48px;
+  border: 1px solid #4b405d;
+  color: #d8cfee;
+  background: #2c2340;
+}
+
+.entry-card .date-step:disabled {
+  color: #6f667c;
+  background: #1b1625;
+  cursor: not-allowed;
 }
 
 .message {
@@ -167,6 +202,10 @@ input {
 @media (hover: hover) and (pointer: fine) {
   .entry-card button:hover {
     background: #7842df;
+  }
+
+  .entry-card .date-step:hover:not(:disabled) {
+    background: #403353;
   }
 }
 

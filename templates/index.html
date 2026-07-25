@@ -23,7 +23,13 @@
       {% if error %}<p class="message error">{{ error }}</p>{% endif %}
 
       <form action="{{ url_for('save_weight') }}" method="post">
-        <label for="weight">Today's weight</label>
+        <label for="measurement-date">Measurement date</label>
+        <div class="date-row">
+          <button class="date-step" id="previous-date" type="button" aria-label="Previous date">&larr;</button>
+          <input id="measurement-date" name="date" type="date" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" required>
+          <button class="date-step" id="next-date" type="button" aria-label="Next date">&rarr;</button>
+        </div>
+        <label for="weight">Weight</label>
         <div class="input-row">
           <input id="weight" name="weight" type="number" inputmode="decimal" step="0.1" min="30" max="300" required>
           <span>kg</span>
@@ -41,6 +47,32 @@
   </main>
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
   <script>
+    const weightEntries = {{ weight_entries | tojson }};
+    const today = {{ today.isoformat() | tojson }};
+    const dateInput = document.getElementById("measurement-date");
+    const weightInput = document.getElementById("weight");
+    const nextDateButton = document.getElementById("next-date");
+
+    function selectDate(value) {
+      const selected = value > today ? today : value;
+      dateInput.value = selected;
+      nextDateButton.disabled = selected >= today;
+      weightInput.value = Object.prototype.hasOwnProperty.call(weightEntries, selected)
+        ? weightEntries[selected].toFixed(1)
+        : "";
+    }
+
+    function shiftDate(days) {
+      const shifted = new Date(`${dateInput.value}T00:00:00Z`);
+      shifted.setUTCDate(shifted.getUTCDate() + days);
+      selectDate(shifted.toISOString().slice(0, 10));
+    }
+
+    document.getElementById("previous-date").addEventListener("click", () => shiftDate(-1));
+    nextDateButton.addEventListener("click", () => shiftDate(1));
+    dateInput.addEventListener("change", () => selectDate(dateInput.value));
+    selectDate(dateInput.value);
+
     const weightFigure = {{ graph_json | safe }};
     const insightsFigure = {{ insights_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};

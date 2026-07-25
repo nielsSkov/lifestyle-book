@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     )
     monkeypatch.setattr(app_module, "WEIGHT_CSV", weight_csv)
     monkeypatch.setattr(app_module, "PLAN_CSV", plan_csv)
+    monkeypatch.setattr(app_module, "current_date", lambda: date(2026, 8, 3))
     app_module.app.config.update(TESTING=True)
     return app_module.app.test_client()
 
@@ -27,6 +29,12 @@ def test_index_renders_interactive_plotly_chart(client):
     response = client.get("/")
 
     assert response.status_code == 200
+    assert b'id="previous-date"' in response.data
+    assert b'id="next-date"' in response.data
+    assert b'name="date"' in response.data
+    assert b'value="2026-08-03"' in response.data
+    assert b'max="2026-08-03"' in response.data
+    assert b'"2026-08-01": 100.0' in response.data
     assert b'id="weight-plot"' in response.data
     assert b'id="insights-plot"' in response.data
     assert b"Plotly.newPlot" in response.data
@@ -44,6 +52,33 @@ def test_index_renders_interactive_plotly_chart(client):
     assert b"range-picker" not in response.data
     assert b"graph-toolbar" not in response.data
     assert b"plot.png" not in response.data
+
+
+def test_save_weight_inserts_historical_date_and_advances(client):
+    response = client.post(
+        "/weights",
+        data={"date": "2026-07-31", "weight": "100.5"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Saved 100.5 kg." in response.data
+    assert b'value="2026-08-01"' in response.data
+    assert app_module.WEIGHT_CSV.read_text(encoding="utf-8") == (
+        "date,weight_kg\n2026-07-31,100.5\n2026-08-01,100.0\n2026-08-02,99.5\n"
+    )
+
+
+def test_save_weight_rejects_future_date(client):
+    response = client.post(
+        "/weights",
+        data={"date": "2026-08-04", "weight": "99.0"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Measurement date cannot be in the future." in response.data
+    assert b"2026-08-04,99.0" not in app_module.WEIGHT_CSV.read_bytes()
 
 
 def test_plotly_runtime_is_served_locally_and_cached(client):

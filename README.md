@@ -6,6 +6,7 @@ A small self-hosted Flask application for recording daily weight and comparing i
 
 - Fast mobile weight entry
 - Same-day entries replace the previous value
+- Historical backfill and correction with date navigation
 - Interactive zooming, panning, hover values, and range slider
 - Recorded and planned weight lines
 - Plan deviation and 28-day rate-of-change charts

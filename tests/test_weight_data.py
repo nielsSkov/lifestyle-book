@@ -7,7 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from weight_data import parse_weight, read_series, store_series, store_weight, validate_csv
+from weight_data import (
+    parse_measurement_date,
+    parse_weight,
+    read_series,
+    store_series,
+    store_weight,
+    validate_csv,
+)
 
 
 def write_csv(tmp_path: Path, content: str) -> Path:
@@ -36,6 +43,24 @@ def test_parse_weight_rejects_invalid_values(value: str | None, message: str):
         parse_weight(value)
 
 
+def test_parse_measurement_date():
+    today = date(2026, 8, 3)
+
+    assert parse_measurement_date("2026-07-25", today) == date(2026, 7, 25)
+    assert parse_measurement_date("2026-08-03", today) == today
+
+
+@pytest.mark.parametrize("value", [None, "", "not-a-date"])
+def test_parse_measurement_date_rejects_invalid_values(value: str | None):
+    with pytest.raises(ValueError, match="valid measurement date"):
+        parse_measurement_date(value, date(2026, 8, 3))
+
+
+def test_parse_measurement_date_rejects_future_dates():
+    with pytest.raises(ValueError, match="cannot be in the future"):
+        parse_measurement_date("2026-08-04", date(2026, 8, 3))
+
+
 def test_store_and_overwrite_weight(tmp_path: Path):
     path = tmp_path / "weight.csv"
     store_weight(path, date(2026, 7, 25), Decimal("109.4"))
@@ -51,6 +76,19 @@ def test_store_and_overwrite_weight(tmp_path: Path):
             ["date", "weight_kg"],
             ["2026-07-25", "109.5"],
         ]
+
+
+def test_store_weight_inserts_historical_measurement_without_filling_gaps(tmp_path: Path):
+    path = write_csv(
+        tmp_path,
+        "date,weight_kg\n2026-07-25,109.8\n2026-07-29,109.4\n",
+    )
+
+    store_weight(path, date(2026, 7, 27), Decimal("109.6"))
+
+    assert path.read_text(encoding="utf-8") == (
+        "date,weight_kg\n2026-07-25,109.8\n2026-07-27,109.6\n2026-07-29,109.4\n"
+    )
 
 
 def test_validate_csv(tmp_path: Path):

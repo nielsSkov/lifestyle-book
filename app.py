@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from importlib.metadata import version
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -11,7 +11,7 @@ from interactive_plot import (
     build_interactive_figure,
     plotly_javascript,
 )
-from weight_data import parse_weight, read_series, store_weight
+from weight_data import parse_measurement_date, parse_weight, read_series, store_weight
 
 BASE_DIR = Path(__file__).parent
 WEIGHT_CSV = BASE_DIR / "weight.csv"
@@ -22,10 +22,19 @@ PLOTLY_VERSION = version("plotly")
 app = Flask(__name__)
 
 
+def current_date() -> date:
+    return datetime.now(COPENHAGEN).date()
+
+
 @app.get("/")
 def index():
     dates, weights = read_series(WEIGHT_CSV)
     plan_dates, plan = read_series(PLAN_CSV)
+    today = current_date()
+    try:
+        selected_date = parse_measurement_date(request.args.get("date", today.isoformat()), today)
+    except ValueError:
+        selected_date = today
     latest = None
     if dates:
         latest = {"date": dates[-1], "weight": weights[-1]}
@@ -35,6 +44,11 @@ def index():
     return render_template(
         "index.html",
         latest=latest,
+        today=today,
+        selected_date=selected_date,
+        weight_entries={
+            day.isoformat(): weight for day, weight in zip(dates, weights, strict=True)
+        },
         saved=request.args.get("saved"),
         error=request.args.get("error"),
         graph_json=figure.to_json(),
@@ -46,12 +60,16 @@ def index():
 
 @app.post("/weights")
 def save_weight():
+    raw_date = request.form.get("date")
     try:
+        today = current_date()
+        measurement_date = parse_measurement_date(raw_date, today)
         weight = parse_weight(request.form.get("weight"))
-        store_weight(WEIGHT_CSV, datetime.now(COPENHAGEN).date(), weight)
+        store_weight(WEIGHT_CSV, measurement_date, weight)
     except ValueError as error:
-        return redirect(url_for("index", error=str(error)))
-    return redirect(url_for("index", saved=format(weight, "f")))
+        return redirect(url_for("index", date=raw_date, error=str(error)))
+    next_date = min(measurement_date + timedelta(days=1), today)
+    return redirect(url_for("index", date=next_date.isoformat(), saved=format(weight, "f")))
 
 
 @app.get("/plotly.min.js")
