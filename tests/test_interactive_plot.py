@@ -53,7 +53,7 @@ def test_build_interactive_figure_supports_empty_data():
     assert "annotations" not in serialized["layout"]
 
 
-def test_build_insights_figure_shows_difference_and_28_day_rates():
+def test_build_insights_figure_compares_difference_and_rate_windows():
     start = date(2026, 1, 1)
     dates = [start + timedelta(days=offset) for offset in range(35)]
     weights = [100 - offset / 7 for offset in range(35)]
@@ -62,20 +62,28 @@ def test_build_insights_figure_shows_difference_and_28_day_rates():
     serialized_json = build_insights_figure(dates, weights, dates, plan).to_json()
     assert isinstance(serialized_json, str)
     serialized = json.loads(serialized_json)
-    difference_trace, recorded_rate_trace, planned_rate_trace = serialized["data"]
+    above_plan_trace, below_plan_trace, *rate_traces = serialized["data"]
 
-    assert difference_trace["name"] == "Difference"
-    assert difference_trace["y"][0] == 0
-    assert difference_trace["y"][-1] == pytest.approx(34 / 7)
-    assert difference_trace["marker"]["color"][-1] == "#ef6f6c"
-    assert recorded_rate_trace["name"] == "Recorded rate"
-    assert recorded_rate_trace["y"][:27] == [None] * 27
-    assert recorded_rate_trace["y"][-1] == pytest.approx(-1)
-    assert planned_rate_trace["name"] == "Planned rate"
-    assert planned_rate_trace["y"][-1] == pytest.approx(-2)
+    assert above_plan_trace["name"] == "Above plan"
+    assert above_plan_trace["y"][0] is None
+    assert above_plan_trace["y"][-1] == pytest.approx(34 / 7)
+    assert above_plan_trace["marker"]["color"] == "#ef6f6c"
+    assert below_plan_trace["name"] == "Below plan"
+    assert below_plan_trace["y"][0] == 0
+    assert below_plan_trace["marker"]["color"] == "#34a875"
+    for index, window_days in enumerate((7, 14, 28)):
+        recorded_rate_trace = rate_traces[index * 2]
+        planned_rate_trace = rate_traces[index * 2 + 1]
+        assert recorded_rate_trace["name"] == "Recorded rate"
+        assert recorded_rate_trace["y"][: window_days - 1] == [None] * (window_days - 1)
+        assert recorded_rate_trace["y"][-1] == pytest.approx(-1)
+        assert planned_rate_trace["name"] == "Planned rate"
+        assert planned_rate_trace["y"][-1] == pytest.approx(-2)
     assert serialized["layout"]["yaxis"]["title"]["text"] == "kg"
-    assert serialized["layout"]["xaxis2"]["matches"] == "x"
-    assert serialized["layout"]["yaxis2"]["title"]["text"] == "kg/week"
+    assert serialized["layout"]["legend"]["entrywidth"] == 100
+    for axis_number in range(2, 5):
+        assert serialized["layout"][f"xaxis{axis_number}"]["matches"] == "x"
+        assert serialized["layout"][f"yaxis{axis_number}"]["title"]["text"] == "kg/week"
 
 
 def test_build_insights_figure_preserves_plan_rate_gaps():
@@ -88,7 +96,7 @@ def test_build_insights_figure_preserves_plan_rate_gaps():
     serialized_json = build_insights_figure(dates, weights, dates, plan).to_json()
     assert isinstance(serialized_json, str)
     serialized = json.loads(serialized_json)
-    planned_rate_trace = serialized["data"][2]
+    planned_rate_trace = serialized["data"][-1]
 
     assert planned_rate_trace["connectgaps"] is False
     assert planned_rate_trace["y"][30:58] == [None] * 28

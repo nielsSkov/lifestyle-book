@@ -51,7 +51,7 @@
       let syncingXAxes = false;
 
       function readXRange(update) {
-        for (const axis of ["xaxis", "xaxis2"]) {
+        for (const axis of ["xaxis", "xaxis2", "xaxis3", "xaxis4"]) {
           const range = update[`${axis}.range`];
           if (Array.isArray(range)) return range;
 
@@ -63,7 +63,9 @@
       }
 
       function resetsXRange(update) {
-        return ["xaxis", "xaxis2"].some((axis) => update[`${axis}.autorange`] === true);
+        return ["xaxis", "xaxis2", "xaxis3", "xaxis4"].some(
+          (axis) => update[`${axis}.autorange`] === true,
+        );
       }
 
       for (const source of [weightPlot, insightsPlot]) {
