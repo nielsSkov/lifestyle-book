@@ -33,14 +33,6 @@
     </section>
 
     <section class="graph-card">
-      <div class="plot-toolbar" role="toolbar" aria-label="Chart controls">
-        <button id="plot-zoom" type="button" class="active" aria-pressed="true">Zoom</button>
-        <button id="plot-pan" type="button" aria-pressed="false">Pan</button>
-        <button id="plot-y-in" type="button">Y in</button>
-        <button id="plot-y-out" type="button">Y out</button>
-        <button id="plot-fit-y" type="button">Fit Y</button>
-        <button id="plot-reset" type="button">Reset</button>
-      </div>
       <div id="weight-plot" role="region" aria-label="Interactive recorded and planned weight chart"></div>
     </section>
   </main>
@@ -48,37 +40,7 @@
   <script>
     const weightFigure = {{ graph_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};
-    const plot = document.getElementById("weight-plot");
-    const zoomButton = document.getElementById("plot-zoom");
-    const panButton = document.getElementById("plot-pan");
-
-    function setDragMode(mode) {
-      Plotly.relayout(plot, {dragmode: mode});
-      zoomButton.classList.toggle("active", mode === "zoom");
-      zoomButton.setAttribute("aria-pressed", mode === "zoom");
-      panButton.classList.toggle("active", mode === "pan");
-      panButton.setAttribute("aria-pressed", mode === "pan");
-    }
-
-    function scaleYAxis(factor) {
-      const [start, end] = plot._fullLayout.yaxis.range;
-      const center = (start + end) / 2;
-      const halfRange = (end - start) * factor / 2;
-      Plotly.relayout(plot, {"yaxis.range": [center - halfRange, center + halfRange]});
-    }
-
-    Plotly.newPlot(plot, weightFigure.data, weightFigure.layout, plotlyConfig).then(() => {
-      zoomButton.addEventListener("click", () => setDragMode("zoom"));
-      panButton.addEventListener("click", () => setDragMode("pan"));
-      document.getElementById("plot-y-in").addEventListener("click", () => scaleYAxis(0.8));
-      document.getElementById("plot-y-out").addEventListener("click", () => scaleYAxis(1.25));
-      document.getElementById("plot-fit-y").addEventListener("click", () => {
-        Plotly.relayout(plot, {"yaxis.autorange": true});
-      });
-      document.getElementById("plot-reset").addEventListener("click", () => {
-        Plotly.relayout(plot, {"xaxis.autorange": true, "yaxis.autorange": true});
-      });
-    });
+    Plotly.newPlot("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig);
   </script>
 </body>
 </html>

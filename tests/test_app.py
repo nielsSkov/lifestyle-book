@@ -29,11 +29,7 @@ def test_index_renders_interactive_plotly_chart(client):
     assert response.status_code == 200
     assert b'id="weight-plot"' in response.data
     assert b"Plotly.newPlot" in response.data
-    assert b'id="plot-zoom"' in response.data
-    assert b'id="plot-pan"' in response.data
-    assert b'id="plot-y-in"' in response.data
-    assert b'id="plot-y-out"' in response.data
-    assert b'"yaxis.range"' in response.data
+    assert b'"modeBarButtons": [["zoom2d", "pan2d", "resetScale2d"]]' in response.data
     assert b'"name":"Recorded weight"' in response.data
     assert b'"y":[100.0,null,95.0]' in response.data
     assert b"range-picker" not in response.data

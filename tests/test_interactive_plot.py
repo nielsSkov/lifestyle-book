@@ -49,7 +49,8 @@ def test_plotly_runtime_is_local_and_interactive():
     assert len(javascript) > 1_000_000
     assert PLOTLY_CONFIG == {
         "displaylogo": False,
-        "displayModeBar": False,
+        "displayModeBar": True,
+        "modeBarButtons": [["zoom2d", "pan2d", "resetScale2d"]],
         "responsive": True,
         "scrollZoom": True,
         "showTips": False,
