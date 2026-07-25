@@ -30,6 +30,9 @@ date,weight_kg
 
 Real CSV files are ignored by Git. Fictional examples are available under `examples/`.
 
+Selecting an existing measurement date pre-fills its weight. Clear that value and save to
+remove the date's CSV row entirely; missing dates are not generated or interpolated.
+
 ## Local development
 
 ```sh

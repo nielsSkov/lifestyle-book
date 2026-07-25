@@ -20,6 +20,7 @@
       </div>
 
       {% if saved %}<p class="message success">Saved {{ saved }} kg.</p>{% endif %}
+      {% if deleted %}<p class="message success">Deleted entry for {{ deleted }}.</p>{% endif %}
       {% if error %}<p class="message error">{{ error }}</p>{% endif %}
 
       <form action="{{ url_for('save_weight') }}" method="post">
@@ -31,7 +32,7 @@
         </div>
         <label for="weight">Weight</label>
         <div class="input-row">
-          <input id="weight" name="weight" type="number" inputmode="decimal" step="0.1" min="30" max="300" required>
+          <input id="weight" name="weight" type="number" inputmode="decimal" step="0.1" min="30" max="300">
           <span>kg</span>
         </div>
         <button type="submit">Save weight</button>

@@ -11,7 +11,13 @@ from interactive_plot import (
     build_interactive_figure,
     plotly_javascript,
 )
-from weight_data import parse_measurement_date, parse_weight, read_series, store_weight
+from weight_data import (
+    delete_weight,
+    parse_measurement_date,
+    parse_weight,
+    read_series,
+    store_weight,
+)
 
 BASE_DIR = Path(__file__).parent
 WEIGHT_CSV = BASE_DIR / "weight.csv"
@@ -50,6 +56,7 @@ def index():
             day.isoformat(): weight for day, weight in zip(dates, weights, strict=True)
         },
         saved=request.args.get("saved"),
+        deleted=request.args.get("deleted"),
         error=request.args.get("error"),
         graph_json=figure.to_json(),
         insights_json=insights_figure.to_json(),
@@ -61,10 +68,22 @@ def index():
 @app.post("/weights")
 def save_weight():
     raw_date = request.form.get("date")
+    raw_weight = request.form.get("weight")
     try:
         today = current_date()
         measurement_date = parse_measurement_date(raw_date, today)
-        weight = parse_weight(request.form.get("weight"))
+        if raw_weight is None or not raw_weight.strip():
+            if not delete_weight(WEIGHT_CSV, measurement_date):
+                raise ValueError("No measurement exists for this date.")
+            next_date = min(measurement_date + timedelta(days=1), today)
+            return redirect(
+                url_for(
+                    "index",
+                    date=next_date.isoformat(),
+                    deleted=measurement_date.strftime("%d %b %Y"),
+                )
+            )
+        weight = parse_weight(raw_weight)
         store_weight(WEIGHT_CSV, measurement_date, weight)
     except ValueError as error:
         return redirect(url_for("index", date=raw_date, error=str(error)))

@@ -108,11 +108,7 @@ def store_series(
 
 
 def store_weight(path: Path, measurement_date: date, weight: Decimal) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    rows = []
-    if path.exists():
-        with path.open(newline="", encoding="utf-8") as csv_file:
-            rows = [(row["date"], row["weight_kg"]) for row in csv.DictReader(csv_file)]
+    rows = _read_weight_rows(path)
 
     day = measurement_date.isoformat()
     replacement = (day, format(weight, "f"))
@@ -123,7 +119,28 @@ def store_weight(path: Path, measurement_date: date, weight: Decimal) -> None:
     else:
         rows.append(replacement)
     rows.sort(key=lambda row: row[0])
+    _replace_weight_rows(path, rows)
 
+
+def delete_weight(path: Path, measurement_date: date) -> bool:
+    rows = _read_weight_rows(path)
+    day = measurement_date.isoformat()
+    remaining_rows = [row for row in rows if row[0] != day]
+    if len(remaining_rows) == len(rows):
+        return False
+    _replace_weight_rows(path, remaining_rows)
+    return True
+
+
+def _read_weight_rows(path: Path) -> list[tuple[str, str]]:
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8") as csv_file:
+        return [(row["date"], row["weight_kg"]) for row in csv.DictReader(csv_file)]
+
+
+def _replace_weight_rows(path: Path, rows: list[tuple[str, str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
     try:
         with temporary.open("w", newline="", encoding="utf-8") as csv_file:
@@ -132,6 +149,7 @@ def store_weight(path: Path, measurement_date: date, weight: Decimal) -> None:
             writer.writerows(rows)
             csv_file.flush()
             os.fsync(csv_file.fileno())
+        os.chmod(temporary, 0o600)
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)

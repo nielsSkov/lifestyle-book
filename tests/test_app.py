@@ -81,6 +81,35 @@ def test_save_weight_rejects_future_date(client):
     assert b"2026-08-04,99.0" not in app_module.WEIGHT_CSV.read_bytes()
 
 
+def test_blank_weight_deletes_existing_date_and_advances(client):
+    response = client.post(
+        "/weights",
+        data={"date": "2026-08-01", "weight": ""},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Deleted entry for 01 Aug 2026." in response.data
+    assert b'value="2026-08-02"' in response.data
+    assert app_module.WEIGHT_CSV.read_text(encoding="utf-8") == (
+        "date,weight_kg\n2026-08-02,99.5\n"
+    )
+
+
+def test_blank_weight_rejects_date_without_measurement(client):
+    response = client.post(
+        "/weights",
+        data={"date": "2026-07-31", "weight": ""},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"No measurement exists for this date." in response.data
+    assert app_module.WEIGHT_CSV.read_text(encoding="utf-8") == (
+        "date,weight_kg\n2026-08-01,100.0\n2026-08-02,99.5\n"
+    )
+
+
 def test_plotly_runtime_is_served_locally_and_cached(client):
     response = client.get("/plotly.min.js")
 

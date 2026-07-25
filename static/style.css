@@ -97,12 +97,16 @@ label {
 
 .date-row {
   display: grid;
-  grid-template-columns: 54px minmax(0, 1fr) 54px;
-  gap: 8px;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
 .date-row input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   padding: 11px 12px;
   border: 2px solid #4b405d;
   border-radius: 12px;
@@ -148,7 +152,7 @@ input {
 }
 
 .entry-card .date-step {
-  width: 54px;
+  width: 48px;
   min-height: 48px;
   border: 1px solid #4b405d;
   color: #d8cfee;

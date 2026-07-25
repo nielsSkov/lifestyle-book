@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from weight_data import (
+    delete_weight,
     parse_measurement_date,
     parse_weight,
     read_series,
@@ -89,6 +90,26 @@ def test_store_weight_inserts_historical_measurement_without_filling_gaps(tmp_pa
     assert path.read_text(encoding="utf-8") == (
         "date,weight_kg\n2026-07-25,109.8\n2026-07-27,109.6\n2026-07-29,109.4\n"
     )
+
+
+def test_delete_weight_removes_only_selected_measurement(tmp_path: Path):
+    path = write_csv(
+        tmp_path,
+        "date,weight_kg\n2026-07-25,109.8\n2026-07-27,109.6\n2026-07-29,109.4\n",
+    )
+
+    assert delete_weight(path, date(2026, 7, 27)) is True
+    assert delete_weight(path, date(2026, 7, 26)) is False
+    assert path.read_text(encoding="utf-8") == (
+        "date,weight_kg\n2026-07-25,109.8\n2026-07-29,109.4\n"
+    )
+
+
+def test_delete_weight_can_remove_last_measurement(tmp_path: Path):
+    path = write_csv(tmp_path, "date,weight_kg\n2026-07-25,109.8\n")
+
+    assert delete_weight(path, date(2026, 7, 25)) is True
+    assert path.read_text(encoding="utf-8") == "date,weight_kg\n"
 
 
 def test_validate_csv(tmp_path: Path):
