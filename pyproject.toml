@@ -6,6 +6,7 @@ dependencies = [
     "flask",
     "gunicorn",
     "matplotlib",
+    "plotly",
 ]
 
 [dependency-groups]
