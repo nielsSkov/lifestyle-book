@@ -144,8 +144,33 @@ button {
 }
 
 .graph-card {
-  padding: 52px 12px 12px;
+  padding: 12px;
   overflow: hidden;
+}
+
+.plot-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.plot-toolbar button {
+  width: auto;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #4b405d;
+  border-radius: 9px;
+  color: #c9c0d5;
+  background: #2c2340;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.plot-toolbar button.active {
+  color: white;
+  background: #6930d1;
 }
 
 #weight-plot {
@@ -154,15 +179,17 @@ button {
   min-height: 480px;
 }
 
-#weight-plot .modebar-container {
-  top: -42px !important;
-  right: auto !important;
-  left: 50% !important;
-  transform: translateX(-50%);
-}
-
 @media (hover: hover) and (pointer: fine) {
   button:hover {
+    background: #7842df;
+  }
+
+  .plot-toolbar button:hover {
+    color: white;
+    background: #513a70;
+  }
+
+  .plot-toolbar button.active:hover {
     background: #7842df;
   }
 }
@@ -180,8 +207,17 @@ button {
 
   .graph-card {
     margin-inline: -10px;
-    padding: 48px 4px 4px;
+    padding: 8px 4px 4px;
     border-radius: 0;
+  }
+
+  .plot-toolbar {
+    padding-inline: 4px;
+  }
+
+  .plot-toolbar button {
+    flex: 1 1 72px;
+    padding-inline: 8px;
   }
 
   #weight-plot {

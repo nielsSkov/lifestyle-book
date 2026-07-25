@@ -7,15 +7,7 @@ from plotly.offline import get_plotlyjs
 
 PLOTLY_CONFIG: dict[str, object] = {
     "displaylogo": False,
-    "displayModeBar": True,
-    "modeBarButtonsToRemove": [
-        "toImage",
-        "select2d",
-        "lasso2d",
-        "hoverClosestCartesian",
-        "hoverCompareCartesian",
-        "toggleSpikelines",
-    ],
+    "displayModeBar": False,
     "responsive": True,
     "scrollZoom": True,
     "showTips": False,
@@ -98,11 +90,6 @@ def build_interactive_figure(
             "bordercolor": "#524762",
             "font": {"color": "#f4f0fa"},
         },
-        modebar={
-            "bgcolor": "rgba(0, 0, 0, 0)",
-            "color": "#a99db9",
-            "activecolor": "#f4f0fa",
-        },
         uirevision="weight-tracker",
         margin={"l": 64, "r": 24, "t": 70, "b": 48},
         legend={
@@ -116,7 +103,6 @@ def build_interactive_figure(
             "title": "Date",
             "gridcolor": "#383047",
             "linecolor": "#524762",
-            "modebardisable": "zoominout",
             "rangeslider": {
                 "visible": True,
                 "bgcolor": "#0f0c16",
