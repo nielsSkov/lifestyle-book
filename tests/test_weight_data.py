@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from app import parse_weight, period_bounds, read_series, shift_year, store_weight, within_period
+from weight_data import parse_weight, read_series, store_weight, validate_csv
+
+
+def write_csv(tmp_path: Path, content: str) -> Path:
+    path = tmp_path / "data.csv"
+    path.write_text(content, encoding="utf-8")
+    return path
 
 
 def test_parse_weight():
@@ -23,7 +29,7 @@ def test_parse_weight():
         ("301", "Weight must be between 30 and 300 kg"),
     ],
 )
-def test_parse_weight_rejects_invalid_values(value, message):
+def test_parse_weight_rejects_invalid_values(value: str | None, message: str):
     with pytest.raises(ValueError, match=message):
         parse_weight(value)
 
@@ -45,22 +51,24 @@ def test_store_and_overwrite_weight(tmp_path: Path):
         ]
 
 
-def test_rolling_period():
-    assert shift_year(date(2024, 2, 29), -1) == date(2023, 2, 28)
-    today = date(2026, 7, 25)
-    assert period_bounds("7d", 0, today=today) == (date(2026, 7, 19), today)
-    assert period_bounds("4w", 0, today=today) == (date(2026, 6, 28), today)
-    assert period_bounds("1y", 0, today=today) == (date(2025, 7, 25), today)
-    assert period_bounds("all", 0, [date(2024, 5, 7), date(2026, 12, 31)], today) == (
-        date(2024, 5, 7),
-        date(2026, 12, 31),
+def test_validate_csv(tmp_path: Path):
+    path = write_csv(
+        tmp_path,
+        "date,weight_kg\n2026-07-25,109.8\n2026-07-26,109.7\n",
     )
+    assert validate_csv(path) == 2
 
-    dates, weights = within_period(
-        [date(2024, 1, 1), date(2025, 1, 1), date(2026, 1, 1)],
-        [100.0, 101.0, 102.0],
-        date(2025, 1, 1),
-        date(2026, 1, 1),
+
+def test_validate_csv_rejects_duplicate_or_unsorted_dates(tmp_path: Path):
+    path = write_csv(
+        tmp_path,
+        "date,weight_kg\n2026-07-25,109.8\n2026-07-25,109.7\n",
     )
-    assert dates == [date(2025, 1, 1), date(2026, 1, 1)]
-    assert weights == [101.0, 102.0]
+    with pytest.raises(ValueError, match="unique and increasing"):
+        validate_csv(path)
+
+
+def test_validate_csv_rejects_bad_header(tmp_path: Path):
+    path = write_csv(tmp_path, "day,weight\n2026-07-25,109.8\n")
+    with pytest.raises(ValueError, match="Expected header"):
+        validate_csv(path)

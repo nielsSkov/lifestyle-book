@@ -1,47 +1,15 @@
 #!/usr/bin/env python3
 import argparse
-import csv
 import hashlib
 import json
 import shlex
 import subprocess
-from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from datetime import datetime
 from pathlib import Path
 
+from weight_data import validate_csv
+
 PROJECT_DIR = Path(__file__).parent
-
-
-def validate_plan(path):
-    previous_date = None
-    row_count = 0
-
-    with path.open(newline="", encoding="utf-8-sig") as csv_file:
-        reader = csv.reader(csv_file)
-        if next(reader, None) != ["date", "weight_kg"]:
-            raise ValueError("Expected header: date,weight_kg")
-
-        for line_number, row in enumerate(reader, 2):
-            if len(row) != 2:
-                raise ValueError(f"Line {line_number}: expected two columns")
-            try:
-                day = date.fromisoformat(row[0])
-            except ValueError:
-                raise ValueError(f"Line {line_number}: invalid date {row[0]!r}") from None
-            try:
-                weight = Decimal(row[1])
-            except InvalidOperation:
-                raise ValueError(f"Line {line_number}: invalid weight {row[1]!r}") from None
-            if not weight.is_finite() or not Decimal("30") <= weight <= Decimal("300"):
-                raise ValueError(f"Line {line_number}: weight must be between 30 and 300 kg")
-            if previous_date is not None and day <= previous_date:
-                raise ValueError(f"Line {line_number}: dates must be unique and increasing")
-            previous_date = day
-            row_count += 1
-
-    if row_count == 0:
-        raise ValueError("Plan contains no data rows")
-    return row_count
 
 
 def load_config(path):
@@ -65,7 +33,7 @@ def file_checksum(path):
 
 
 def deploy(plan_path, config_path):
-    row_count = validate_plan(plan_path)
+    row_count = validate_csv(plan_path)
     target, directory = load_config(config_path)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     remote_plan = f"{directory}/plan.csv"

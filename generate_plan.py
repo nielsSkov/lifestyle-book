@@ -3,7 +3,7 @@ import csv
 import os
 from pathlib import Path
 
-from deploy_plan import validate_plan
+from weight_data import validate_csv
 
 PLAN_FILE = Path(__file__).parent / "plan.csv"
 
@@ -26,7 +26,7 @@ def main():
             writer = csv.writer(csv_file, lineterminator="\n")
             writer.writerow(("date", "weight_kg"))
             writer.writerows(rows)
-        validate_plan(temporary)
+        validate_csv(temporary)
         os.replace(temporary, PLAN_FILE)
     finally:
         temporary.unlink(missing_ok=True)
