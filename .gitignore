@@ -6,7 +6,7 @@ __pycache__/
 # Personal measurements, plans, and deployment details
 /weight.csv
 /plan.csv
-/deploy.local.json
+/server.local.json
 /backups/
 
 # Generated plots and local tooling

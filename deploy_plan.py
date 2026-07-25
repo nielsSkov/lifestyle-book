@@ -1,40 +1,19 @@
 #!/usr/bin/env python3
 import argparse
-import hashlib
-import json
 import shlex
 import subprocess
 from datetime import datetime
 from pathlib import Path
 
+from server_sync import file_checksum, load_server_config, remote_checksum
 from weight_data import validate_csv
 
 PROJECT_DIR = Path(__file__).parent
 
 
-def load_config(path):
-    try:
-        config = json.loads(path.read_text(encoding="utf-8"))
-        target = config["target"]
-        directory = config["directory"]
-    except (OSError, json.JSONDecodeError, KeyError) as error:
-        raise ValueError(f"Could not read deployment config {path}: {error}") from None
-    if not isinstance(target, str) or not isinstance(directory, str) or not target or not directory:
-        raise ValueError("Deployment config requires non-empty target and directory strings")
-    return target, directory.rstrip("/")
-
-
-def file_checksum(path):
-    digest = hashlib.sha256()
-    with path.open("rb") as file:
-        for chunk in iter(lambda: file.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def deploy(plan_path, config_path):
     row_count = validate_csv(plan_path)
-    target, directory = load_config(config_path)
+    target, directory = load_server_config(config_path)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     remote_plan = f"{directory}/plan.csv"
     remote_upload = f"{directory}/.plan.csv.upload"
@@ -58,15 +37,9 @@ def deploy(plan_path, config_path):
     )
     subprocess.run(["ssh", target, remote_command], check=True)
 
-    result = subprocess.run(
-        ["ssh", target, f"sha256sum {shlex.quote(remote_plan)}"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
     local_checksum = file_checksum(plan_path)
-    remote_checksum = result.stdout.split()[0]
-    if local_checksum != remote_checksum:
+    deployed_checksum = remote_checksum(target, remote_plan)
+    if local_checksum != deployed_checksum:
         raise RuntimeError("Deployment finished, but checksums do not match")
 
     print(f"Deployed {row_count} plan rows to {target}:{remote_plan}")
@@ -80,8 +53,8 @@ def main():
     parser.add_argument(
         "--config",
         type=Path,
-        default=PROJECT_DIR / "deploy.local.json",
-        help="private deployment configuration (default: deploy.local.json)",
+        default=PROJECT_DIR / "server.local.json",
+        help="private server configuration (default: server.local.json)",
     )
     args = parser.parse_args()
 

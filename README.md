@@ -95,18 +95,10 @@ Never use `git clean` in the deployment checkout: `weight.csv` and `plan.csv` ar
 
 ## Plan workflow
 
-`generate_plan.py` is a safe skeleton. Implement `build_plan()` so it returns chronological `(date, weight_kg)` rows, then run:
+Create the ignored local server configuration:
 
 ```sh
-./generate_plan.py
-```
-
-An empty generator exits without changing the existing plan. Generated rows are validated before replacing local `plan.csv`.
-
-To deploy a plan without logging into the server, create the ignored local configuration:
-
-```sh
-cp deploy.local.example.json deploy.local.json
+cp server.local.example.json server.local.json
 ```
 
 Set the SSH target and deployment directory:
@@ -117,6 +109,22 @@ Set the SSH target and deployment directory:
   "directory": "/home/user/weight-tracker"
 }
 ```
+
+Retrieve the latest measurements before planning:
+
+```sh
+uv run fetch_weight.py
+```
+
+The fetch command downloads to a temporary file, validates the CSV, compares its checksum with the server, and only then atomically replaces local `weight.csv`.
+
+`generate_plan.py` is a safe skeleton. Implement `build_plan()` so it returns chronological `(date, weight_kg)` rows, then run:
+
+```sh
+./generate_plan.py
+```
+
+An empty generator exits without changing the existing plan. Generated rows are validated before replacing local `plan.csv`.
 
 Then deploy:
 
