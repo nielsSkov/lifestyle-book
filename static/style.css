@@ -113,7 +113,7 @@ input {
   font-weight: 700;
 }
 
-button {
+.entry-card button {
   width: 100%;
   min-height: 54px;
   border: 0;
@@ -155,7 +155,7 @@ button {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  button:hover {
+  .entry-card button:hover {
     background: #7842df;
   }
 }

@@ -115,6 +115,7 @@ def build_interactive_figure(
             "title": "Weight (kg)",
             "gridcolor": "#383047",
             "linecolor": "#524762",
+            "fixedrange": False,
             "zeroline": False,
         },
     )
