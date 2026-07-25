@@ -144,7 +144,7 @@ button {
 }
 
 .graph-card {
-  padding: 12px;
+  padding: 52px 12px 12px;
   overflow: hidden;
 }
 
@@ -152,6 +152,13 @@ button {
   width: 100%;
   height: min(70vh, 680px);
   min-height: 480px;
+}
+
+#weight-plot .modebar-container {
+  top: -42px !important;
+  right: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -173,7 +180,7 @@ button {
 
   .graph-card {
     margin-inline: -10px;
-    padding: 4px;
+    padding: 48px 4px 4px;
     border-radius: 0;
   }
 

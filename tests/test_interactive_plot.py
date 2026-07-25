@@ -29,6 +29,7 @@ def test_build_interactive_figure_preserves_style_and_gaps():
     assert serialized["layout"]["plot_bgcolor"] == "#15111f"
     assert serialized["layout"]["modebar"]["color"] == "#a99db9"
     assert serialized["layout"]["hoverlabel"]["bgcolor"] == "#2c2340"
+    assert serialized["layout"]["xaxis"]["modebardisable"] == "zoominout"
     assert serialized["layout"]["xaxis"]["rangeslider"]["visible"] is True
     assert serialized["layout"]["annotations"][0]["text"] == "99.5 kg"
 
@@ -51,7 +52,15 @@ def test_plotly_runtime_is_local_and_interactive():
     assert PLOTLY_CONFIG == {
         "displaylogo": False,
         "displayModeBar": True,
-        "modeBarButtonsToRemove": ["toImage", "zoom2d", "zoomIn2d"],
+        "modeBarButtonsToRemove": [
+            "toImage",
+            "select2d",
+            "lasso2d",
+            "hoverClosestCartesian",
+            "hoverCompareCartesian",
+            "toggleSpikelines",
+        ],
         "responsive": True,
         "scrollZoom": True,
+        "showTips": False,
     }

@@ -8,9 +8,17 @@ from plotly.offline import get_plotlyjs
 PLOTLY_CONFIG: dict[str, object] = {
     "displaylogo": False,
     "displayModeBar": True,
-    "modeBarButtonsToRemove": ["toImage", "zoom2d", "zoomIn2d"],
+    "modeBarButtonsToRemove": [
+        "toImage",
+        "select2d",
+        "lasso2d",
+        "hoverClosestCartesian",
+        "hoverCompareCartesian",
+        "toggleSpikelines",
+    ],
     "responsive": True,
     "scrollZoom": True,
+    "showTips": False,
 }
 
 
@@ -108,6 +116,7 @@ def build_interactive_figure(
             "title": "Date",
             "gridcolor": "#383047",
             "linecolor": "#524762",
+            "modebardisable": "zoominout",
             "rangeslider": {
                 "visible": True,
                 "bgcolor": "#0f0c16",
