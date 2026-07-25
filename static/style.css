@@ -160,8 +160,8 @@ input {
 }
 
 #insights-plot {
-  height: min(150vh, 1320px);
-  min-height: 1100px;
+  height: min(90vh, 820px);
+  min-height: 680px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -193,7 +193,7 @@ input {
   }
 
   #insights-plot {
-    height: min(180vh, 1260px);
-    min-height: 1100px;
+    height: min(100vh, 760px);
+    min-height: 680px;
   }
 }

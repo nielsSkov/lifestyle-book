@@ -37,9 +37,9 @@ def test_index_renders_interactive_plotly_chart(client):
     assert b'"name":"Recorded weight"' in response.data
     assert b'"name":"Above plan"' in response.data
     assert b'"name":"Below plan"' in response.data
-    assert b"7-Day Rate of Change" in response.data
-    assert b"14-Day Rate of Change" in response.data
     assert b"28-Day Rate of Change" in response.data
+    assert b"7-Day Rate of Change" not in response.data
+    assert b"14-Day Rate of Change" not in response.data
     assert b'"y":[100.0,null,95.0]' in response.data
     assert b"range-picker" not in response.data
     assert b"graph-toolbar" not in response.data

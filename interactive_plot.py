@@ -140,15 +140,10 @@ def build_insights_figure(
     ]
 
     figure = make_subplots(
-        rows=4,
+        rows=2,
         cols=1,
-        subplot_titles=(
-            "Difference from Plan",
-            "7-Day Rate of Change",
-            "14-Day Rate of Change",
-            "28-Day Rate of Change",
-        ),
-        vertical_spacing=0.09,
+        subplot_titles=("Difference from Plan", "28-Day Rate of Change"),
+        vertical_spacing=0.16,
     )
 
     if differences:
@@ -158,12 +153,12 @@ def build_insights_figure(
         for name, color, values in (
             (
                 "Above plan",
-                "#ef6f6c",
+                "#b4533c",
                 [difference if difference > 0 else math.nan for difference in difference_values],
             ),
             (
                 "Below plan",
-                "#34a875",
+                "#087044",
                 [difference if difference <= 0 else math.nan for difference in difference_values],
             ),
         ):
@@ -184,47 +179,38 @@ def build_insights_figure(
                 col=1,
             )
 
-    for row, window_days in enumerate((7, 14, 28), start=2):
-        recorded_rates = _rolling_weekly_rates(weight_dates, weights, window_days)
-        planned_rates = _rolling_weekly_rates(plan_dates, plan, window_days)
-        if weight_points:
-            figure.add_trace(
-                go.Scatter(
-                    x=list(weight_dates),
-                    y=recorded_rates,
-                    mode="lines",
-                    name="Recorded rate",
-                    legendgroup="recorded-rate",
-                    showlegend=row == 2,
-                    connectgaps=False,
-                    line={"color": "#8b5cf6", "width": 2.2},
-                    hovertemplate=(
-                        f"%{{x|%d %b %Y}}<br>%{{y:+.2f}} kg/week"
-                        f"<extra>{window_days}-day recorded rate</extra>"
-                    ),
-                ),
-                row=row,
-                col=1,
-            )
-        if plan_points:
-            figure.add_trace(
-                go.Scatter(
-                    x=list(plan_dates),
-                    y=planned_rates,
-                    mode="lines",
-                    name="Planned rate",
-                    legendgroup="planned-rate",
-                    showlegend=row == 2,
-                    connectgaps=False,
-                    line={"color": "#087044", "width": 2.2},
-                    hovertemplate=(
-                        f"%{{x|%d %b %Y}}<br>%{{y:+.2f}} kg/week"
-                        f"<extra>{window_days}-day planned rate</extra>"
-                    ),
-                ),
-                row=row,
-                col=1,
-            )
+    recorded_rates = _rolling_weekly_rates(weight_dates, weights, 28)
+    planned_rates = _rolling_weekly_rates(plan_dates, plan, 28)
+    if weight_points:
+        figure.add_trace(
+            go.Scatter(
+                x=list(weight_dates),
+                y=recorded_rates,
+                mode="lines",
+                name="Recorded rate",
+                legend="legend2",
+                connectgaps=False,
+                line={"color": "#8b5cf6", "width": 2.2},
+                hovertemplate=("%{x|%d %b %Y}<br>%{y:+.2f} kg/week<extra>Recorded rate</extra>"),
+            ),
+            row=2,
+            col=1,
+        )
+    if plan_points:
+        figure.add_trace(
+            go.Scatter(
+                x=list(plan_dates),
+                y=planned_rates,
+                mode="lines",
+                name="Planned rate",
+                legend="legend2",
+                connectgaps=False,
+                line={"color": "#087044", "width": 2.2},
+                hovertemplate=("%{x|%d %b %Y}<br>%{y:+.2f} kg/week<extra>Planned rate</extra>"),
+            ),
+            row=2,
+            col=1,
+        )
 
     figure.update_layout(
         template="none",
@@ -251,6 +237,14 @@ def build_insights_figure(
             "xanchor": "left",
             "yanchor": "bottom",
         },
+        legend2={
+            "orientation": "h",
+            "entrywidth": 100,
+            "x": 0,
+            "y": 0.48,
+            "xanchor": "left",
+            "yanchor": "bottom",
+        },
         bargap=0,
         barmode="overlay",
     )
@@ -263,10 +257,8 @@ def build_insights_figure(
         zerolinecolor="#706580",
     )
     figure.update_yaxes(title="kg", row=1, col=1)
-    for row in range(2, 5):
-        figure.update_xaxes(matches="x", row=row, col=1)
-        figure.update_yaxes(title="kg/week", row=row, col=1)
-    figure.update_xaxes(title="Date", row=4, col=1)
+    figure.update_xaxes(title="Date", matches="x", row=2, col=1)
+    figure.update_yaxes(title="kg/week", row=2, col=1)
     return figure
 
 
