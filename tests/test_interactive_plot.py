@@ -51,6 +51,7 @@ def test_plotly_runtime_is_local_and_interactive():
     assert PLOTLY_CONFIG == {
         "displaylogo": False,
         "displayModeBar": True,
+        "modeBarButtonsToRemove": ["toImage", "zoom2d", "zoomIn2d"],
         "responsive": True,
         "scrollZoom": True,
     }

@@ -8,6 +8,7 @@ from plotly.offline import get_plotlyjs
 PLOTLY_CONFIG: dict[str, object] = {
     "displaylogo": False,
     "displayModeBar": True,
+    "modeBarButtonsToRemove": ["toImage", "zoom2d", "zoomIn2d"],
     "responsive": True,
     "scrollZoom": True,
 }
