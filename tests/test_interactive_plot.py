@@ -24,8 +24,11 @@ def test_build_interactive_figure_preserves_style_and_gaps():
     assert weight_trace["line"]["color"] == "#8b5cf6"
     assert latest_trace["showlegend"] is False
     assert serialized["data"][0]["y"] == [100.0, None, 95.0]
+    assert serialized["data"][0]["x"] == ["2026-08-01", "2026-08-02", "2026-08-03"]
     assert serialized["layout"]["paper_bgcolor"] == "#15111f"
     assert serialized["layout"]["plot_bgcolor"] == "#15111f"
+    assert serialized["layout"]["modebar"]["color"] == "#a99db9"
+    assert serialized["layout"]["hoverlabel"]["bgcolor"] == "#2c2340"
     assert serialized["layout"]["xaxis"]["rangeslider"]["visible"] is True
     assert serialized["layout"]["annotations"][0]["text"] == "99.5 kg"
 
@@ -47,6 +50,7 @@ def test_plotly_runtime_is_local_and_interactive():
     assert len(javascript) > 1_000_000
     assert PLOTLY_CONFIG == {
         "displaylogo": False,
+        "displayModeBar": True,
         "responsive": True,
         "scrollZoom": True,
     }

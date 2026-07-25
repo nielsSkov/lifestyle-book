@@ -7,6 +7,7 @@ from plotly.offline import get_plotlyjs
 
 PLOTLY_CONFIG: dict[str, object] = {
     "displaylogo": False,
+    "displayModeBar": True,
     "responsive": True,
     "scrollZoom": True,
 }
@@ -73,6 +74,8 @@ def build_interactive_figure(
         )
 
     figure.update_layout(
+        template="none",
+        autosize=True,
         title={"text": "Recorded Weight and Plan", "x": 0.5},
         paper_bgcolor="#15111f",
         plot_bgcolor="#15111f",
@@ -81,6 +84,16 @@ def build_interactive_figure(
             "family": 'Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif',
         },
         hovermode="x unified",
+        hoverlabel={
+            "bgcolor": "#2c2340",
+            "bordercolor": "#524762",
+            "font": {"color": "#f4f0fa"},
+        },
+        modebar={
+            "bgcolor": "rgba(0, 0, 0, 0)",
+            "color": "#a99db9",
+            "activecolor": "#f4f0fa",
+        },
         uirevision="weight-tracker",
         margin={"l": 64, "r": 24, "t": 70, "b": 48},
         legend={

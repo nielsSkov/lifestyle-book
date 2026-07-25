@@ -1,12 +1,12 @@
 # Weight tracker
 
-A small self-hosted Flask application for recording daily weight and comparing it with a planned trajectory. Data stays in two CSV files, and Matplotlib renders responsive desktop and mobile graphs.
+A small self-hosted Flask application for recording daily weight and comparing it with a planned trajectory. Data stays in two CSV files, Plotly renders an interactive web chart, and Matplotlib supports local planning.
 
 ## Features
 
 - Fast mobile weight entry
 - Same-day entries replace the previous value
-- 7-day, 4-week, 1-year, and complete-history views
+- Interactive zooming, panning, hover values, and range slider
 - Recorded and planned weight lines
 - No database, frontend build system, or external analytics
 
@@ -124,7 +124,7 @@ Create the paired notebook from the tracked Jupytext source:
 uv run jupytext --sync planning/plan.py
 ```
 
-Open `planning/plan.ipynb` and edit the control points to build a daily candidate; equal-weight points create plateaus. The notebook uses the same plotting code as the application and shows one continuous plan made from historical plan data followed by the new candidate.
+Open `planning/plan.ipynb` and edit the control points to build a daily candidate; equal-weight points create plateaus. The notebook shows one continuous plan made from historical plan data followed by the new candidate.
 
 Control-point values can also be functions of elapsed days. Each function runs from its control-point date until the next entry; numeric entries continue to use linear interpolation, and equal numeric entries create plateaus. `planning/planning_helpers.py` also provides the notebook's loading, merging, and plotting helpers.
 

@@ -33,30 +33,14 @@
     </section>
 
     <section class="graph-card">
-      <nav class="range-picker" aria-label="Graph range">
-        <a href="{{ url_for('index', window='7d') }}" class="{{ 'active' if window == '7d' else '' }}">7 days</a>
-        <a href="{{ url_for('index', window='4w') }}" class="{{ 'active' if window == '4w' else '' }}">4 weeks</a>
-        <a href="{{ url_for('index', window='1y') }}" class="{{ 'active' if window == '1y' else '' }}">1 year</a>
-        <a href="{{ url_for('index', window='all') }}" class="{{ 'active' if window == 'all' else '' }}">All</a>
-      </nav>
-      <nav class="graph-toolbar" aria-label="Graph period">
-        {% if can_go_back %}
-          <a href="{{ url_for('index', window=window, period=period + 1) }}" aria-label="Show previous period">&larr;</a>
-        {% else %}
-          <span class="disabled" aria-hidden="true">&larr;</span>
-        {% endif %}
-        <strong>{{ period_start.strftime("%d %b %Y") }} &ndash; {{ period_end.strftime("%d %b %Y") }}</strong>
-        {% if period > 0 and window != 'all' %}
-          <a href="{{ url_for('index', window=window, period=period - 1) }}" aria-label="Show next period">&rarr;</a>
-        {% else %}
-          <span class="disabled" aria-hidden="true">&rarr;</span>
-        {% endif %}
-      </nav>
-      <picture>
-        <source media="(max-width: 600px)" srcset="{{ url_for('plot', window=window, period=period, mobile=1, v=graph_version) }}">
-        <img src="{{ url_for('plot', window=window, period=period, v=graph_version) }}" alt="Recorded weight and planned weight for the selected period">
-      </picture>
+      <div id="weight-plot" role="region" aria-label="Interactive recorded and planned weight chart"></div>
     </section>
   </main>
+  <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
+  <script>
+    const weightFigure = {{ graph_json | safe }};
+    const plotlyConfig = {{ plotly_config | tojson }};
+    Plotly.newPlot("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig);
+  </script>
 </body>
 </html>

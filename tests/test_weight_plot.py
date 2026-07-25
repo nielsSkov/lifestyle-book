@@ -5,19 +5,7 @@ from typing import cast
 
 from matplotlib.figure import Figure
 
-from weight_plot import build_figure, period_bounds, shift_year, within_period
-
-
-def test_period_bounds():
-    assert shift_year(date(2024, 2, 29), -1) == date(2023, 2, 28)
-    today = date(2026, 7, 25)
-    assert period_bounds("7d", 0, None, today) == (date(2026, 7, 19), today)
-    assert period_bounds("4w", 0, None, today) == (date(2026, 6, 28), today)
-    assert period_bounds("1y", 0, None, today) == (date(2025, 7, 25), today)
-    assert period_bounds("all", 0, [date(2024, 5, 7), date(2026, 12, 31)], today) == (
-        date(2024, 5, 7),
-        date(2026, 12, 31),
-    )
+from weight_plot import build_figure, within_period
 
 
 def test_within_period():

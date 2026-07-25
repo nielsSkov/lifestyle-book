@@ -1,34 +1,8 @@
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import date
 
 import matplotlib.dates as mdates
 from matplotlib.figure import Figure
-
-
-def shift_year(day: date, years: int) -> date:
-    try:
-        return day.replace(year=day.year + years)
-    except ValueError:
-        return day.replace(year=day.year + years, day=28)
-
-
-def period_bounds(
-    window: str,
-    period: int,
-    all_dates: Sequence[date] | None,
-    today: date,
-) -> tuple[date, date]:
-    if window == "all":
-        return (min(all_dates), max(all_dates)) if all_dates else (today - timedelta(days=1), today)
-    if window == "7d":
-        end = today - timedelta(days=7 * period)
-        return end - timedelta(days=6), end
-    if window == "4w":
-        end = today - timedelta(days=28 * period)
-        return end - timedelta(days=27), end
-
-    end = shift_year(today, -period)
-    return shift_year(end, -1), end
 
 
 def within_period(
