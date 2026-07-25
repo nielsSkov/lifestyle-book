@@ -191,7 +191,7 @@ def plot():
     axis.set_ylabel("Weight (kg)", color="#bbb3c9")
     axis.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=4, maxticks=6 if mobile else 10))
     axis.xaxis.set_major_formatter(mdates.ConciseDateFormatter(axis.xaxis.get_major_locator()))
-    axis.set_xlim(period_start, period_end)
+    axis.set_xlim(mdates.date2num(period_start), mdates.date2num(period_end))
     if weight_dates or plan_dates:
         axis.legend(frameon=False, labelcolor="#ded8e8")
         axis.margins(x=0.015, y=0.08)

@@ -36,6 +36,7 @@ cp examples/weight.example.csv weight.csv
 cp examples/plan.example.csv plan.csv
 uv run ruff check .
 uv run ruff format --check .
+uv run pyright
 uv run pytest
 uv run flask --app app run --port 8000
 ```

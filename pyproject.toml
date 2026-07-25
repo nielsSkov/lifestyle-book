@@ -12,6 +12,7 @@ dependencies = [
 dev = [
     "ipykernel",
     "jupytext",
+    "pyright",
     "pytest",
     "ruff",
 ]
@@ -27,7 +28,13 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py313"
-extend-exclude = [".venv", ".uv-cache"]
 
 [tool.ruff.lint]
 select = ["B", "BLE", "C", "E", "F", "I", "N", "PT", "UP"]
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
+exclude = [".venv", ".uv-cache", "**/__pycache__"]
