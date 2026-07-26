@@ -81,6 +81,7 @@ def test_build_insights_figure_shows_difference_and_28_day_rates():
     assert serialized["layout"]["yaxis"]["title"]["text"] == "kg"
     assert serialized["layout"]["legend"]["entrywidth"] == 100
     assert serialized["layout"]["legend2"]["y"] == 0.48
+    assert serialized["layout"]["annotations"][1]["font"]["size"] == 13
     assert serialized["layout"]["xaxis2"]["matches"] == "x"
     assert serialized["layout"]["yaxis2"]["title"]["text"] == "kg/week"
 

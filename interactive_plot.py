@@ -142,7 +142,7 @@ def build_insights_figure(
     figure = make_subplots(
         rows=2,
         cols=1,
-        subplot_titles=("Difference from Plan", "28-Day Rate of Change"),
+        subplot_titles=("Difference from Plan", "4-Week Average Weight Change"),
         vertical_spacing=0.16,
     )
 
@@ -259,6 +259,7 @@ def build_insights_figure(
     figure.update_yaxes(title="kg", row=1, col=1)
     figure.update_xaxes(title="Date", matches="x", row=2, col=1)
     figure.update_yaxes(title="kg/week", row=2, col=1)
+    figure.update_annotations(font={"size": 13})
     return figure
 
 

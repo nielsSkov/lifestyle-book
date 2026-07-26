@@ -31,7 +31,9 @@ def test_index_renders_interactive_plotly_chart(client):
     assert response.status_code == 200
     assert b'id="previous-date"' in response.data
     assert b'id="next-date"' in response.data
+    assert b'class="feedback-slot"' in response.data
     assert b'name="date"' in response.data
+    assert b'id="weight" name="weight" type="text" inputmode="decimal"' in response.data
     assert b'value="2026-08-03"' in response.data
     assert b'max="2026-08-03"' in response.data
     assert b'"2026-08-01": 100.0' in response.data
@@ -48,13 +50,16 @@ def test_index_renders_interactive_plotly_chart(client):
     assert b'"name":"Recorded weight"' in response.data
     assert b'"name":"Above plan"' in response.data
     assert b'"name":"Below plan"' in response.data
-    assert b"28-Day Rate of Change" in response.data
+    assert b"4-Week Average Weight Change" in response.data
     assert b"7-Day Rate of Change" not in response.data
     assert b"14-Day Rate of Change" not in response.data
     assert b'"y":[100.0,null,95.0]' in response.data
     assert b"range-picker" not in response.data
     assert b"graph-toolbar" not in response.data
     assert b"plot.png" not in response.data
+    assert response.data.index(b'class="feedback-slot"') < response.data.index(
+        b"Save Weight</button>"
+    )
 
 
 def test_save_weight_inserts_historical_date_and_advances(client):
@@ -81,8 +86,32 @@ def test_save_weight_rejects_future_date(client):
     )
 
     assert response.status_code == 200
-    assert b"Measurement date cannot be in the future." in response.data
+    assert b"Measurement date cannot be in the future<" in response.data
     assert b"2026-08-04,99.0" not in app_module.WEIGHT_CSV.read_bytes()
+
+
+def test_save_weight_accepts_comma_decimal_separator(client):
+    response = client.post(
+        "/weights",
+        data={"date": "2026-08-03", "weight": "99,4"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Saved 99.4 kg<" in response.data
+    assert b"2026-08-03,99.4" in app_module.WEIGHT_CSV.read_bytes()
+
+
+def test_invalid_weight_uses_feedback_banner(client):
+    response = client.post(
+        "/weights",
+        data={"date": "2026-08-03", "weight": "29"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b'<p class="message error" data-feedback>' in response.data
+    assert b"Weight must be between 30 and 300 kg<" in response.data
 
 
 def test_blank_weight_deletes_existing_date_and_advances(client):
@@ -93,7 +122,7 @@ def test_blank_weight_deletes_existing_date_and_advances(client):
     )
 
     assert response.status_code == 200
-    assert b"Deleted entry for 01 Aug 2026." in response.data
+    assert b"Deleted entry for 01 Aug 2026<" in response.data
     assert b'value="2026-08-02"' in response.data
     assert app_module.WEIGHT_CSV.read_text(encoding="utf-8") == (
         "date,weight_kg\n2026-08-02,99.5\n"
@@ -108,7 +137,7 @@ def test_blank_weight_rejects_date_without_measurement(client):
     )
 
     assert response.status_code == 200
-    assert b"No measurement exists for this date." in response.data
+    assert b"No measurement exists for this date<" in response.data
     assert app_module.WEIGHT_CSV.read_text(encoding="utf-8") == (
         "date,weight_kg\n2026-08-01,100.0\n2026-08-02,99.5\n"
     )

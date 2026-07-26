@@ -26,6 +26,7 @@ def write_csv(tmp_path: Path, content: str) -> Path:
 
 def test_parse_weight():
     assert parse_weight("109.8") == Decimal("109.8")
+    assert parse_weight("109,8") == Decimal("109.8")
 
 
 @pytest.mark.parametrize(

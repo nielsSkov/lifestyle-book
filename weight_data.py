@@ -11,26 +11,26 @@ CSV_HEADER = ["date", "weight_kg"]
 
 def parse_weight(raw_value: str | None) -> Decimal:
     if raw_value is None:
-        raise ValueError("Enter a valid weight.")
+        raise ValueError("Enter a valid weight")
     try:
-        weight = Decimal(raw_value)
+        weight = Decimal(raw_value.replace(",", "."))
     except InvalidOperation:
-        raise ValueError("Enter a valid weight.") from None
+        raise ValueError("Enter a valid weight") from None
 
     if not weight.is_finite() or not Decimal("30") <= weight <= Decimal("300"):
-        raise ValueError("Weight must be between 30 and 300 kg.")
+        raise ValueError("Weight must be between 30 and 300 kg")
     return weight
 
 
 def parse_measurement_date(raw_value: str | None, today: date) -> date:
     if not raw_value:
-        raise ValueError("Choose a valid measurement date.")
+        raise ValueError("Choose a valid measurement date")
     try:
         measurement_date = date.fromisoformat(raw_value)
     except ValueError:
-        raise ValueError("Choose a valid measurement date.") from None
+        raise ValueError("Choose a valid measurement date") from None
     if measurement_date > today:
-        raise ValueError("Measurement date cannot be in the future.")
+        raise ValueError("Measurement date cannot be in the future")
     return measurement_date
 
 

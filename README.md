@@ -9,7 +9,7 @@ A small self-hosted Flask application for recording daily weight and comparing i
 - Historical backfill and correction with date navigation
 - Interactive zooming, panning, hover values, and range slider
 - Recorded and planned weight lines
-- Plan deviation and 28-day rate-of-change charts
+- Plan deviation and four-week average weight-change charts
 - No database, frontend build system, or external analytics
 
 ## Data

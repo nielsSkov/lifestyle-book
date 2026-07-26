@@ -74,7 +74,7 @@ def save_weight():
         measurement_date = parse_measurement_date(raw_date, today)
         if raw_weight is None or not raw_weight.strip():
             if not delete_weight(WEIGHT_CSV, measurement_date):
-                raise ValueError("No measurement exists for this date.")
+                raise ValueError("No measurement exists for this date")
             next_date = min(measurement_date + timedelta(days=1), today)
             return redirect(
                 url_for(

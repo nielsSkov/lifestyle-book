@@ -19,12 +19,8 @@
         {% endif %}
       </div>
 
-      {% if saved %}<p class="message success" data-feedback>Saved {{ saved }} kg</p>{% endif %}
-      {% if deleted %}<p class="message success" data-feedback>Deleted entry for {{ deleted }}.</p>{% endif %}
-      {% if error %}<p class="message error" data-feedback>{{ error }}</p>{% endif %}
-
       <form action="{{ url_for('save_weight') }}" method="post">
-        <label for="measurement-date">Measurement date</label>
+        <label for="measurement-date">Measurement Date</label>
         <div class="date-row">
           <button class="date-step" id="previous-date" type="button" aria-label="Previous date">&larr;</button>
           <input id="measurement-date" name="date" type="date" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" required>
@@ -32,10 +28,15 @@
         </div>
         <label for="weight">Weight</label>
         <div class="input-row">
-          <input id="weight" name="weight" type="number" inputmode="decimal" step="0.1" min="30" max="300">
+          <input id="weight" name="weight" type="text" inputmode="decimal">
           <span>kg</span>
         </div>
-        <button type="submit">Save weight</button>
+        <div class="feedback-slot" aria-live="polite">
+          {% if saved %}<p class="message success" data-feedback>Saved {{ saved }} kg</p>{% endif %}
+          {% if deleted %}<p class="message success" data-feedback>Deleted entry for {{ deleted }}</p>{% endif %}
+          {% if error %}<p class="message error" data-feedback>{{ error }}</p>{% endif %}
+        </div>
+        <button type="submit">Save Weight</button>
       </form>
     </section>
 
