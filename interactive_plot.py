@@ -5,7 +5,6 @@ from functools import cache
 
 from plotly import graph_objects as go
 from plotly.offline import get_plotlyjs
-from plotly.subplots import make_subplots
 
 PLOTLY_CONFIG: dict[str, object] = {
     "displaylogo": False,
@@ -126,7 +125,7 @@ def build_interactive_figure(
     return figure
 
 
-def build_insights_figure(
+def build_difference_figure(
     weight_dates: Sequence[date],
     weights: Sequence[float],
     plan_dates: Sequence[date],
@@ -139,12 +138,7 @@ def build_insights_figure(
         (day, weight, plan_by_date[day]) for day, weight in weight_points if day in plan_by_date
     ]
 
-    figure = make_subplots(
-        rows=2,
-        cols=1,
-        subplot_titles=("Difference from Plan", "4-Week Average Weight Change"),
-        vertical_spacing=0.16,
-    )
+    figure = go.Figure()
 
     if differences:
         difference_values = [weight - planned for _day, weight, planned in differences]
@@ -174,11 +168,23 @@ def build_insights_figure(
                         "<br>Recorded %{customdata[0]:.1f} kg"
                         "<br>Plan %{customdata[1]:.1f} kg<extra></extra>"
                     ),
-                ),
-                row=1,
-                col=1,
+                )
             )
 
+    _style_insight_figure(figure, "Difference from Plan", "weight-difference", "kg")
+    figure.update_layout(bargap=0, barmode="overlay")
+    return figure
+
+
+def build_rate_figure(
+    weight_dates: Sequence[date],
+    weights: Sequence[float],
+    plan_dates: Sequence[date],
+    plan: Sequence[float],
+) -> go.Figure:
+    weight_points = list(zip(weight_dates, weights, strict=True))
+    plan_points = list(zip(plan_dates, plan, strict=True))
+    figure = go.Figure()
     recorded_rates = _rolling_weekly_rates(weight_dates, weights, 28)
     planned_rates = _rolling_weekly_rates(plan_dates, plan, 28)
     if weight_points:
@@ -188,13 +194,10 @@ def build_insights_figure(
                 y=recorded_rates,
                 mode="lines",
                 name="Recorded rate",
-                legend="legend2",
                 connectgaps=False,
                 line={"color": "#8b5cf6", "width": 2.2},
                 hovertemplate=("%{x|%d %b %Y}<br>%{y:+.2f} kg/week<extra>Recorded rate</extra>"),
-            ),
-            row=2,
-            col=1,
+            )
         )
     if plan_points:
         figure.add_trace(
@@ -203,18 +206,26 @@ def build_insights_figure(
                 y=planned_rates,
                 mode="lines",
                 name="Planned rate",
-                legend="legend2",
                 connectgaps=False,
                 line={"color": "#087044", "width": 2.2},
                 hovertemplate=("%{x|%d %b %Y}<br>%{y:+.2f} kg/week<extra>Planned rate</extra>"),
-            ),
-            row=2,
-            col=1,
+            )
         )
 
+    _style_insight_figure(
+        figure,
+        "4-Week Average Weight Change",
+        "weight-rate",
+        "kg/week",
+    )
+    return figure
+
+
+def _style_insight_figure(figure: go.Figure, title: str, uirevision: str, yaxis_title: str) -> None:
     figure.update_layout(
         template="none",
         autosize=True,
+        title={"text": title, "x": 0.5, "font": {"size": 13}},
         paper_bgcolor="#15111f",
         plot_bgcolor="#15111f",
         font={
@@ -227,40 +238,30 @@ def build_insights_figure(
             "bordercolor": "#524762",
             "font": {"color": "#f4f0fa"},
         },
-        uirevision="weight-insights",
-        margin={"l": 64, "r": 24, "t": 76, "b": 48},
+        uirevision=uirevision,
+        margin={"l": 64, "r": 24, "t": 84, "b": 80},
         legend={
             "orientation": "h",
-            "entrywidth": 100,
             "x": 0,
-            "y": 1.08,
+            "y": 1.02,
             "xanchor": "left",
             "yanchor": "bottom",
         },
-        legend2={
-            "orientation": "h",
-            "entrywidth": 100,
-            "x": 0,
-            "y": 0.48,
-            "xanchor": "left",
-            "yanchor": "bottom",
-        },
-        bargap=0,
-        barmode="overlay",
     )
-    figure.update_xaxes(gridcolor="#383047", linecolor="#524762", fixedrange=False)
+    figure.update_xaxes(
+        title={"text": "Date", "standoff": 28},
+        gridcolor="#383047",
+        linecolor="#524762",
+        fixedrange=False,
+    )
     figure.update_yaxes(
+        title=yaxis_title,
         gridcolor="#383047",
         linecolor="#524762",
         fixedrange=False,
         zeroline=True,
         zerolinecolor="#706580",
     )
-    figure.update_yaxes(title="kg", row=1, col=1)
-    figure.update_xaxes(title="Date", matches="x", row=2, col=1)
-    figure.update_yaxes(title="kg/week", row=2, col=1)
-    figure.update_annotations(font={"size": 13})
-    return figure
 
 
 def _rolling_weekly_rates(

@@ -7,8 +7,9 @@ from flask import Flask, Response, redirect, render_template, request, url_for
 
 from interactive_plot import (
     PLOTLY_CONFIG,
-    build_insights_figure,
+    build_difference_figure,
     build_interactive_figure,
+    build_rate_figure,
     plotly_javascript,
 )
 from weight_data import (
@@ -46,7 +47,8 @@ def index():
         latest = {"date": dates[-1], "weight": weights[-1]}
 
     figure = build_interactive_figure(dates, weights, plan_dates, plan)
-    insights_figure = build_insights_figure(dates, weights, plan_dates, plan)
+    difference_figure = build_difference_figure(dates, weights, plan_dates, plan)
+    rate_figure = build_rate_figure(dates, weights, plan_dates, plan)
     return render_template(
         "index.html",
         latest=latest,
@@ -59,7 +61,8 @@ def index():
         deleted=request.args.get("deleted"),
         error=request.args.get("error"),
         graph_json=figure.to_json(),
-        insights_json=insights_figure.to_json(),
+        difference_json=difference_figure.to_json(),
+        rate_json=rate_figure.to_json(),
         plotly_config=PLOTLY_CONFIG,
         plotly_version=PLOTLY_VERSION,
     )

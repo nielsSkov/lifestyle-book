@@ -44,7 +44,10 @@
       <div id="weight-plot" role="region" aria-label="Interactive recorded and planned weight chart"></div>
     </section>
     <section class="graph-card">
-      <div id="insights-plot" role="region" aria-label="Interactive plan difference and rate of change charts"></div>
+      <div id="difference-plot" role="region" aria-label="Interactive difference from plan chart"></div>
+    </section>
+    <section class="graph-card">
+      <div id="rate-plot" role="region" aria-label="Interactive four-week average weight change chart"></div>
     </section>
   </main>
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
@@ -93,31 +96,31 @@
     selectDate(dateInput.value);
 
     const weightFigure = {{ graph_json | safe }};
-    const insightsFigure = {{ insights_json | safe }};
+    const differenceFigure = {{ difference_json | safe }};
+    const rateFigure = {{ rate_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};
     Promise.all([
       Plotly.newPlot("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig),
-      Plotly.newPlot("insights-plot", insightsFigure.data, insightsFigure.layout, plotlyConfig),
-    ]).then(([weightPlot, insightsPlot]) => {
+      Plotly.newPlot("difference-plot", differenceFigure.data, differenceFigure.layout, plotlyConfig),
+      Plotly.newPlot("rate-plot", rateFigure.data, rateFigure.layout, plotlyConfig),
+    ]).then((linkedPlots) => {
       let syncingXAxes = false;
 
       function readXRange(update) {
-        for (const axis of ["xaxis", "xaxis2"]) {
-          const range = update[`${axis}.range`];
-          if (Array.isArray(range)) return range;
+        const range = update["xaxis.range"];
+        if (Array.isArray(range)) return range;
 
-          const start = update[`${axis}.range[0]`];
-          const end = update[`${axis}.range[1]`];
-          if (start !== undefined && end !== undefined) return [start, end];
-        }
+        const start = update["xaxis.range[0]"];
+        const end = update["xaxis.range[1]"];
+        if (start !== undefined && end !== undefined) return [start, end];
         return null;
       }
 
       function resetsXRange(update) {
-        return ["xaxis", "xaxis2"].some((axis) => update[`${axis}.autorange`] === true);
+        return update["xaxis.autorange"] === true;
       }
 
-      for (const source of [weightPlot, insightsPlot]) {
+      for (const source of linkedPlots) {
         source.on("plotly_relayout", (update) => {
           if (syncingXAxes) return;
 
@@ -125,11 +128,14 @@
           if (!range && !resetsXRange(update)) return;
 
           syncingXAxes = true;
-          const target = source === weightPlot ? insightsPlot : weightPlot;
           const linkedUpdate = range
             ? {"xaxis.range": range}
             : {"xaxis.autorange": true};
-          Plotly.relayout(target, linkedUpdate).finally(() => {
+          Promise.all(
+            linkedPlots
+              .filter((target) => target !== source)
+              .map((target) => Plotly.relayout(target, linkedUpdate)),
+          ).finally(() => {
             syncingXAxes = false;
           });
         });

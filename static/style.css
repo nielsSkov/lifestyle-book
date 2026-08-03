@@ -202,7 +202,8 @@ input {
 }
 
 #weight-plot,
-#insights-plot {
+#difference-plot,
+#rate-plot {
   width: 100%;
 }
 
@@ -211,9 +212,10 @@ input {
   min-height: 480px;
 }
 
-#insights-plot {
-  height: min(90vh, 820px);
-  min-height: 680px;
+#difference-plot,
+#rate-plot {
+  height: min(55vh, 460px);
+  min-height: 360px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -248,8 +250,9 @@ input {
     min-height: 420px;
   }
 
-  #insights-plot {
-    height: min(100vh, 760px);
-    min-height: 680px;
+  #difference-plot,
+  #rate-plot {
+    height: min(60vh, 440px);
+    min-height: 360px;
   }
 }
