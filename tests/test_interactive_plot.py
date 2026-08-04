@@ -6,6 +6,7 @@ from typing import cast
 import pytest
 
 from interactive_plot import (
+    PLOTLY_CONFIG,
     build_difference_figure,
     build_interactive_figure,
     build_rate_figure,
@@ -89,3 +90,10 @@ def test_insight_figures_support_empty_data():
     for figure in (build_difference_figure([], [], [], []), build_rate_figure([], [], [], [])):
         serialized = json.loads(cast(str, figure.to_json()))
         assert not serialized["data"]
+
+
+def test_plotly_config_preserves_required_interactions():
+    assert PLOTLY_CONFIG["displayModeBar"] is True
+    assert PLOTLY_CONFIG["modeBarButtons"] == [["zoom2d", "pan2d", "resetScale2d"]]
+    assert PLOTLY_CONFIG["responsive"] is True
+    assert PLOTLY_CONFIG["scrollZoom"] is True
