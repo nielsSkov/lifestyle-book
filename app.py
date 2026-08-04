@@ -15,8 +15,8 @@ from interactive_plot import (
 from sleep_data import (
     SleepRecord,
     delete_sleep,
+    parse_sleep_date,
     parse_sleep_times,
-    parse_wake_date,
     read_sleep_records,
     store_sleep,
 )
@@ -115,7 +115,7 @@ def sleep():
     records = read_sleep_records(SLEEP_CSV)
     today = current_date()
     try:
-        selected_date = parse_wake_date(request.args.get("date", today.isoformat()), today)
+        selected_date = parse_sleep_date(request.args.get("date", today.isoformat()), today)
     except ValueError:
         selected_date = today
     figure = build_sleep_figure(records)
@@ -125,9 +125,9 @@ def sleep():
         today=today,
         selected_date=selected_date,
         sleep_entries={
-            record.wake_date.isoformat(): {
-                "sleep_time": record.sleep_time.strftime("%H:%M"),
-                "wake_time": record.wake_time.strftime("%H:%M"),
+            record.date.isoformat(): {
+                "wake_time": (record.wake_time.strftime("%H:%M") if record.wake_time else None),
+                "sleep_time": (record.sleep_time.strftime("%H:%M") if record.sleep_time else None),
             }
             for record in records
         },
@@ -147,24 +147,24 @@ def save_sleep():
     raw_wake_time = request.form.get("wake_time")
     try:
         today = current_date()
-        wake_date = parse_wake_date(raw_date, today)
+        record_date = parse_sleep_date(raw_date, today)
         if not (raw_sleep_time or "").strip() and not (raw_wake_time or "").strip():
-            if not delete_sleep(SLEEP_CSV, wake_date):
+            if not delete_sleep(SLEEP_CSV, record_date):
                 raise ValueError("No sleep record exists for this date")
-            next_date = min(wake_date + timedelta(days=1), today)
+            next_date = min(record_date + timedelta(days=1), today)
             return redirect(
                 url_for(
                     "sleep",
                     date=next_date.isoformat(),
-                    deleted=wake_date.strftime("%d %b %Y"),
+                    deleted=record_date.strftime("%d %b %Y"),
                 )
             )
-        sleep_time, wake_time = parse_sleep_times(raw_sleep_time, raw_wake_time)
-        store_sleep(SLEEP_CSV, SleepRecord(wake_date, sleep_time, wake_time))
+        wake_time, sleep_time = parse_sleep_times(raw_wake_time, raw_sleep_time)
+        store_sleep(SLEEP_CSV, SleepRecord(record_date, wake_time, sleep_time))
     except ValueError as error:
         return redirect(url_for("sleep", date=raw_date, error=str(error)))
-    next_date = min(wake_date + timedelta(days=1), today)
-    return redirect(url_for("sleep", date=next_date.isoformat(), saved=wake_date.isoformat()))
+    next_date = min(record_date + timedelta(days=1), today)
+    return redirect(url_for("sleep", date=next_date.isoformat(), saved=record_date.isoformat()))
 
 
 @app.get("/movement-food")

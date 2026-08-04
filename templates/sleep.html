@@ -10,20 +10,20 @@
     </div>
 
     <form action="{{ url_for('save_sleep') }}" method="post">
-      <label for="wake-date">Wake Date</label>
+      <label for="sleep-date">Date</label>
       <div class="date-row" data-date-navigation data-today="{{ today.isoformat() }}">
         <button class="date-step" type="button" data-date-step="-1" aria-label="Previous date">&larr;</button>
-        <input id="wake-date" name="date" type="date" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" data-date-input required>
+        <input id="sleep-date" name="date" type="date" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" data-date-input required>
         <button class="date-step" type="button" data-date-step="1" aria-label="Next date">&rarr;</button>
       </div>
       <div class="time-grid">
         <div class="time-field">
-          <label for="sleep-time">Sleep Time</label>
-          <input id="sleep-time" name="sleep_time" type="time">
-        </div>
-        <div class="time-field">
           <label for="wake-time">Wake Time</label>
           <input id="wake-time" name="wake_time" type="time">
+        </div>
+        <div class="time-field">
+          <label for="sleep-time">Sleep Time</label>
+          <input id="sleep-time" name="sleep_time" type="time">
         </div>
       </div>
       <div class="feedback-slot" aria-live="polite">
@@ -43,8 +43,8 @@
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
   <script>
     const sleepEntries = {{ sleep_entries | tojson }};
-    const sleepTimeInput = document.getElementById("sleep-time");
     const wakeTimeInput = document.getElementById("wake-time");
+    const sleepTimeInput = document.getElementById("sleep-time");
     document.querySelector("[data-date-navigation]").addEventListener("datechange", (event) => {
       const entry = sleepEntries[event.detail.date];
       sleepTimeInput.value = entry?.sleep_time ?? "";

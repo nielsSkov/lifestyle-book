@@ -82,38 +82,36 @@ def test_sleep_page_exposes_entry_controls_and_chart_region(client):
     assert b'id="sleep-plot"' in response.data
 
 
-def test_save_sleep_stores_overnight_record_and_advances(client):
+def test_save_sleep_accepts_wake_time_without_sleep_time(client):
     response = client.post(
         "/sleep",
-        data={"date": "2026-08-01", "sleep_time": "23:30", "wake_time": "07:15"},
+        data={"date": "2026-08-01", "wake_time": "07:15", "sleep_time": ""},
     )
 
     parameters = redirect_parameters(response, "/sleep")
     assert parameters["date"] == ["2026-08-02"]
     assert "saved" in parameters
     assert read_sleep_records(app_module.SLEEP_CSV) == [
-        SleepRecord(date(2026, 8, 1), time(23, 30), time(7, 15))
+        SleepRecord(date(2026, 8, 1), wake_time=time(7, 15))
     ]
 
 
-def test_incomplete_sleep_record_preserves_existing_data(client):
-    existing = SleepRecord(date(2026, 8, 1), time(23), time(7))
-    store_sleep(app_module.SLEEP_CSV, existing)
-    original = app_module.SLEEP_CSV.read_bytes()
-
+def test_save_sleep_accepts_sleep_time_without_wake_time(client):
     response = client.post(
         "/sleep",
-        data={"date": "2026-08-02", "sleep_time": "23:30", "wake_time": ""},
+        data={"date": "2026-08-01", "wake_time": "", "sleep_time": "23:30"},
     )
 
-    assert "error" in redirect_parameters(response, "/sleep")
-    assert app_module.SLEEP_CSV.read_bytes() == original
+    assert "saved" in redirect_parameters(response, "/sleep")
+    assert read_sleep_records(app_module.SLEEP_CSV) == [
+        SleepRecord(date(2026, 8, 1), sleep_time=time(23, 30))
+    ]
 
 
 def test_blank_sleep_times_delete_existing_record_and_advance(client):
     store_sleep(
         app_module.SLEEP_CSV,
-        SleepRecord(date(2026, 8, 1), time(23), time(7)),
+        SleepRecord(date(2026, 8, 1), wake_time=time(7), sleep_time=time(23)),
     )
 
     response = client.post(

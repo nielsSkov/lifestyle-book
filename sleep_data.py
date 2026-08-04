@@ -1,91 +1,117 @@
 import csv
 import os
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
-CSV_HEADER = ["wake_date", "sleep_time", "wake_time"]
+CSV_HEADER = ["date", "wake_time", "sleep_time"]
+LEGACY_CSV_HEADER = ["wake_date", "sleep_time", "wake_time"]
 
 
 @dataclass(frozen=True)
 class SleepRecord:
-    wake_date: date
-    sleep_time: time
-    wake_time: time
-
-    @property
-    def duration_minutes(self) -> int:
-        return sleep_duration_minutes(self.sleep_time, self.wake_time)
+    date: date
+    wake_time: time | None = None
+    sleep_time: time | None = None
 
 
-def parse_wake_date(raw_value: str | None, today: date) -> date:
+def parse_sleep_date(raw_value: str | None, today: date) -> date:
     if not raw_value:
-        raise ValueError("Choose a valid wake date")
+        raise ValueError("Choose a valid date")
     try:
-        wake_date = date.fromisoformat(raw_value)
+        record_date = date.fromisoformat(raw_value)
     except ValueError:
-        raise ValueError("Choose a valid wake date") from None
-    if wake_date > today:
-        raise ValueError("Wake date cannot be in the future")
-    return wake_date
+        raise ValueError("Choose a valid date") from None
+    if record_date > today:
+        raise ValueError("Date cannot be in the future")
+    return record_date
 
 
 def parse_sleep_times(
-    raw_sleep_time: str | None,
     raw_wake_time: str | None,
-) -> tuple[time, time]:
-    if not raw_sleep_time or not raw_wake_time:
-        raise ValueError("Enter both sleep and wake times")
-    try:
-        sleep_time = datetime.strptime(raw_sleep_time, "%H:%M").time()
-        wake_time = datetime.strptime(raw_wake_time, "%H:%M").time()
-    except ValueError:
-        raise ValueError("Enter valid sleep and wake times") from None
-    if sleep_duration_minutes(sleep_time, wake_time) == 0:
-        raise ValueError("Sleep and wake times must be different")
-    return sleep_time, wake_time
-
-
-def sleep_duration_minutes(sleep_time: time, wake_time: time) -> int:
-    sleep_minutes = sleep_time.hour * 60 + sleep_time.minute
-    wake_minutes = wake_time.hour * 60 + wake_time.minute
-    return (wake_minutes - sleep_minutes) % (24 * 60)
+    raw_sleep_time: str | None,
+) -> tuple[time | None, time | None]:
+    wake_time = _parse_optional_time(raw_wake_time)
+    sleep_time = _parse_optional_time(raw_sleep_time)
+    if wake_time is None and sleep_time is None:
+        raise ValueError("Enter a wake time or sleep time")
+    return wake_time, sleep_time
 
 
 def read_sleep_records(path: Path) -> list[SleepRecord]:
     if not path.exists():
         return []
 
-    records = []
     with path.open(newline="", encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file)
-        if reader.fieldnames != CSV_HEADER:
-            raise ValueError("Expected header: wake_date,sleep_time,wake_time")
-        for row in reader:
-            sleep_time, wake_time = parse_sleep_times(row["sleep_time"], row["wake_time"])
-            records.append(
-                SleepRecord(
-                    wake_date=date.fromisoformat(row["wake_date"]),
-                    sleep_time=sleep_time,
-                    wake_time=wake_time,
-                )
-            )
-    return records
+        if reader.fieldnames == CSV_HEADER:
+            return _read_current_records(reader)
+        if reader.fieldnames == LEGACY_CSV_HEADER:
+            return _read_legacy_records(reader)
+        raise ValueError("Expected header: date,wake_time,sleep_time")
 
 
 def store_sleep(path: Path, record: SleepRecord) -> None:
-    records_by_date = {existing.wake_date: existing for existing in read_sleep_records(path)}
-    records_by_date[record.wake_date] = record
+    records_by_date = {existing.date: existing for existing in read_sleep_records(path)}
+    records_by_date[record.date] = record
     _replace_sleep_records(path, [records_by_date[day] for day in sorted(records_by_date)])
 
 
-def delete_sleep(path: Path, wake_date: date) -> bool:
+def delete_sleep(path: Path, record_date: date) -> bool:
     records = read_sleep_records(path)
-    remaining = [record for record in records if record.wake_date != wake_date]
+    remaining = [record for record in records if record.date != record_date]
     if len(remaining) == len(records):
         return False
     _replace_sleep_records(path, remaining)
     return True
+
+
+def _read_current_records(reader: csv.DictReader) -> list[SleepRecord]:
+    records = []
+    previous_date = None
+    for row in reader:
+        record_date = date.fromisoformat(row["date"])
+        if previous_date is not None and record_date <= previous_date:
+            raise ValueError("Sleep record dates must be unique and increasing")
+        wake_time, sleep_time = parse_sleep_times(row["wake_time"], row["sleep_time"])
+        records.append(SleepRecord(record_date, wake_time, sleep_time))
+        previous_date = record_date
+    return records
+
+
+def _read_legacy_records(reader: csv.DictReader) -> list[SleepRecord]:
+    records_by_date: dict[date, SleepRecord] = {}
+    for row in reader:
+        wake_date = date.fromisoformat(row["wake_date"])
+        legacy_sleep_time = _parse_required_time(row["sleep_time"])
+        wake_time = _parse_required_time(row["wake_time"])
+        previous_date = wake_date - timedelta(days=1)
+        previous = records_by_date.get(previous_date, SleepRecord(previous_date))
+        current = records_by_date.get(wake_date, SleepRecord(wake_date))
+        records_by_date[previous_date] = SleepRecord(
+            previous_date,
+            previous.wake_time,
+            legacy_sleep_time,
+        )
+        records_by_date[wake_date] = SleepRecord(
+            wake_date,
+            wake_time,
+            current.sleep_time,
+        )
+    return [records_by_date[day] for day in sorted(records_by_date)]
+
+
+def _parse_optional_time(raw_value: str | None) -> time | None:
+    if raw_value is None or not raw_value.strip():
+        return None
+    return _parse_required_time(raw_value)
+
+
+def _parse_required_time(raw_value: str) -> time:
+    try:
+        return datetime.strptime(raw_value, "%H:%M").time()
+    except ValueError:
+        raise ValueError("Enter valid wake and sleep times") from None
 
 
 def _replace_sleep_records(path: Path, records: list[SleepRecord]) -> None:
@@ -97,9 +123,9 @@ def _replace_sleep_records(path: Path, records: list[SleepRecord]) -> None:
             writer.writerow(CSV_HEADER)
             writer.writerows(
                 (
-                    record.wake_date.isoformat(),
-                    record.sleep_time.strftime("%H:%M"),
-                    record.wake_time.strftime("%H:%M"),
+                    record.date.isoformat(),
+                    _format_time(record.wake_time),
+                    _format_time(record.sleep_time),
                 )
                 for record in records
             )
@@ -109,3 +135,7 @@ def _replace_sleep_records(path: Path, records: list[SleepRecord]) -> None:
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _format_time(value: time | None) -> str:
+    return "" if value is None else value.strftime("%H:%M")
