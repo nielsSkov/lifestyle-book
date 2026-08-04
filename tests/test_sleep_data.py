@@ -76,7 +76,7 @@ def test_delete_sleep_removes_only_the_selected_date(tmp_path: Path):
     assert read_sleep_records(path) == [second]
 
 
-def test_read_sleep_records_migrates_legacy_nights_into_daily_events(tmp_path: Path):
+def test_read_sleep_records_preserves_legacy_times_on_their_selected_date(tmp_path: Path):
     path = tmp_path / "sleep.csv"
     path.write_text(
         "wake_date,sleep_time,wake_time\n2026-08-02,23:30,07:15\n",
@@ -84,8 +84,7 @@ def test_read_sleep_records_migrates_legacy_nights_into_daily_events(tmp_path: P
     )
 
     assert read_sleep_records(path) == [
-        SleepRecord(date(2026, 8, 1), sleep_time=time(23, 30)),
-        SleepRecord(date(2026, 8, 2), wake_time=time(7, 15)),
+        SleepRecord(date(2026, 8, 2), wake_time=time(7, 15), sleep_time=time(23, 30)),
     ]
 
 

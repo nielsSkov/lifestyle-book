@@ -1,7 +1,7 @@
 import csv
 import os
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 from pathlib import Path
 
 CSV_HEADER = ["date", "wake_time", "sleep_time"]
@@ -80,25 +80,16 @@ def _read_current_records(reader: csv.DictReader) -> list[SleepRecord]:
 
 
 def _read_legacy_records(reader: csv.DictReader) -> list[SleepRecord]:
-    records_by_date: dict[date, SleepRecord] = {}
+    records = []
     for row in reader:
-        wake_date = date.fromisoformat(row["wake_date"])
-        legacy_sleep_time = _parse_required_time(row["sleep_time"])
-        wake_time = _parse_required_time(row["wake_time"])
-        previous_date = wake_date - timedelta(days=1)
-        previous = records_by_date.get(previous_date, SleepRecord(previous_date))
-        current = records_by_date.get(wake_date, SleepRecord(wake_date))
-        records_by_date[previous_date] = SleepRecord(
-            previous_date,
-            previous.wake_time,
-            legacy_sleep_time,
+        records.append(
+            SleepRecord(
+                date.fromisoformat(row["wake_date"]),
+                _parse_required_time(row["wake_time"]),
+                _parse_required_time(row["sleep_time"]),
+            )
         )
-        records_by_date[wake_date] = SleepRecord(
-            wake_date,
-            wake_time,
-            current.sleep_time,
-        )
-    return [records_by_date[day] for day in sorted(records_by_date)]
+    return records
 
 
 def _parse_optional_time(raw_value: str | None) -> time | None:
