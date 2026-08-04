@@ -14,10 +14,10 @@
 
       <form action="{{ url_for('save_weight') }}" method="post">
         <label for="measurement-date">Measurement Date</label>
-        <div class="date-row">
-          <button class="date-step" id="previous-date" type="button" aria-label="Previous date">&larr;</button>
-          <input id="measurement-date" name="date" type="date" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" required>
-          <button class="date-step" id="next-date" type="button" aria-label="Next date">&rarr;</button>
+        <div class="date-row" data-date-navigation data-today="{{ today.isoformat() }}">
+          <button class="date-step" id="previous-date" type="button" data-date-step="-1" aria-label="Previous date">&larr;</button>
+          <input id="measurement-date" name="date" type="date" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" data-date-input required>
+          <button class="date-step" id="next-date" type="button" data-date-step="1" aria-label="Next date">&rarr;</button>
         </div>
         <label for="weight">Weight</label>
         <div class="input-row">
@@ -46,48 +46,14 @@
 {% block scripts %}
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
   <script>
-    const feedbackMessages = [...document.querySelectorAll("[data-feedback]")];
-    if (feedbackMessages.length) {
-      const cleanUrl = new URL(window.location.href);
-      for (const parameter of ["saved", "deleted", "error"]) {
-        cleanUrl.searchParams.delete(parameter);
-      }
-      window.history.replaceState(
-        {},
-        "",
-        `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`,
-      );
-
-      window.setTimeout(() => {
-        for (const message of feedbackMessages) message.remove();
-      }, 3000);
-    }
-
     const weightEntries = {{ weight_entries | tojson }};
-    const today = {{ today.isoformat() | tojson }};
-    const dateInput = document.getElementById("measurement-date");
     const weightInput = document.getElementById("weight");
-    const nextDateButton = document.getElementById("next-date");
-
-    function selectDate(value) {
-      const selected = value > today ? today : value;
-      dateInput.value = selected;
-      nextDateButton.disabled = selected >= today;
+    document.querySelector("[data-date-navigation]").addEventListener("datechange", (event) => {
+      const selected = event.detail.date;
       weightInput.value = Object.prototype.hasOwnProperty.call(weightEntries, selected)
         ? weightEntries[selected].toFixed(1)
         : "";
-    }
-
-    function shiftDate(days) {
-      const shifted = new Date(`${dateInput.value}T00:00:00Z`);
-      shifted.setUTCDate(shifted.getUTCDate() + days);
-      selectDate(shifted.toISOString().slice(0, 10));
-    }
-
-    document.getElementById("previous-date").addEventListener("click", () => shiftDate(-1));
-    nextDateButton.addEventListener("click", () => shiftDate(1));
-    dateInput.addEventListener("change", () => selectDate(dateInput.value));
-    selectDate(dateInput.value);
+    });
 
     const weightFigure = {{ graph_json | safe }};
     const differenceFigure = {{ difference_json | safe }};

@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, time
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 
 import app as app_module
+from sleep_data import SleepRecord, read_sleep_records, store_sleep
 from weight_data import read_series
 
 
@@ -22,15 +23,16 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     )
     monkeypatch.setattr(app_module, "WEIGHT_CSV", weight_csv)
     monkeypatch.setattr(app_module, "PLAN_CSV", plan_csv)
+    monkeypatch.setattr(app_module, "SLEEP_CSV", tmp_path / "data" / "sleep.csv")
     monkeypatch.setattr(app_module, "current_date", lambda: date(2026, 8, 3))
     app_module.app.config.update(TESTING=True)
     return app_module.app.test_client()
 
 
-def redirect_parameters(response) -> dict[str, list[str]]:
+def redirect_parameters(response, expected_path: str = "/weight") -> dict[str, list[str]]:
     assert response.status_code == 302
     location = urlparse(response.headers["Location"])
-    assert location.path == "/weight"
+    assert location.path == expected_path
     return parse_qs(location.query)
 
 
@@ -61,19 +63,68 @@ def test_home_redirects_to_weight(client):
     assert response.headers["Location"] == "/weight"
 
 
-@pytest.mark.parametrize(
-    ("path", "active_link"),
-    [
-        ("/sleep", b'href="/sleep" aria-current="page"'),
-        ("/movement-food", b'href="/movement-food" aria-current="page"'),
-    ],
-)
-def test_section_routes_set_active_navigation(client, path, active_link):
-    response = client.get(path)
+def test_movement_food_route_sets_active_navigation(client):
+    response = client.get("/movement-food")
 
     assert response.status_code == 200
-    assert active_link in response.data
+    assert b'href="/movement-food" aria-current="page"' in response.data
     assert response.data.count(b'aria-current="page"') == 1
+
+
+def test_sleep_page_exposes_entry_controls_and_chart_region(client):
+    response = client.get("/sleep")
+
+    assert response.status_code == 200
+    assert b'href="/sleep" aria-current="page"' in response.data
+    assert b'name="sleep_time"' in response.data
+    assert b'name="wake_time"' in response.data
+    assert b"data-date-navigation" in response.data
+    assert b'id="sleep-plot"' in response.data
+
+
+def test_save_sleep_stores_overnight_record_and_advances(client):
+    response = client.post(
+        "/sleep",
+        data={"date": "2026-08-01", "sleep_time": "23:30", "wake_time": "07:15"},
+    )
+
+    parameters = redirect_parameters(response, "/sleep")
+    assert parameters["date"] == ["2026-08-02"]
+    assert "saved" in parameters
+    assert read_sleep_records(app_module.SLEEP_CSV) == [
+        SleepRecord(date(2026, 8, 1), time(23, 30), time(7, 15))
+    ]
+
+
+def test_incomplete_sleep_record_preserves_existing_data(client):
+    existing = SleepRecord(date(2026, 8, 1), time(23), time(7))
+    store_sleep(app_module.SLEEP_CSV, existing)
+    original = app_module.SLEEP_CSV.read_bytes()
+
+    response = client.post(
+        "/sleep",
+        data={"date": "2026-08-02", "sleep_time": "23:30", "wake_time": ""},
+    )
+
+    assert "error" in redirect_parameters(response, "/sleep")
+    assert app_module.SLEEP_CSV.read_bytes() == original
+
+
+def test_blank_sleep_times_delete_existing_record_and_advance(client):
+    store_sleep(
+        app_module.SLEEP_CSV,
+        SleepRecord(date(2026, 8, 1), time(23), time(7)),
+    )
+
+    response = client.post(
+        "/sleep",
+        data={"date": "2026-08-01", "sleep_time": "", "wake_time": ""},
+    )
+
+    parameters = redirect_parameters(response, "/sleep")
+    assert parameters["date"] == ["2026-08-02"]
+    assert "deleted" in parameters
+    assert read_sleep_records(app_module.SLEEP_CSV) == []
 
 
 def test_save_weight_inserts_historical_date_and_advances(client):
