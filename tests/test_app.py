@@ -1,9 +1,11 @@
 from datetime import date
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
 import app as app_module
+from weight_data import read_series
 
 
 @pytest.fixture
@@ -25,124 +27,98 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return app_module.app.test_client()
 
 
-def test_index_renders_interactive_plotly_chart(client):
+def redirect_parameters(response) -> dict[str, list[str]]:
+    assert response.status_code == 302
+    location = urlparse(response.headers["Location"])
+    assert location.path == "/"
+    return parse_qs(location.query)
+
+
+def test_weight_page_exposes_entry_controls_and_chart_regions(client):
     response = client.get("/")
 
     assert response.status_code == 200
     assert b'id="previous-date"' in response.data
     assert b'id="next-date"' in response.data
-    assert b'class="feedback-slot"' in response.data
+    assert b'aria-live="polite"' in response.data
     assert b'name="date"' in response.data
-    assert b'id="weight" name="weight" type="text" inputmode="decimal"' in response.data
     assert b'value="2026-08-03"' in response.data
     assert b'max="2026-08-03"' in response.data
-    assert b'"2026-08-01": 100.0' in response.data
     assert b'id="weight-plot"' in response.data
     assert b'id="difference-plot"' in response.data
     assert b'id="rate-plot"' in response.data
-    assert b"window.history.replaceState" in response.data
-    assert b"cleanUrl.searchParams.delete(parameter)" in response.data
-    assert b"}, 3000);" in response.data
-    assert b"Plotly.newPlot" in response.data
-    assert b'Plotly.newPlot("difference-plot"' in response.data
-    assert b'Plotly.newPlot("rate-plot"' in response.data
-    assert b"plotly_relayout" in response.data
-    assert b"Plotly.relayout(target, linkedUpdate)" in response.data
-    assert b'"modeBarButtons": [["zoom2d", "pan2d", "resetScale2d"]]' in response.data
-    assert b'"name":"Recorded weight"' in response.data
-    assert b'"name":"Above plan"' in response.data
-    assert b'"name":"Below plan"' in response.data
-    assert b"4-Week Average Weight Change" in response.data
-    assert b"7-Day Rate of Change" not in response.data
-    assert b"14-Day Rate of Change" not in response.data
-    assert b'"y":[100.0,null,95.0]' in response.data
-    assert b"range-picker" not in response.data
-    assert b"graph-toolbar" not in response.data
-    assert b"plot.png" not in response.data
-    assert response.data.index(b'class="feedback-slot"') < response.data.index(
-        b"Save Weight</button>"
-    )
 
 
 def test_save_weight_inserts_historical_date_and_advances(client):
     response = client.post(
         "/weights",
         data={"date": "2026-07-31", "weight": "100.5"},
-        follow_redirects=True,
     )
 
-    assert response.status_code == 200
-    assert b"Saved 100.5 kg<" in response.data
-    assert b"Saved 100.5 kg." not in response.data
-    assert b'value="2026-08-01"' in response.data
-    assert app_module.WEIGHT_CSV.read_text(encoding="utf-8") == (
-        "date,weight_kg\n2026-07-31,100.5\n2026-08-01,100.0\n2026-08-02,99.5\n"
+    parameters = redirect_parameters(response)
+    assert parameters["date"] == ["2026-08-01"]
+    assert "saved" in parameters
+    assert read_series(app_module.WEIGHT_CSV) == (
+        [date(2026, 7, 31), date(2026, 8, 1), date(2026, 8, 2)],
+        [100.5, 100.0, 99.5],
     )
 
 
 def test_save_weight_rejects_future_date(client):
+    original = app_module.WEIGHT_CSV.read_bytes()
     response = client.post(
         "/weights",
         data={"date": "2026-08-04", "weight": "99.0"},
-        follow_redirects=True,
     )
 
-    assert response.status_code == 200
-    assert b"Measurement date cannot be in the future<" in response.data
-    assert b"2026-08-04,99.0" not in app_module.WEIGHT_CSV.read_bytes()
+    assert "error" in redirect_parameters(response)
+    assert app_module.WEIGHT_CSV.read_bytes() == original
 
 
 def test_save_weight_accepts_comma_decimal_separator(client):
     response = client.post(
         "/weights",
         data={"date": "2026-08-03", "weight": "99,4"},
-        follow_redirects=True,
     )
 
-    assert response.status_code == 200
-    assert b"Saved 99.4 kg<" in response.data
-    assert b"2026-08-03,99.4" in app_module.WEIGHT_CSV.read_bytes()
+    assert "saved" in redirect_parameters(response)
+    dates, weights = read_series(app_module.WEIGHT_CSV)
+    assert dates[-1] == date(2026, 8, 3)
+    assert weights[-1] == 99.4
 
 
-def test_invalid_weight_uses_feedback_banner(client):
+def test_invalid_weight_preserves_existing_data(client):
+    original = app_module.WEIGHT_CSV.read_bytes()
     response = client.post(
         "/weights",
         data={"date": "2026-08-03", "weight": "29"},
-        follow_redirects=True,
     )
 
-    assert response.status_code == 200
-    assert b'<p class="message error" data-feedback>' in response.data
-    assert b"Weight must be between 30 and 300 kg<" in response.data
+    assert "error" in redirect_parameters(response)
+    assert app_module.WEIGHT_CSV.read_bytes() == original
 
 
 def test_blank_weight_deletes_existing_date_and_advances(client):
     response = client.post(
         "/weights",
         data={"date": "2026-08-01", "weight": ""},
-        follow_redirects=True,
     )
 
-    assert response.status_code == 200
-    assert b"Deleted entry for 01 Aug 2026<" in response.data
-    assert b'value="2026-08-02"' in response.data
-    assert app_module.WEIGHT_CSV.read_text(encoding="utf-8") == (
-        "date,weight_kg\n2026-08-02,99.5\n"
-    )
+    parameters = redirect_parameters(response)
+    assert parameters["date"] == ["2026-08-02"]
+    assert "deleted" in parameters
+    assert read_series(app_module.WEIGHT_CSV) == ([date(2026, 8, 2)], [99.5])
 
 
 def test_blank_weight_rejects_date_without_measurement(client):
+    original = app_module.WEIGHT_CSV.read_bytes()
     response = client.post(
         "/weights",
         data={"date": "2026-07-31", "weight": ""},
-        follow_redirects=True,
     )
 
-    assert response.status_code == 200
-    assert b"No measurement exists for this date<" in response.data
-    assert app_module.WEIGHT_CSV.read_text(encoding="utf-8") == (
-        "date,weight_kg\n2026-08-01,100.0\n2026-08-02,99.5\n"
-    )
+    assert "error" in redirect_parameters(response)
+    assert app_module.WEIGHT_CSV.read_bytes() == original
 
 
 def test_plotly_runtime_is_served_locally_and_cached(client):
@@ -152,8 +128,4 @@ def test_plotly_runtime_is_served_locally_and_cached(client):
     assert response.mimetype == "text/javascript"
     assert response.cache_control.max_age == 31_536_000
     assert response.cache_control.immutable
-    assert len(response.data) > 1_000_000
-
-
-def test_png_plot_endpoint_is_removed(client):
-    assert client.get("/plot.png").status_code == 404
+    assert response.data

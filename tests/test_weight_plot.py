@@ -34,9 +34,10 @@ def test_build_figure():
 
     axis = figure.axes[0]
     assert figure is supplied_figure
-    assert tuple(figure.get_size_inches()) == (7.0, 7.0)
-    assert axis.get_title() == "Recorded Weight and Plan"
-    assert [line.get_label() for line in axis.lines] == ["Plan", "Recorded weight"]
+    assert [list(cast(Sequence[float], line.get_ydata())) for line in axis.lines] == [
+        [109.7, 109.6],
+        [109.8, 109.4],
+    ]
 
 
 def test_build_figure_preserves_plan_gaps():

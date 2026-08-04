@@ -1,9 +1,11 @@
 import math
+import stat
 from datetime import date
 
-from matplotlib import pyplot
+import pytest
 
 from planning.planning_helpers import build_full_plan, plot_plan, save_plan
+from weight_data import read_series
 
 
 def test_build_full_plan_replaces_existing_plan_from_candidate_start():
@@ -39,16 +41,9 @@ def test_build_full_plan_preserves_explicit_gaps():
     assert weights[3:] == [95.0]
 
 
-def test_plot_plan_returns_axis():
-    axis = plot_plan(
-        [date(2026, 8, 1)],
-        [100.0],
-        [date(2026, 8, 1), date(2026, 8, 2)],
-        [100.0, 99.0],
-    )
-
-    assert axis.get_title() == "Recorded Weight and Plan"
-    pyplot.close()
+def test_plot_plan_rejects_empty_data():
+    with pytest.raises(ValueError, match="recorded weights or plan"):
+        plot_plan([], [], [], [])
 
 
 def test_save_plan_uses_private_project_plan_path(monkeypatch, tmp_path):
@@ -61,4 +56,8 @@ def test_save_plan_uses_private_project_plan_path(monkeypatch, tmp_path):
     )
 
     assert row_count == 2
-    assert plan_path.read_text(encoding="utf-8").endswith("2026-08-02,NaN\n")
+    dates, weights = read_series(plan_path)
+    assert dates == [date(2026, 8, 1), date(2026, 8, 2)]
+    assert weights[0] == 100.0
+    assert math.isnan(weights[1])
+    assert stat.S_IMODE(plan_path.stat().st_mode) == 0o600

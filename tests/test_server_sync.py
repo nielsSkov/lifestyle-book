@@ -21,6 +21,9 @@ def test_load_server_config(tmp_path: Path):
         "not json",
         "{}",
         '{"target": "", "directory": "/srv/weight-tracker"}',
+        '{"target": "user@example", "directory": ""}',
+        '{"target": 42, "directory": "/srv/weight-tracker"}',
+        '{"target": "user@example", "directory": 42}',
     ],
 )
 def test_load_server_config_rejects_invalid_config(tmp_path: Path, content: str):

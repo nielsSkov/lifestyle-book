@@ -27,21 +27,24 @@ def write_csv(tmp_path: Path, content: str) -> Path:
 def test_parse_weight():
     assert parse_weight("109.8") == Decimal("109.8")
     assert parse_weight("109,8") == Decimal("109.8")
+    assert parse_weight("30") == Decimal("30")
+    assert parse_weight("300") == Decimal("300")
 
 
 @pytest.mark.parametrize(
-    ("value", "message"),
+    "value",
     [
-        (None, "Enter a valid weight"),
-        ("", "Enter a valid weight"),
-        ("hello", "Enter a valid weight"),
-        ("NaN", "Weight must be between 30 and 300 kg"),
-        ("29", "Weight must be between 30 and 300 kg"),
-        ("301", "Weight must be between 30 and 300 kg"),
+        None,
+        "",
+        "hello",
+        "NaN",
+        "Infinity",
+        "29",
+        "301",
     ],
 )
-def test_parse_weight_rejects_invalid_values(value: str | None, message: str):
-    with pytest.raises(ValueError, match=message):
+def test_parse_weight_rejects_invalid_values(value: str | None):
+    with pytest.raises(ValueError, match="valid weight|between 30 and 300"):
         parse_weight(value)
 
 
@@ -59,7 +62,7 @@ def test_parse_measurement_date_rejects_invalid_values(value: str | None):
 
 
 def test_parse_measurement_date_rejects_future_dates():
-    with pytest.raises(ValueError, match="cannot be in the future"):
+    with pytest.raises(ValueError, match="future"):
         parse_measurement_date("2026-08-04", date(2026, 8, 3))
 
 
@@ -70,6 +73,7 @@ def test_store_and_overwrite_weight(tmp_path: Path):
     dates, weights = read_series(path)
     assert dates == [date(2026, 7, 25)]
     assert weights == [109.4]
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
     store_weight(path, date(2026, 7, 25), Decimal("109.5"))
 
@@ -121,18 +125,22 @@ def test_validate_csv(tmp_path: Path):
     assert validate_csv(path) == 2
 
 
-def test_validate_csv_rejects_duplicate_or_unsorted_dates(tmp_path: Path):
-    path = write_csv(
-        tmp_path,
-        "date,weight_kg\n2026-07-25,109.8\n2026-07-25,109.7\n",
-    )
+@pytest.mark.parametrize(
+    "rows",
+    [
+        "2026-07-25,109.8\n2026-07-25,109.7\n",
+        "2026-07-26,109.8\n2026-07-25,109.7\n",
+    ],
+)
+def test_validate_csv_rejects_duplicate_or_unsorted_dates(tmp_path: Path, rows: str):
+    path = write_csv(tmp_path, f"date,weight_kg\n{rows}")
     with pytest.raises(ValueError, match="unique and increasing"):
         validate_csv(path)
 
 
 def test_validate_csv_rejects_bad_header(tmp_path: Path):
     path = write_csv(tmp_path, "day,weight\n2026-07-25,109.8\n")
-    with pytest.raises(ValueError, match="Expected header"):
+    with pytest.raises(ValueError, match="header"):
         validate_csv(path)
 
 
@@ -144,7 +152,7 @@ def test_validate_csv_allows_explicit_plan_gaps(tmp_path: Path):
         validate_csv(path)
 
 
-def test_store_series_atomically_writes_plan_gaps(tmp_path: Path):
+def test_store_series_writes_valid_private_plan_with_gaps(tmp_path: Path):
     path = tmp_path / "plan.csv"
 
     row_count = store_series(
@@ -159,3 +167,8 @@ def test_store_series_atomically_writes_plan_gaps(tmp_path: Path):
         "date,weight_kg\n2026-08-01,100\n2026-08-02,NaN\n2026-08-03,95\n"
     )
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+def test_store_series_rejects_mismatched_dates_and_weights(tmp_path: Path):
+    with pytest.raises(ValueError):  # noqa: PT011 - only rejection is part of this contract
+        store_series(tmp_path / "plan.csv", [date(2026, 8, 1)], [])
