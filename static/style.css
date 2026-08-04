@@ -406,3 +406,9 @@ input {
     min-height: 360px;
   }
 }
+
+@media (min-width: 601px) and (hover: none) and (pointer: coarse) {
+  .time-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

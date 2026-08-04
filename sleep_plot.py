@@ -1,5 +1,5 @@
 import math
-from datetime import date, datetime, time, timedelta
+from datetime import date, time, timedelta
 
 from plotly import graph_objects as go
 
@@ -17,6 +17,7 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
     if records:
         records_by_date = {record.date: record for record in records}
         night_dates = _daily_dates(records[0].date - timedelta(days=1), records[-1].date)
+        night_keys = [_night_label(day) for day in night_dates]
         for day in night_dates:
             record = records_by_date.get(day)
             next_record = records_by_date.get(day + timedelta(days=1))
@@ -26,23 +27,34 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
         upper_values = [_wake_hour(value) for value in wake_times]
 
         for run in _complete_runs(lower_values, upper_values):
-            fill_dates, fill_lower, fill_upper = _fill_coordinates(
-                night_dates,
-                lower_values,
-                upper_values,
-                run,
-            )
-            figure.add_trace(
-                go.Scatter(
-                    x=[*fill_dates, *reversed(fill_dates)],
-                    y=[*fill_lower, *reversed(fill_upper)],
-                    fill="toself",
-                    fillcolor="rgba(139, 92, 246, 0.18)",
-                    line={"width": 0},
-                    hoverinfo="skip",
-                    showlegend=False,
+            if len(run) == 1:
+                index = run[0]
+                figure.add_trace(
+                    go.Bar(
+                        x=[night_keys[index]],
+                        y=[upper_values[index] - lower_values[index]],
+                        base=[lower_values[index]],
+                        width=0.7,
+                        marker={"color": "rgba(139, 92, 246, 0.18)"},
+                        hoverinfo="skip",
+                        showlegend=False,
+                    )
                 )
-            )
+            else:
+                fill_keys = [night_keys[index] for index in run]
+                fill_lower = [lower_values[index] for index in run]
+                fill_upper = [upper_values[index] for index in run]
+                figure.add_trace(
+                    go.Scatter(
+                        x=[*fill_keys, *reversed(fill_keys)],
+                        y=[*fill_lower, *reversed(fill_upper)],
+                        fill="toself",
+                        fillcolor="rgba(139, 92, 246, 0.18)",
+                        line={"width": 0},
+                        hoverinfo="skip",
+                        showlegend=False,
+                    )
+                )
 
         for name, colour, values, times in (
             ("Sleep time", "#6d4cc4", lower_values, sleep_times),
@@ -50,7 +62,7 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
         ):
             figure.add_trace(
                 go.Scatter(
-                    x=night_dates,
+                    x=night_keys,
                     y=values,
                     customdata=[_format_time(value) for value in times],
                     mode="lines+markers",
@@ -58,7 +70,7 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
                     connectgaps=False,
                     line={"color": colour, "width": 2.2},
                     marker={"color": colour, "size": 7},
-                    hovertemplate=("%{x|%d %b %Y}<br>%{customdata}<extra>%{fullData.name}</extra>"),
+                    hovertemplate=("%{x}<br>%{customdata}<extra>%{fullData.name}</extra>"),
                 )
             )
 
@@ -93,7 +105,12 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
             "yanchor": "bottom",
         },
         xaxis={
-            "title": "Night Starting",
+            "title": "Night",
+            "type": "category",
+            "categoryorder": "array",
+            "categoryarray": [_night_label(day) for day in night_dates],
+            "tickangle": -35,
+            "automargin": True,
             "gridcolor": "#383047",
             "linecolor": "#524762",
         },
@@ -141,26 +158,13 @@ def _complete_runs(lower_values: list[float], upper_values: list[float]) -> list
     return runs
 
 
-def _fill_coordinates(
-    dates: list[date],
-    lower_values: list[float],
-    upper_values: list[float],
-    run: list[int],
-) -> tuple[list[date | datetime], list[float], list[float]]:
-    if len(run) > 1:
-        return (
-            [dates[index] for index in run],
-            [lower_values[index] for index in run],
-            [upper_values[index] for index in run],
-        )
-
-    index = run[0]
-    centre = datetime.combine(dates[index], time())
-    return (
-        [centre - timedelta(hours=9), centre + timedelta(hours=9)],
-        [lower_values[index], lower_values[index]],
-        [upper_values[index], upper_values[index]],
-    )
+def _night_label(day: date) -> str:
+    next_day = day + timedelta(days=1)
+    if day.year != next_day.year:
+        return f"{day:%-d %b %Y}–{next_day:%-d %b %Y}"
+    if day.month != next_day.month:
+        return f"{day:%-d %b}–{next_day:%-d %b}<br>{day.year}"
+    return f"{day.day}–{next_day.day} {day:%b}<br>{day.year}"
 
 
 def _format_time(value: time | None) -> str:
