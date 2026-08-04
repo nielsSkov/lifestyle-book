@@ -14,13 +14,77 @@ body {
   min-width: 320px;
 }
 
+.site-header {
+  width: min(1100px, calc(100% - 28px));
+  margin: 28px auto 14px;
+}
+
+.site-title {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #f4f0fa;
+  text-decoration: none;
+}
+
+.site-title span {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.site-title small {
+  color: #a99db9;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.navigation-bar {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  padding: 8px 0 12px;
+  background: linear-gradient(#0c0912 72%, rgb(12 9 18 / 0%));
+}
+
+.section-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: min(1100px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 4px;
+  border: 1px solid #30283e;
+  border-radius: 14px;
+  background: #15111f;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 20%);
+}
+
+.section-tab {
+  padding: 11px 8px;
+  border-radius: 10px;
+  color: #a99db9;
+  font-size: clamp(0.74rem, 3vw, 0.92rem);
+  font-weight: 750;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.section-tab.active {
+  color: #f8f5fc;
+  background: #34205d;
+  box-shadow: inset 0 0 0 1px rgb(216 199 255 / 12%);
+}
+
 main {
   width: min(1100px, calc(100% - 28px));
-  margin: 32px auto;
+  margin: 8px auto 32px;
 }
 
 .entry-card,
-.graph-card {
+.graph-card,
+.placeholder-card {
   background: #15111f;
   border: 1px solid #30283e;
   border-radius: 18px;
@@ -31,6 +95,21 @@ main {
   width: min(100%, 520px);
   margin: 0 auto 20px;
   padding: 24px;
+}
+
+.placeholder-card {
+  width: min(100%, 680px);
+  min-height: 260px;
+  margin: 0 auto;
+  padding: 36px;
+}
+
+.placeholder-copy {
+  max-width: 36rem;
+  margin: 20px 0 0;
+  color: #bdb3c9;
+  font-size: 1.05rem;
+  line-height: 1.6;
 }
 
 .heading {
@@ -219,6 +298,15 @@ input {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .section-tab:hover {
+    color: #f4f0fa;
+    background: #241b32;
+  }
+
+  .section-tab.active:hover {
+    background: #3d276a;
+  }
+
   .entry-card button:hover {
     background: #7842df;
   }
@@ -229,13 +317,36 @@ input {
 }
 
 @media (max-width: 600px) {
+  .site-header {
+    width: min(100% - 20px, 1100px);
+    margin: 16px auto 8px;
+  }
+
+  .site-title span {
+    font-size: 1.7rem;
+  }
+
+  .navigation-bar {
+    padding-block: 6px 10px;
+  }
+
+  .section-tabs {
+    width: min(100% - 20px, 1100px);
+  }
+
   main {
     width: min(100% - 20px, 1100px);
-    margin: 10px auto 24px;
+    margin: 4px auto 24px;
   }
 
   .entry-card {
     padding: 20px;
+    border-radius: 14px;
+  }
+
+  .placeholder-card {
+    min-height: 220px;
+    padding: 28px 20px;
     border-radius: 14px;
   }
 

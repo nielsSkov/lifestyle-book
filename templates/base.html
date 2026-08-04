@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% endblock %} · Lifestyle Book</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="site-title" href="{{ url_for('weight') }}">
+      <span>Lifestyle Book</span>
+      <small>A Gentle Record</small>
+    </a>
+  </header>
+  <div class="navigation-bar">
+    <nav class="section-tabs" aria-label="Lifestyle sections">
+      <a class="section-tab{% if active_section == 'weight' %} active{% endif %}" href="{{ url_for('weight') }}"{% if active_section == 'weight' %} aria-current="page"{% endif %}>Weight</a>
+      <a class="section-tab{% if active_section == 'sleep' %} active{% endif %}" href="{{ url_for('sleep') }}"{% if active_section == 'sleep' %} aria-current="page"{% endif %}>Sleep</a>
+      <a class="section-tab{% if active_section == 'movement_food' %} active{% endif %}" href="{{ url_for('movement_food') }}"{% if active_section == 'movement_food' %} aria-current="page"{% endif %}>Movement &amp; Food</a>
+    </nav>
+  </div>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

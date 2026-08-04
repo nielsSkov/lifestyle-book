@@ -30,14 +30,19 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def redirect_parameters(response) -> dict[str, list[str]]:
     assert response.status_code == 302
     location = urlparse(response.headers["Location"])
-    assert location.path == "/"
+    assert location.path == "/weight"
     return parse_qs(location.query)
 
 
 def test_weight_page_exposes_entry_controls_and_chart_regions(client):
-    response = client.get("/")
+    response = client.get("/weight")
 
     assert response.status_code == 200
+    assert b'<nav class="section-tabs" aria-label=' in response.data
+    assert b'href="/weight" aria-current="page"' in response.data
+    assert b'href="/sleep"' in response.data
+    assert b'href="/movement-food"' in response.data
+    assert response.data.count(b'aria-current="page"') == 1
     assert b'id="previous-date"' in response.data
     assert b'id="next-date"' in response.data
     assert b'aria-live="polite"' in response.data
@@ -47,6 +52,28 @@ def test_weight_page_exposes_entry_controls_and_chart_regions(client):
     assert b'id="weight-plot"' in response.data
     assert b'id="difference-plot"' in response.data
     assert b'id="rate-plot"' in response.data
+
+
+def test_home_redirects_to_weight(client):
+    response = client.get("/")
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/weight"
+
+
+@pytest.mark.parametrize(
+    ("path", "active_link"),
+    [
+        ("/sleep", b'href="/sleep" aria-current="page"'),
+        ("/movement-food", b'href="/movement-food" aria-current="page"'),
+    ],
+)
+def test_section_routes_set_active_navigation(client, path, active_link):
+    response = client.get(path)
+
+    assert response.status_code == 200
+    assert active_link in response.data
+    assert response.data.count(b'aria-current="page"') == 1
 
 
 def test_save_weight_inserts_historical_date_and_advances(client):

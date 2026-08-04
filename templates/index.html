@@ -1,13 +1,6 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Weight</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-  <main>
+{% extends "base.html" %}
+{% block title %}Weight{% endblock %}
+{% block content %}
     <section class="entry-card">
       <div class="heading">
         <div>
@@ -49,7 +42,8 @@
     <section class="graph-card">
       <div id="rate-plot" role="region" aria-label="Interactive four-week average weight change chart"></div>
     </section>
-  </main>
+{% endblock %}
+{% block scripts %}
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
   <script>
     const feedbackMessages = [...document.querySelectorAll("[data-feedback]")];
@@ -142,5 +136,4 @@
       }
     });
   </script>
-</body>
-</html>
+{% endblock %}

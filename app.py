@@ -34,7 +34,12 @@ def current_date() -> date:
 
 
 @app.get("/")
-def index():
+def home():
+    return redirect(url_for("weight"))
+
+
+@app.get("/weight")
+def weight():
     dates, weights = read_series(WEIGHT_CSV)
     plan_dates, plan = read_series(PLAN_CSV)
     today = current_date()
@@ -51,6 +56,7 @@ def index():
     rate_figure = build_rate_figure(dates, weights, plan_dates, plan)
     return render_template(
         "index.html",
+        active_section="weight",
         latest=latest,
         today=today,
         selected_date=selected_date,
@@ -81,7 +87,7 @@ def save_weight():
             next_date = min(measurement_date + timedelta(days=1), today)
             return redirect(
                 url_for(
-                    "index",
+                    "weight",
                     date=next_date.isoformat(),
                     deleted=measurement_date.strftime("%d %b %Y"),
                 )
@@ -89,9 +95,29 @@ def save_weight():
         weight = parse_weight(raw_weight)
         store_weight(WEIGHT_CSV, measurement_date, weight)
     except ValueError as error:
-        return redirect(url_for("index", date=raw_date, error=str(error)))
+        return redirect(url_for("weight", date=raw_date, error=str(error)))
     next_date = min(measurement_date + timedelta(days=1), today)
-    return redirect(url_for("index", date=next_date.isoformat(), saved=format(weight, "f")))
+    return redirect(url_for("weight", date=next_date.isoformat(), saved=format(weight, "f")))
+
+
+@app.get("/sleep")
+def sleep():
+    return render_template(
+        "section.html",
+        active_section="sleep",
+        section_title="Sleep",
+        description="Sleep and wake times will live here",
+    )
+
+
+@app.get("/movement-food")
+def movement_food():
+    return render_template(
+        "section.html",
+        active_section="movement_food",
+        section_title="Movement & Food",
+        description="Everyday movement and food achievements will live here",
+    )
 
 
 @app.get("/plotly.min.js")
