@@ -1,6 +1,9 @@
-# Weight tracker
+# Lifestyle Book
 
-A small self-hosted Flask application for recording daily weight and comparing it with a planned trajectory. Data stays in two CSV files, Plotly renders an interactive web chart, and Matplotlib supports local planning.
+A private-data, public-source Flask application for recording weight, sleep, movement,
+and everyday food achievements without goals, streaks, or judgment. Lifestyle Book is
+derived from Weight Tracker and currently begins with its complete weight-recording
+workflow.
 
 ## Features
 

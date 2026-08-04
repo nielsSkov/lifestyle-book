@@ -3,9 +3,11 @@
 __pycache__/
 *.py[cod]
 
-# Personal measurements, plans, and deployment details
+# Personal measurements, plans, lifestyle records, and deployment details
 /weight.csv
 /plan.csv
+/data/
+/lifestyle.local.json
 /server.local.json
 /backups/
 
