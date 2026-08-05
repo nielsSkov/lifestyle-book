@@ -7,12 +7,10 @@
           <p class="eyebrow">Daily record</p>
           <h1>Weight</h1>
         </div>
-        {% if latest %}
-          <p class="latest"><strong>{{ "%.1f"|format(latest.weight) }}</strong> kg<br><span>{{ latest.date.strftime("%d %b %Y") }}</span></p>
-        {% endif %}
+        <p class="latest" data-latest{% if not latest %} hidden{% endif %}><strong data-latest-weight>{% if latest %}{{ "%.1f"|format(latest.weight) }}{% endif %}</strong> kg<br><span data-latest-date>{% if latest %}{{ latest.date.strftime("%d %b %Y") }}{% endif %}</span></p>
       </div>
 
-      <form action="{{ url_for('save_weight') }}" method="post">
+      <form action="{{ url_for('save_weight') }}" method="post" data-weight-form>
         <label for="measurement-date">Measurement Date</label>
         <div class="date-row" data-date-navigation data-today="{{ today.isoformat() }}">
           <button class="date-step" id="previous-date" type="button" data-date-step="-1" aria-label="Previous date">&larr;</button>
@@ -24,11 +22,7 @@
           <input id="weight" name="weight" type="text" inputmode="decimal">
           <span>kg</span>
         </div>
-        <div class="feedback-slot" aria-live="polite">
-          {% if saved %}<p class="message success" data-feedback>Saved {{ saved }} kg</p>{% endif %}
-          {% if deleted %}<p class="message success" data-feedback>Deleted entry for {{ deleted }}</p>{% endif %}
-          {% if error %}<p class="message error" data-feedback>{{ error }}</p>{% endif %}
-        </div>
+        <p class="autosave-status form-save-status" data-weight-status aria-live="polite">{% if saved %}Saved {{ saved }} kg{% elif deleted %}Deleted entry for {{ deleted }}{% elif error %}{{ error }}{% endif %}</p>
         <button type="submit">Save Weight</button>
       </form>
     </section>
@@ -46,8 +40,26 @@
 {% block scripts %}
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
   <script>
-    const weightEntries = {{ weight_entries | tojson }};
+    let weightEntries = {{ weight_entries | tojson }};
+    const weightForm = document.querySelector("[data-weight-form]");
+    const weightDateInput = document.getElementById("measurement-date");
     const weightInput = document.getElementById("weight");
+    const weightStatus = document.querySelector("[data-weight-status]");
+    const latest = document.querySelector("[data-latest]");
+    let weightStatusTimer = null;
+
+    function showWeightStatus(message, state = "") {
+      window.clearTimeout(weightStatusTimer);
+      weightStatus.textContent = message;
+      weightStatus.dataset.state = state;
+      if (state === "saved") {
+        weightStatusTimer = window.setTimeout(() => {
+          weightStatus.textContent = "";
+          weightStatus.dataset.state = "";
+        }, 1800);
+      }
+    }
+
     document.querySelector("[data-date-navigation]").addEventListener("datechange", (event) => {
       const selected = event.detail.date;
       weightInput.value = Object.prototype.hasOwnProperty.call(weightEntries, selected)
@@ -55,15 +67,17 @@
         : "";
     });
 
-    const weightFigure = {{ graph_json | safe }};
-    const differenceFigure = {{ difference_json | safe }};
-    const rateFigure = {{ rate_json | safe }};
+    let weightFigure = {{ graph_json | safe }};
+    let differenceFigure = {{ difference_json | safe }};
+    let rateFigure = {{ rate_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};
-    Promise.all([
+    const plotsReady = Promise.all([
       Plotly.newPlot("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig),
       Plotly.newPlot("difference-plot", differenceFigure.data, differenceFigure.layout, plotlyConfig),
       Plotly.newPlot("rate-plot", rateFigure.data, rateFigure.layout, plotlyConfig),
-    ]).then((linkedPlots) => {
+    ]);
+
+    plotsReady.then((linkedPlots) => {
       let syncingXAxes = false;
 
       function readXRange(update) {
@@ -99,6 +113,48 @@
             syncingXAxes = false;
           });
         });
+      }
+    });
+
+    weightForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = weightForm.querySelector('button[type="submit"]');
+      button.disabled = true;
+      showWeightStatus("Saving...");
+      try {
+        const response = await fetch(weightForm.action, {
+          method: "POST",
+          headers: {Accept: "application/json"},
+          body: new FormData(weightForm),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Could not save weight");
+
+        weightEntries = result.entries;
+        weightFigure = result.figure;
+        differenceFigure = result.difference_figure;
+        rateFigure = result.rate_figure;
+        await plotsReady;
+        await Promise.all([
+          Plotly.react("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig),
+          Plotly.react("difference-plot", differenceFigure.data, differenceFigure.layout, plotlyConfig),
+          Plotly.react("rate-plot", rateFigure.data, rateFigure.layout, plotlyConfig),
+        ]);
+
+        if (result.latest) {
+          latest.hidden = false;
+          latest.querySelector("[data-latest-weight]").textContent = result.latest.weight.toFixed(1);
+          latest.querySelector("[data-latest-date]").textContent = result.latest.date_label;
+        } else {
+          latest.hidden = true;
+        }
+        weightDateInput.value = result.selected_date;
+        weightDateInput.dispatchEvent(new Event("change", {bubbles: true}));
+        showWeightStatus(result.message, "saved");
+      } catch (error) {
+        showWeightStatus(error.message, "error");
+      } finally {
+        button.disabled = false;
       }
     });
   </script>

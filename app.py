@@ -126,6 +126,11 @@ def save_weight():
             if not delete_weight(WEIGHT_CSV, measurement_date):
                 raise ValueError("No measurement exists for this date")
             next_date = min(measurement_date + timedelta(days=1), today)
+            if _wants_json():
+                return _weight_json_response(
+                    next_date,
+                    f"Deleted entry for {measurement_date:%d %b %Y}",
+                )
             return redirect(
                 url_for(
                     "weight",
@@ -136,8 +141,12 @@ def save_weight():
         weight = parse_weight(raw_weight)
         store_weight(WEIGHT_CSV, measurement_date, weight)
     except ValueError as error:
+        if _wants_json():
+            return jsonify(error=str(error)), 400
         return redirect(url_for("weight", date=raw_date, error=str(error)))
     next_date = min(measurement_date + timedelta(days=1), today)
+    if _wants_json():
+        return _weight_json_response(next_date, f"Saved {weight} kg")
     return redirect(url_for("weight", date=next_date.isoformat(), saved=format(weight, "f")))
 
 
@@ -184,6 +193,11 @@ def save_sleep():
         if not (raw_sleep_time or "").strip() and not (raw_wake_time or "").strip():
             if not delete_sleep(SLEEP_CSV, night_start_date):
                 raise ValueError("No sleep record exists for this night")
+            if _wants_json():
+                return _sleep_json_response(
+                    night_start_date,
+                    f"Deleted sleep record for {night_start_date.isoformat()}",
+                )
             return redirect(
                 url_for(
                     "sleep",
@@ -197,13 +211,64 @@ def save_sleep():
             build_sleep_record(night_start_date, wake_time, sleep_time),
         )
     except ValueError as error:
+        if _wants_json():
+            return jsonify(error=str(error)), 400
         return redirect(url_for("sleep", date=raw_date, error=str(error)))
+    if _wants_json():
+        return _sleep_json_response(night_start_date, "Saved sleep record")
     return redirect(
         url_for(
             "sleep",
             date=night_start_date.isoformat(),
             saved=night_start_date.isoformat(),
         )
+    )
+
+
+def _wants_json() -> bool:
+    return request.accept_mimetypes.best == "application/json"
+
+
+def _weight_json_response(selected_date: date, message: str):
+    dates, weights = read_series(WEIGHT_CSV)
+    plan_dates, plan = read_series(PLAN_CSV)
+    latest = None
+    if dates:
+        latest = {
+            "date": dates[-1].isoformat(),
+            "date_label": dates[-1].strftime("%d %b %Y"),
+            "weight": weights[-1],
+        }
+    return jsonify(
+        message=message,
+        selected_date=selected_date.isoformat(),
+        entries={day.isoformat(): value for day, value in zip(dates, weights, strict=True)},
+        latest=latest,
+        figure=json.loads(
+            cast(str, build_interactive_figure(dates, weights, plan_dates, plan).to_json())
+        ),
+        difference_figure=json.loads(
+            cast(str, build_difference_figure(dates, weights, plan_dates, plan).to_json())
+        ),
+        rate_figure=json.loads(
+            cast(str, build_rate_figure(dates, weights, plan_dates, plan).to_json())
+        ),
+    )
+
+
+def _sleep_json_response(selected_date: date, message: str):
+    records = read_sleep_records(SLEEP_CSV)
+    return jsonify(
+        message=message,
+        selected_date=selected_date.isoformat(),
+        entries={
+            record.night_start_date.isoformat(): {
+                "wake_time": (record.wake_at.strftime("%H:%M") if record.wake_at else None),
+                "sleep_time": (record.sleep_at.strftime("%H:%M") if record.sleep_at else None),
+            }
+            for record in records
+        },
+        figure=json.loads(cast(str, build_sleep_figure(records).to_json())),
     )
 
 

@@ -517,6 +517,10 @@ input {
   margin-top: -10px;
 }
 
+.form-save-status {
+  margin: 8px 0 6px;
+}
+
 .empty-achievements {
   margin: 0 0 18px;
   color: #a99db9;
@@ -569,6 +573,11 @@ input {
   font-size: 1rem;
   font-weight: 800;
   cursor: pointer;
+}
+
+.entry-card button:disabled {
+  opacity: 0.68;
+  cursor: wait;
 }
 
 .entry-card .date-step {

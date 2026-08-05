@@ -63,6 +63,7 @@ def test_weight_page_exposes_entry_controls_and_chart_regions(client):
     assert b'id="weight-plot"' in response.data
     assert b'id="difference-plot"' in response.data
     assert b'id="rate-plot"' in response.data
+    assert b"data-weight-form" in response.data
 
 
 def test_home_redirects_to_weight(client):
@@ -249,6 +250,7 @@ def test_sleep_page_exposes_entry_controls_and_chart_region(client):
     assert b'value="2026-08-02"' in response.data
     assert b'max="2026-08-02"' in response.data
     assert b'id="sleep-plot"' in response.data
+    assert b"data-sleep-form" in response.data
 
 
 def test_sleep_page_rejects_explicit_night_that_has_not_started(client):
@@ -281,6 +283,34 @@ def test_save_sleep_accepts_wake_time_without_sleep_time(client):
     assert read_sleep_records(app_module.SLEEP_CSV) == [
         SleepRecord(date(2026, 8, 1), wake_at=datetime(2026, 8, 2, 7, 15))
     ]
+
+
+def test_save_sleep_json_updates_entries_and_figure_without_redirect(client):
+    response = client.post(
+        "/sleep",
+        data={"date": "2026-08-01", "wake_time": "07:15", "sleep_time": "23:30"},
+        headers={"Accept": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert response.json["message"] == "Saved sleep record"
+    assert response.json["selected_date"] == "2026-08-01"
+    assert response.json["entries"]["2026-08-01"] == {
+        "sleep_time": "23:30",
+        "wake_time": "07:15",
+    }
+    assert response.json["figure"]["data"]
+
+
+def test_invalid_sleep_json_returns_error_without_redirect(client):
+    response = client.post(
+        "/sleep",
+        data={"date": "2026-08-01", "wake_time": "invalid", "sleep_time": "23:30"},
+        headers={"Accept": "application/json"},
+    )
+
+    assert response.status_code == 400
+    assert "error" in response.json
 
 
 def test_save_sleep_accepts_sleep_time_without_wake_time(client):
@@ -329,6 +359,38 @@ def test_save_weight_inserts_historical_date_and_advances(client):
         [date(2026, 7, 31), date(2026, 8, 1), date(2026, 8, 2)],
         [100.5, 100.0, 99.5],
     )
+
+
+def test_save_weight_json_updates_summary_and_figures_without_redirect(client):
+    response = client.post(
+        "/weights",
+        data={"date": "2026-08-03", "weight": "99.4"},
+        headers={"Accept": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert response.json["message"] == "Saved 99.4 kg"
+    assert response.json["selected_date"] == "2026-08-03"
+    assert response.json["entries"]["2026-08-03"] == 99.4
+    assert response.json["latest"] == {
+        "date": "2026-08-03",
+        "date_label": "03 Aug 2026",
+        "weight": 99.4,
+    }
+    assert response.json["figure"]["data"]
+    assert "difference_figure" in response.json
+    assert "rate_figure" in response.json
+
+
+def test_invalid_weight_json_returns_error_without_redirect(client):
+    response = client.post(
+        "/weights",
+        data={"date": "2026-08-03", "weight": "invalid"},
+        headers={"Accept": "application/json"},
+    )
+
+    assert response.status_code == 400
+    assert "error" in response.json
 
 
 def test_save_weight_rejects_future_date(client):
