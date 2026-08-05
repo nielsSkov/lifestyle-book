@@ -29,6 +29,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(app_module, "current_date", lambda: date(2026, 8, 3))
     monkeypatch.setattr(app_module, "current_night_start", lambda: date(2026, 8, 2))
     app_module.app.config.update(TESTING=True)
+    app_module.app.config["RECORD_SUBTITLE"] = "Everyday Record"
     return app_module.app.test_client()
 
 
@@ -44,6 +45,7 @@ def test_weight_page_exposes_entry_controls_and_chart_regions(client):
 
     assert response.status_code == 200
     assert b'<html lang="en-US">' in response.data
+    assert b"<small>Everyday Record</small>" in response.data
     assert b'<nav class="section-tabs" aria-label=' in response.data
     assert b'href="/weight" aria-current="page"' in response.data
     assert b'href="/sleep"' in response.data

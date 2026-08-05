@@ -36,6 +36,16 @@ date,weight_kg
 
 Real CSV files are ignored by Git. Fictional examples are available under `examples/`.
 
+The header subtitle defaults to `Everyday Record`. To personalize it, create the ignored
+local configuration from the example:
+
+```sh
+cp lifestyle.local.example.json lifestyle.local.json
+```
+
+Setting `"name": "Alex"` displays `Alex's Record`; names ending in `s`, such as `Niels`,
+display as `Niels' Record`.
+
 Daily achievements use a wide, append-only schema for category columns:
 
 ```csv

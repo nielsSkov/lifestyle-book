@@ -15,6 +15,7 @@ from interactive_plot import (
     build_rate_figure,
     plotly_javascript,
 )
+from lifestyle_config import load_record_subtitle
 from sleep_data import (
     build_sleep_record,
     delete_sleep,
@@ -41,6 +42,12 @@ COPENHAGEN = ZoneInfo("Europe/Copenhagen")
 PLOTLY_VERSION = version("plotly")
 
 app = Flask(__name__)
+app.config["RECORD_SUBTITLE"] = load_record_subtitle(BASE_DIR / "lifestyle.local.json")
+
+
+@app.context_processor
+def site_identity() -> dict[str, str]:
+    return {"record_subtitle": app.config["RECORD_SUBTITLE"]}
 
 
 def current_date() -> date:
