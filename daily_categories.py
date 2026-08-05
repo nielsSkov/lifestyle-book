@@ -14,21 +14,21 @@ class DailyCategory:
 
 
 DAILY_CATEGORIES = (
-    DailyCategory("walk", "Walk", "movement", "#78b68b", "#3b5745", "#5a8768", "walk"),
-    DailyCategory("run", "Run", "movement", "#dc786f", "#68413f", "#a25d57", "run"),
-    DailyCategory("swim", "Swim", "movement", "#61a9c4", "#34505d", "#4b7d91", "swim"),
-    DailyCategory("dance", "Dance", "movement", "#b77bc9", "#563d60", "#875c95", "dance"),
-    DailyCategory("cycling", "Bike", "movement", "#d0a64f", "#62522d", "#997c3e", "cycling"),
+    DailyCategory("walk", "Walk", "movement", "#78b68b", "#3b5745", "#3f8659", "walk"),
+    DailyCategory("run", "Run", "movement", "#dc786f", "#68413f", "#a94f4a", "run"),
+    DailyCategory("swim", "Swim", "movement", "#61a9c4", "#34505d", "#377992", "swim"),
+    DailyCategory("dance", "Dance", "movement", "#b77bc9", "#563d60", "#7e4695", "dance"),
+    DailyCategory("cycling", "Bike", "movement", "#d0a64f", "#62522d", "#927126", "cycling"),
     DailyCategory(
         "low_sugar",
         "Low Sugar",
         "food",
         "#8fb76f",
         "#465a35",
-        "#6b8952",
+        "#5d8339",
         "low-sugar",
     ),
-    DailyCategory("cooked", "Cooked", "food", "#cf865f", "#604137", "#98644b", "cooked"),
+    DailyCategory("cooked", "Cooked", "food", "#cf865f", "#604137", "#98513a", "cooked"),
 )
 
 

@@ -74,7 +74,7 @@ def test_daily_route_sets_active_navigation_and_exposes_categories(client):
     assert b'href="/daily" aria-current="page"' in response.data
     assert response.data.count(b'aria-current="page"') == 1
     assert b'<p class="eyebrow">Daily</p>' in response.data
-    assert b"<h1>Movement &amp; Food</h1>" in response.data
+    assert b"<h1>Achievements</h1>" in response.data
     assert b'value="cycling"' in response.data
     assert b"<span>Bike</span>" in response.data
     assert b'id="daily-plot"' in response.data
