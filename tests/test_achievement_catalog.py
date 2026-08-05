@@ -1,6 +1,6 @@
 import pytest
 
-from daily_categories import active_categories
+from achievement_catalog import active_categories
 
 
 def test_default_categories_do_not_include_roller_skate():

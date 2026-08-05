@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 from flask import Flask, Response, jsonify, redirect, render_template, request, url_for
 
-from daily_categories import DAILY_CATEGORIES, active_categories
+from achievement_catalog import DAILY_CATEGORIES, active_categories
 from daily_data import (
     parse_daily_date,
     read_daily_records,
@@ -15,13 +15,6 @@ from daily_data import (
     store_daily_record,
 )
 from daily_plot import build_active_days_figure, build_daily_figure
-from interactive_plot import (
-    PLOTLY_CONFIG,
-    build_difference_figure,
-    build_interactive_figure,
-    build_rate_figure,
-    plotly_javascript,
-)
 from lifestyle_config import LifestyleSettings, load_lifestyle_settings, store_lifestyle_settings
 from sleep_data import (
     build_sleep_record,
@@ -38,6 +31,13 @@ from weight_data import (
     parse_weight,
     read_series,
     store_weight,
+)
+from weight_plotly import (
+    PLOTLY_CONFIG,
+    build_difference_figure,
+    build_interactive_figure,
+    build_rate_figure,
+    plotly_javascript,
 )
 
 BASE_DIR = Path(__file__).parent
@@ -96,7 +96,7 @@ def weight():
     difference_figure = build_difference_figure(dates, weights, plan_dates, plan)
     rate_figure = build_rate_figure(dates, weights, plan_dates, plan)
     return render_template(
-        "index.html",
+        "weight.html",
         active_section="weight",
         latest=latest,
         today=today,

@@ -56,7 +56,7 @@ date,walk,run,swim,dance,cycling,other_activity,low_sugar,cooked
 2026-08-05,1,,1,,,,1,
 ```
 
-Visible buttons are controlled by `daily_categories.py`. Setting a category's `active`
+Visible buttons are controlled by `achievement_catalog.py`. Setting a category's `active`
 field to `False` hides its button and graph row without deleting its CSV column or
 historical values. Adding a category appends its stable key as a new column the next time
 a day is saved. Editing a day updates only active categories, so archived achievements
@@ -106,7 +106,7 @@ chmod 600 weight.csv plan.csv
 Prepare and install the service:
 
 ```sh
-cp deploy/weight-tracker.service.example weight-tracker.service
+cp deploy/lifestyle-book.service.example weight-tracker.service
 # Replace YOUR_USER and SERVER_IP in weight-tracker.service.
 sudo install -m 644 weight-tracker.service /etc/systemd/system/weight-tracker.service
 sudo systemctl daemon-reload

@@ -5,7 +5,7 @@ from typing import cast
 
 from matplotlib.figure import Figure
 
-from weight_plot import build_figure, within_period
+from planning_weight_plot import build_figure, within_period
 
 
 def test_within_period():

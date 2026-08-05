@@ -12,8 +12,8 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from plan_model import interpolate_plan
+from planning_weight_plot import build_figure
 from weight_data import read_series, store_series
-from weight_plot import build_figure
 
 ControlValue = float | Callable[[int], float] | None
 

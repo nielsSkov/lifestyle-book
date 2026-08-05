@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 from plotly import graph_objects as go
 
-from daily_categories import DailyCategory
+from achievement_catalog import DailyCategory
 from daily_data import DailyRecord
 
 

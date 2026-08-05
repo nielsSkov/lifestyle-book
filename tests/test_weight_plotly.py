@@ -5,7 +5,7 @@ from typing import cast
 
 import pytest
 
-from interactive_plot import (
+from weight_plotly import (
     PLOTLY_CONFIG,
     build_difference_figure,
     build_interactive_figure,

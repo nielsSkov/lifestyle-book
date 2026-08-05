@@ -2,7 +2,7 @@ import json
 from datetime import date
 from typing import cast
 
-from daily_categories import DailyCategory
+from achievement_catalog import DailyCategory
 from daily_data import DailyRecord
 from daily_plot import build_active_days_figure, build_daily_figure
 
