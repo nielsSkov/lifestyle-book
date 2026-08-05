@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import date, timedelta
 
 from plotly import graph_objects as go
 
@@ -21,21 +22,33 @@ def build_daily_figure(
         for index, category in enumerate(movement)
     }
 
+    displayed_keys = {category.key for category in displayed}
+    active_records = [record for record in records if record.activities & displayed_keys]
+    dates = _daily_dates(active_records[0].day, active_records[-1].day) if active_records else []
+    activities_by_date = {record.day: record.activities for record in active_records}
+
     for category in displayed:
-        dates = [record.day for record in records if category.key in record.activities]
         figure.add_trace(
-            go.Scatter(
-                x=dates,
-                y=[y_positions[category.key]] * len(dates),
-                mode="markers",
+            go.Heatmap(
+                z=[
+                    [
+                        1 if category.key in activities_by_date.get(day, frozenset()) else None
+                        for day in dates
+                    ]
+                ],
+                x0=dates[0] if dates else None,
+                dx=86_400_000,
+                y0=y_positions[category.key],
+                dy=1,
                 name=category.label,
-                marker={
-                    "color": category.colour,
-                    "size": 16,
-                    "symbol": "square",
-                    "line": {"color": "rgba(255,255,255,0.18)", "width": 1},
-                },
+                colorscale=[[0, category.colour], [1, category.colour]],
+                zmin=0,
+                zmax=1,
+                xgap=0,
+                ygap=0,
+                showscale=False,
                 showlegend=False,
+                hoverongaps=False,
                 hovertemplate=f"%{{x|%d %b %Y}}<extra>{category.label}</extra>",
             )
         )
@@ -43,8 +56,8 @@ def build_daily_figure(
     if movement:
         movement_values = [y_positions[category.key] for category in movement]
         figure.add_hrect(
-            y0=min(movement_values) - 0.45,
-            y1=max(movement_values) + 0.45,
+            y0=min(movement_values) - 0.5,
+            y1=max(movement_values) + 0.5,
             fillcolor="rgba(97, 169, 196, 0.045)",
             line_width=0,
             layer="below",
@@ -62,8 +75,8 @@ def build_daily_figure(
     if food:
         food_values = [y_positions[category.key] for category in food]
         figure.add_hrect(
-            y0=min(food_values) - 0.45,
-            y1=max(food_values) + 0.45,
+            y0=min(food_values) - 0.5,
+            y1=max(food_values) + 0.5,
             fillcolor="rgba(207, 134, 95, 0.055)",
             line_width=0,
             layer="below",
@@ -131,3 +144,7 @@ def build_daily_figure(
         },
     )
     return figure
+
+
+def _daily_dates(start: date, end: date) -> list[date]:
+    return [start + timedelta(days=offset) for offset in range((end - start).days + 1)]

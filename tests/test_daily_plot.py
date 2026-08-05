@@ -15,16 +15,22 @@ def test_daily_figure_shows_used_active_categories_in_two_bands():
     ]
     records = [
         DailyRecord(date(2026, 8, 1), frozenset({"walk", "archived"})),
-        DailyRecord(date(2026, 8, 2), frozenset({"walk", "cooked"})),
+        DailyRecord(date(2026, 8, 3), frozenset({"walk", "cooked"})),
     ]
 
     serialized = json.loads(cast(str, build_daily_figure(records, categories).to_json()))
 
     assert [trace["name"] for trace in serialized["data"]] == ["Walk", "Cooked"]
-    assert serialized["data"][0]["x"] == ["2026-08-01", "2026-08-02"]
-    assert serialized["data"][0]["y"] == [3, 3]
-    assert serialized["data"][1]["y"] == [1]
-    assert serialized["data"][0]["marker"]["color"] == "#111111"
+    assert serialized["data"][0]["type"] == "heatmap"
+    assert serialized["data"][0]["x0"] == "2026-08-01"
+    assert serialized["data"][0]["dx"] == 86_400_000
+    assert serialized["data"][0]["y0"] == 3
+    assert serialized["data"][0]["dy"] == 1
+    assert serialized["data"][0]["z"] == [[1, None, 1]]
+    assert serialized["data"][1]["z"] == [[None, None, 1]]
+    assert serialized["data"][0]["xgap"] == 0
+    assert serialized["data"][0]["ygap"] == 0
+    assert serialized["data"][0]["colorscale"] == [[0, "#111111"], [1, "#111111"]]
     assert serialized["layout"]["yaxis"]["ticktext"] == ["Walk", "Cooked"]
     assert len(serialized["layout"]["shapes"]) == 3
     assert [item["text"] for item in serialized["layout"]["annotations"]] == [
