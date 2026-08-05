@@ -493,7 +493,7 @@ input {
 
 .autosave-status {
   min-height: 22px;
-  margin: -8px 0 0;
+  margin: 4px 0 0;
   color: #a99db9;
   font-size: 0.78rem;
   font-weight: 650;
