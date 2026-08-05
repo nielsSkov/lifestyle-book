@@ -342,9 +342,9 @@ input {
 
 .activity-option input:checked + .activity-button {
   border-color: var(--activity-colour);
-  color: #130f19;
-  background: var(--activity-colour);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--activity-colour) 22%, transparent);
+  color: color-mix(in srgb, var(--activity-colour) 55%, white);
+  background: var(--activity-fill);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--activity-colour) 12%, transparent);
 }
 
 .activity-option input:focus-visible + .activity-button {
@@ -501,7 +501,7 @@ input {
   }
 
   .activity-option:hover input:checked + .activity-button {
-    background: color-mix(in srgb, var(--activity-colour) 88%, white);
+    background: color-mix(in srgb, var(--activity-fill) 88%, var(--activity-colour));
   }
 }
 

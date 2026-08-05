@@ -31,7 +31,7 @@
         <legend>Movement</legend>
         <div class="activity-grid">
           {% for category in movement_categories %}
-            <label class="activity-option" style="--activity-colour: {{ category.colour }}">
+            <label class="activity-option" style="--activity-colour: {{ category.colour }}; --activity-fill: {{ category.selected_colour }}">
               <input type="checkbox" name="activity" value="{{ category.key }}" data-activity-input{% if category.key in selected_activities %} checked{% endif %}>
               <span class="activity-button">
                 <svg aria-hidden="true"><use href="#daily-icon-{{ category.icon }}"></use></svg>
@@ -46,7 +46,7 @@
         <legend>Food</legend>
         <div class="activity-grid food-grid">
           {% for category in food_categories %}
-            <label class="activity-option" style="--activity-colour: {{ category.colour }}">
+            <label class="activity-option" style="--activity-colour: {{ category.colour }}; --activity-fill: {{ category.selected_colour }}">
               <input type="checkbox" name="activity" value="{{ category.key }}" data-activity-input{% if category.key in selected_activities %} checked{% endif %}>
               <span class="activity-button">
                 <svg aria-hidden="true"><use href="#daily-icon-{{ category.icon }}"></use></svg>

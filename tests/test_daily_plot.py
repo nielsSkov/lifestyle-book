@@ -9,9 +9,9 @@ from daily_plot import build_daily_figure
 
 def test_daily_figure_shows_used_active_categories_in_two_bands():
     categories = [
-        DailyCategory("walk", "Walk", "movement", "#111111", "walk"),
-        DailyCategory("run", "Run", "movement", "#222222", "run"),
-        DailyCategory("cooked", "Cooked", "food", "#333333", "cooked"),
+        DailyCategory("walk", "Walk", "movement", "#111111", "#444444", "walk"),
+        DailyCategory("run", "Run", "movement", "#222222", "#555555", "run"),
+        DailyCategory("cooked", "Cooked", "food", "#333333", "#666666", "cooked"),
     ]
     records = [
         DailyRecord(date(2026, 8, 1), frozenset({"walk", "archived"})),
@@ -28,9 +28,9 @@ def test_daily_figure_shows_used_active_categories_in_two_bands():
     assert serialized["data"][0]["dy"] == 1
     assert serialized["data"][0]["z"] == [[1, None, 1]]
     assert serialized["data"][1]["z"] == [[None, None, 1]]
-    assert serialized["data"][0]["xgap"] == 0
-    assert serialized["data"][0]["ygap"] == 0
-    assert serialized["data"][0]["colorscale"] == [[0, "#111111"], [1, "#111111"]]
+    assert serialized["data"][0]["xgap"] == 1
+    assert serialized["data"][0]["ygap"] == 1
+    assert serialized["data"][0]["colorscale"] == [[0, "#444444"], [1, "#444444"]]
     assert serialized["layout"]["yaxis"]["ticktext"] == ["Walk", "Cooked"]
     assert len(serialized["layout"]["shapes"]) == 3
     assert [item["text"] for item in serialized["layout"]["annotations"]] == [
@@ -40,7 +40,7 @@ def test_daily_figure_shows_used_active_categories_in_two_bands():
 
 
 def test_daily_figure_supports_empty_data_without_empty_category_rows():
-    category = DailyCategory("walk", "Walk", "movement", "#111111", "walk")
+    category = DailyCategory("walk", "Walk", "movement", "#111111", "#444444", "walk")
     figure = build_daily_figure([], [category])
 
     assert not figure.data
