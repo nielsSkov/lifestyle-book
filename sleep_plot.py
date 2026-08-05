@@ -83,8 +83,7 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
     finite_values = [value for value in [*lower_values, *upper_values] if math.isfinite(value)]
     lower = min([18, *finite_values])
     upper = max([36, *finite_values])
-    first_tick = math.floor(lower / 3) * 3
-    ticks = list(range(first_tick, math.ceil(upper / 3) * 3 + 1, 3))
+    ticks = list(range(math.floor(lower), math.ceil(upper) + 1))
     figure.update_layout(
         template="none",
         autosize=True,

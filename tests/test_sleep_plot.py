@@ -41,6 +41,7 @@ def test_sleep_figure_uses_night_buckets_and_fills_only_complete_nights():
     assert sleep_trace["connectgaps"] is False
     assert wake_trace["connectgaps"] is False
     assert [sleep_trace["name"], wake_trace["name"]] == ["Sleep time", "Wake time"]
+    assert serialized["layout"]["yaxis"]["tickvals"] == list(range(18, 37))
 
 
 def test_sleep_figure_supports_empty_data():
