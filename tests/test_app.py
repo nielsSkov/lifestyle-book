@@ -83,6 +83,7 @@ def test_daily_route_sets_active_navigation_and_exposes_categories(client):
     assert b"<h1>Achievements</h1>" in response.data
     assert b'value="cycling"' in response.data
     assert b"<span>Bike</span>" in response.data
+    assert b'id="daily-icon-swim-figurative"' in response.data
     assert b'value="other_activity"' in response.data
     assert b'value="roller_skate"' not in response.data
     assert b'id="active-days-plot"' in response.data
