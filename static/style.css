@@ -509,6 +509,10 @@ input {
   color: #ffc1c1;
 }
 
+.daily-controls .autosave-status {
+  margin-top: 18px;
+}
+
 .options-status {
   margin-top: -10px;
 }
