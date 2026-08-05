@@ -5,6 +5,9 @@ from zoneinfo import ZoneInfo
 
 from flask import Flask, Response, redirect, render_template, request, url_for
 
+from daily_categories import active_categories
+from daily_data import parse_daily_date, read_daily_records, store_daily_record
+from daily_plot import build_daily_figure
 from interactive_plot import (
     PLOTLY_CONFIG,
     build_difference_figure,
@@ -33,6 +36,7 @@ BASE_DIR = Path(__file__).parent
 WEIGHT_CSV = BASE_DIR / "weight.csv"
 PLAN_CSV = BASE_DIR / "plan.csv"
 SLEEP_CSV = BASE_DIR / "data" / "sleep.csv"
+DAILY_CSV = BASE_DIR / "data" / "daily.csv"
 COPENHAGEN = ZoneInfo("Europe/Copenhagen")
 PLOTLY_VERSION = version("plotly")
 
@@ -182,14 +186,61 @@ def save_sleep():
     )
 
 
+@app.get("/daily")
+def daily():
+    categories = active_categories()
+    records = read_daily_records(DAILY_CSV)
+    today = current_date()
+    try:
+        selected_date = parse_daily_date(request.args.get("date", today.isoformat()), today)
+    except ValueError:
+        selected_date = today
+    figure = build_daily_figure(records, categories)
+    return render_template(
+        "daily.html",
+        active_section="daily",
+        today=today,
+        selected_date=selected_date,
+        movement_categories=[category for category in categories if category.group == "movement"],
+        food_categories=[category for category in categories if category.group == "food"],
+        daily_entries={
+            record.day.isoformat(): sorted(record.activities & {item.key for item in categories})
+            for record in records
+        },
+        selected_activities=next(
+            (record.activities for record in records if record.day == selected_date),
+            frozenset(),
+        ),
+        saved=request.args.get("saved"),
+        error=request.args.get("error"),
+        graph_json=figure.to_json(),
+        plotly_config=PLOTLY_CONFIG,
+        plotly_version=PLOTLY_VERSION,
+    )
+
+
+@app.post("/daily")
+def save_daily():
+    raw_date = request.form.get("date")
+    try:
+        selected_date = parse_daily_date(raw_date, current_date())
+        categories = active_categories()
+        store_daily_record(
+            DAILY_CSV,
+            selected_date,
+            request.form.getlist("activity"),
+            [category.key for category in categories],
+        )
+    except ValueError as error:
+        return redirect(url_for("daily", date=raw_date, error=str(error)))
+    return redirect(
+        url_for("daily", date=selected_date.isoformat(), saved=selected_date.isoformat())
+    )
+
+
 @app.get("/movement-food")
 def movement_food():
-    return render_template(
-        "section.html",
-        active_section="movement_food",
-        section_title="Movement & Food",
-        description="Everyday movement and food achievements will live here",
-    )
+    return redirect(url_for("daily"))
 
 
 @app.get("/plotly.min.js")

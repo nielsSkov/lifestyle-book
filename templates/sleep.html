@@ -4,7 +4,7 @@
   <section class="entry-card sleep-entry-card">
     <div class="heading">
       <div>
-        <p class="eyebrow">Daily record</p>
+        <p class="eyebrow">Nightly record</p>
         <h1>Sleep</h1>
       </div>
     </div>
@@ -15,18 +15,18 @@
         <button class="date-step" type="button" data-date-step="-1" aria-label="Previous date">&larr;</button>
         <div class="night-date-picker">
           <span data-night-label aria-hidden="true"></span>
-          <input id="sleep-date" name="date" type="date" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" data-date-input aria-label="Select night" required>
+          <input id="sleep-date" name="date" type="date" lang="en-GB" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" data-date-input aria-label="Select night" required>
         </div>
         <button class="date-step" type="button" data-date-step="1" aria-label="Next date">&rarr;</button>
       </div>
       <div class="time-grid">
         <div class="time-field">
           <label for="sleep-time">Sleep Time</label>
-          <input id="sleep-time" name="sleep_time" type="time">
+          <input id="sleep-time" name="sleep_time" type="time" lang="en-GB">
         </div>
         <div class="time-field">
           <label for="wake-time">Wake Time</label>
-          <input id="wake-time" name="wake_time" type="time">
+          <input id="wake-time" name="wake_time" type="time" lang="en-GB">
         </div>
       </div>
       <div class="feedback-slot" aria-live="polite">

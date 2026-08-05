@@ -16,7 +16,7 @@
         <label for="measurement-date">Measurement Date</label>
         <div class="date-row" data-date-navigation data-today="{{ today.isoformat() }}">
           <button class="date-step" id="previous-date" type="button" data-date-step="-1" aria-label="Previous date">&larr;</button>
-          <input id="measurement-date" name="date" type="date" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" data-date-input required>
+          <input id="measurement-date" name="date" type="date" lang="en-GB" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" data-date-input required>
           <button class="date-step" id="next-date" type="button" data-date-step="1" aria-label="Next date">&rarr;</button>
         </div>
         <label for="weight">Weight</label>

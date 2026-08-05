@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 
 import app as app_module
+from daily_data import DailyRecord, read_daily_records
 from sleep_data import SleepRecord, read_sleep_records, store_sleep
 from weight_data import read_series
 
@@ -24,6 +25,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(app_module, "WEIGHT_CSV", weight_csv)
     monkeypatch.setattr(app_module, "PLAN_CSV", plan_csv)
     monkeypatch.setattr(app_module, "SLEEP_CSV", tmp_path / "data" / "sleep.csv")
+    monkeypatch.setattr(app_module, "DAILY_CSV", tmp_path / "data" / "daily.csv")
     monkeypatch.setattr(app_module, "current_date", lambda: date(2026, 8, 3))
     monkeypatch.setattr(app_module, "current_night_start", lambda: date(2026, 8, 2))
     app_module.app.config.update(TESTING=True)
@@ -41,10 +43,11 @@ def test_weight_page_exposes_entry_controls_and_chart_regions(client):
     response = client.get("/weight")
 
     assert response.status_code == 200
+    assert b'<html lang="en-US">' in response.data
     assert b'<nav class="section-tabs" aria-label=' in response.data
     assert b'href="/weight" aria-current="page"' in response.data
     assert b'href="/sleep"' in response.data
-    assert b'href="/movement-food"' in response.data
+    assert b'href="/daily"' in response.data
     assert response.data.count(b'aria-current="page"') == 1
     assert b'id="previous-date"' in response.data
     assert b'id="next-date"' in response.data
@@ -64,12 +67,57 @@ def test_home_redirects_to_weight(client):
     assert response.headers["Location"] == "/weight"
 
 
-def test_movement_food_route_sets_active_navigation(client):
-    response = client.get("/movement-food")
+def test_daily_route_sets_active_navigation_and_exposes_categories(client):
+    response = client.get("/daily")
 
     assert response.status_code == 200
-    assert b'href="/movement-food" aria-current="page"' in response.data
+    assert b'href="/daily" aria-current="page"' in response.data
     assert response.data.count(b'aria-current="page"') == 1
+    assert b'<p class="eyebrow">Daily</p>' in response.data
+    assert b"<h1>Movement &amp; Food</h1>" in response.data
+    assert b'value="cycling"' in response.data
+    assert b"<span>Bike</span>" in response.data
+    assert b'id="daily-plot"' in response.data
+
+
+def test_old_movement_food_route_redirects_to_daily(client):
+    response = client.get("/movement-food")
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/daily"
+
+
+def test_save_daily_stays_on_date_and_records_selected_categories(client):
+    response = client.post(
+        "/daily",
+        data={"date": "2026-08-02", "activity": ["walk", "cycling", "cooked"]},
+    )
+
+    parameters = redirect_parameters(response, "/daily")
+    assert parameters["date"] == ["2026-08-02"]
+    assert "saved" in parameters
+    assert read_daily_records(app_module.DAILY_CSV) == [
+        DailyRecord(date(2026, 8, 2), frozenset({"walk", "cycling", "cooked"}))
+    ]
+
+
+def test_save_daily_rejects_unknown_categories_without_changing_data(client):
+    client.post("/daily", data={"date": "2026-08-02", "activity": "walk"})
+    original = app_module.DAILY_CSV.read_bytes()
+
+    response = client.post(
+        "/daily",
+        data={"date": "2026-08-02", "activity": ["walk", "unknown"]},
+    )
+
+    assert "error" in redirect_parameters(response, "/daily")
+    assert app_module.DAILY_CSV.read_bytes() == original
+
+
+def test_daily_page_uses_nightly_record_sleep_heading(client):
+    response = client.get("/sleep")
+
+    assert b'<p class="eyebrow">Nightly record</p>' in response.data
 
 
 def test_sleep_page_exposes_entry_controls_and_chart_region(client):
@@ -79,6 +127,7 @@ def test_sleep_page_exposes_entry_controls_and_chart_region(client):
     assert b'href="/sleep" aria-current="page"' in response.data
     assert b'name="sleep_time"' in response.data
     assert b'name="wake_time"' in response.data
+    assert b'name="wake_time" type="time" lang="en-GB"' in response.data
     assert b"data-date-navigation" in response.data
     assert b"data-night-label" in response.data
     assert b'value="2026-08-02"' in response.data

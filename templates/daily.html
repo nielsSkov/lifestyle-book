@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Movement &amp; Food{% endblock %}
+{% block content %}
+  <svg class="icon-library" aria-hidden="true">
+    <symbol id="daily-icon-walk" viewBox="0 0 24 24"><circle cx="13" cy="4" r="2"/><path d="m10 22 2-7-3-3 2-5 4 3 3 1M6 22l3-6M15 22l-3-7M5 12l4-3"/></symbol>
+    <symbol id="daily-icon-run" viewBox="0 0 24 24"><circle cx="15" cy="4" r="2"/><path d="m7 21 4-6 2-4 4 3 3 1M4 13l5-4 4 2M12 15l5 6"/></symbol>
+    <symbol id="daily-icon-swim" viewBox="0 0 24 24"><path d="m4 14 4-4 4 3 3-6 5 3M2 17c2 0 2 1.5 4 1.5S8 17 10 17s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5M4 21c2 0 2 1 4 1s2-1 4-1 2 1 4 1 2-1 4-1"/></symbol>
+    <symbol id="daily-icon-dance" viewBox="0 0 24 24"><path d="M9 18V5l10-2v13M9 8l10-2"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></symbol>
+    <symbol id="daily-icon-cycling" viewBox="0 0 24 24"><circle cx="5" cy="17" r="4"/><circle cx="19" cy="17" r="4"/><path d="m5 17 4-8h5l5 8M9 9l4 8H5M12 5h3M14 9l2-3"/></symbol>
+    <symbol id="daily-icon-low-sugar" viewBox="0 0 24 24"><path d="m5 8 7-4 7 4v8l-7 4-7-4Z"/><path d="m5 8 7 4 7-4M12 12v8M8 3l8 18"/></symbol>
+    <symbol id="daily-icon-cooked" viewBox="0 0 24 24"><path d="M4 10h16v4a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7ZM2 10h20M8 6c0-2 2-2 2-4M13 6c0-2 2-2 2-4"/></symbol>
+  </svg>
+
+  <section class="entry-card daily-entry-card">
+    <div class="heading">
+      <div>
+        <p class="eyebrow">Daily</p>
+        <h1>Movement &amp; Food</h1>
+      </div>
+    </div>
+
+    <form action="{{ url_for('save_daily') }}" method="post">
+      <label for="daily-date">Date</label>
+      <div class="date-row" data-date-navigation data-today="{{ today.isoformat() }}">
+        <button class="date-step" type="button" data-date-step="-1" aria-label="Previous date">&larr;</button>
+        <input id="daily-date" name="date" type="date" lang="en-GB" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" data-date-input required>
+        <button class="date-step" type="button" data-date-step="1" aria-label="Next date">&rarr;</button>
+      </div>
+
+      <fieldset class="activity-group">
+        <legend>Movement</legend>
+        <div class="activity-grid">
+          {% for category in movement_categories %}
+            <label class="activity-option" style="--activity-colour: {{ category.colour }}">
+              <input type="checkbox" name="activity" value="{{ category.key }}" data-activity-input{% if category.key in selected_activities %} checked{% endif %}>
+              <span class="activity-button">
+                <svg aria-hidden="true"><use href="#daily-icon-{{ category.icon }}"></use></svg>
+                <span>{{ category.label }}</span>
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <fieldset class="activity-group food-group">
+        <legend>Food</legend>
+        <div class="activity-grid food-grid">
+          {% for category in food_categories %}
+            <label class="activity-option" style="--activity-colour: {{ category.colour }}">
+              <input type="checkbox" name="activity" value="{{ category.key }}" data-activity-input{% if category.key in selected_activities %} checked{% endif %}>
+              <span class="activity-button">
+                <svg aria-hidden="true"><use href="#daily-icon-{{ category.icon }}"></use></svg>
+                <span>{{ category.label }}</span>
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <div class="feedback-slot" aria-live="polite">
+        {% if saved %}<p class="message success" data-feedback>Saved daily record</p>{% endif %}
+        {% if error %}<p class="message error" data-feedback>{{ error }}</p>{% endif %}
+      </div>
+      <button type="submit">Save Day</button>
+    </form>
+  </section>
+
+  <section class="graph-card">
+    <div id="daily-plot" role="region" aria-label="Interactive movement and food achievements chart"></div>
+  </section>
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
+  <script>
+    const dailyEntries = {{ daily_entries | tojson }};
+    const activityInputs = document.querySelectorAll("[data-activity-input]");
+    document.querySelector("[data-date-navigation]").addEventListener("datechange", (event) => {
+      const selected = new Set(dailyEntries[event.detail.date] ?? []);
+      for (const input of activityInputs) input.checked = selected.has(input.value);
+    });
+
+    const dailyFigure = {{ graph_json | safe }};
+    const plotlyConfig = {{ plotly_config | tojson }};
+    Plotly.newPlot("daily-plot", dailyFigure.data, dailyFigure.layout, plotlyConfig);
+  </script>
+{% endblock %}

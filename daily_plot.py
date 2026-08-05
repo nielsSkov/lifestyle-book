@@ -1,0 +1,133 @@
+from collections.abc import Sequence
+
+from plotly import graph_objects as go
+
+from daily_categories import DailyCategory
+from daily_data import DailyRecord
+
+
+def build_daily_figure(
+    records: Sequence[DailyRecord],
+    categories: Sequence[DailyCategory],
+) -> go.Figure:
+    figure = go.Figure()
+    used_keys = {key for record in records for key in record.activities}
+    displayed = [category for category in categories if category.key in used_keys]
+    movement = [category for category in displayed if category.group == "movement"]
+    food = [category for category in displayed if category.group == "food"]
+    group_gap = 1 if movement and food else 0
+    y_positions = {category.key: len(food) - index for index, category in enumerate(food)} | {
+        category.key: len(food) + group_gap + len(movement) - index
+        for index, category in enumerate(movement)
+    }
+
+    for category in displayed:
+        dates = [record.day for record in records if category.key in record.activities]
+        figure.add_trace(
+            go.Scatter(
+                x=dates,
+                y=[y_positions[category.key]] * len(dates),
+                mode="markers",
+                name=category.label,
+                marker={
+                    "color": category.colour,
+                    "size": 16,
+                    "symbol": "square",
+                    "line": {"color": "rgba(255,255,255,0.18)", "width": 1},
+                },
+                showlegend=False,
+                hovertemplate=f"%{{x|%d %b %Y}}<extra>{category.label}</extra>",
+            )
+        )
+
+    if movement:
+        movement_values = [y_positions[category.key] for category in movement]
+        figure.add_hrect(
+            y0=min(movement_values) - 0.45,
+            y1=max(movement_values) + 0.45,
+            fillcolor="rgba(97, 169, 196, 0.045)",
+            line_width=0,
+            layer="below",
+        )
+        figure.add_annotation(
+            text="MOVEMENT",
+            x=0,
+            y=max(movement_values) + 0.55,
+            xref="paper",
+            showarrow=False,
+            xanchor="left",
+            yanchor="bottom",
+            font={"color": "#849dac", "size": 10},
+        )
+    if food:
+        food_values = [y_positions[category.key] for category in food]
+        figure.add_hrect(
+            y0=min(food_values) - 0.45,
+            y1=max(food_values) + 0.45,
+            fillcolor="rgba(207, 134, 95, 0.055)",
+            line_width=0,
+            layer="below",
+        )
+        figure.add_annotation(
+            text="FOOD",
+            x=0,
+            y=max(food_values) + 0.55,
+            xref="paper",
+            showarrow=False,
+            xanchor="left",
+            yanchor="bottom",
+            font={"color": "#a88c7c", "size": 10},
+        )
+    if movement and food:
+        divider = (
+            min(y_positions[category.key] for category in movement)
+            + max(y_positions[category.key] for category in food)
+        ) / 2
+        figure.add_hline(y=divider, line={"color": "#524762", "width": 1})
+
+    if not displayed:
+        figure.add_annotation(
+            text="Recorded achievements will appear here",
+            x=0.5,
+            y=0.5,
+            xref="paper",
+            yref="paper",
+            showarrow=False,
+            font={"color": "#8f859d", "size": 14},
+        )
+
+    figure.update_layout(
+        template="none",
+        autosize=True,
+        title={"text": "Daily Achievements", "x": 0.5},
+        paper_bgcolor="#15111f",
+        plot_bgcolor="#15111f",
+        font={
+            "color": "#bbb3c9",
+            "family": 'Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif',
+        },
+        hoverlabel={
+            "bgcolor": "#2c2340",
+            "bordercolor": "#524762",
+            "font": {"color": "#f4f0fa"},
+        },
+        uirevision="daily-achievements",
+        margin={"l": 92, "r": 28, "t": 76, "b": 58},
+        xaxis={
+            "title": "Date",
+            "type": "date",
+            "tickformat": "%d %b",
+            "gridcolor": "#383047",
+            "linecolor": "#524762",
+        },
+        yaxis={
+            "range": [0.5, max(y_positions.values()) + 1] if displayed else [0, 1],
+            "tickvals": [y_positions[category.key] for category in displayed],
+            "ticktext": [category.label for category in displayed],
+            "gridcolor": "rgba(56, 48, 71, 0.5)",
+            "linecolor": "#524762",
+            "fixedrange": True,
+            "automargin": True,
+        },
+    )
+    return figure

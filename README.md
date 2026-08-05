@@ -2,8 +2,7 @@
 
 A private-data, public-source Flask application for recording weight, sleep, movement,
 and everyday food achievements without goals, streaks, or judgment. Lifestyle Book is
-derived from Weight Tracker and currently begins with its complete weight-recording
-workflow.
+derived from Weight Tracker and retains its complete weight-recording workflow.
 
 ## Features
 
@@ -13,15 +12,19 @@ workflow.
 - Interactive zooming, panning, hover values, and range slider
 - Recorded and planned weight lines
 - Plan deviation and four-week average weight-change charts
+- Independent Sleep and Wake time entry organized by night
+- Configurable Movement and Food achievement buttons with a shared daily timeline
 - No database, frontend build system, or external analytics
 
 ## Data
 
-The application reads two local files:
+The application reads local CSV files:
 
 ```text
 weight.csv  Recorded measurements
 plan.csv    Planned trajectory
+data/sleep.csv  Sleep and Wake times
+data/daily.csv  Movement and Food achievements
 ```
 
 Both use this format:
@@ -32,6 +35,19 @@ date,weight_kg
 ```
 
 Real CSV files are ignored by Git. Fictional examples are available under `examples/`.
+
+Daily achievements use a wide, append-only schema for category columns:
+
+```csv
+date,walk,run,swim,dance,cycling,low_sugar,cooked
+2026-08-05,1,,1,,,1,
+```
+
+Visible buttons are controlled by `daily_categories.py`. Setting a category's `active`
+field to `False` hides its button and graph row without deleting its CSV column or
+historical values. Adding a category appends its stable key as a new column the next time
+a day is saved. Editing a day updates only active categories, so archived achievements
+remain intact.
 
 Selecting an existing measurement date pre-fills its weight. Clear that value and save to
 remove the date's CSV row entirely; missing dates are not generated or interpolated.

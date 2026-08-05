@@ -263,6 +263,95 @@ input {
   width: min(100%, 640px);
 }
 
+.daily-entry-card {
+  width: min(100%, 700px);
+}
+
+.icon-library {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.activity-group {
+  min-width: 0;
+  margin: 0 0 24px;
+  padding: 0;
+  border: 0;
+}
+
+.activity-group legend {
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.food-group {
+  margin-bottom: 6px;
+}
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.food-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.activity-option {
+  position: relative;
+  margin: 0;
+  cursor: pointer;
+}
+
+.activity-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.activity-button {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 2px solid color-mix(in srgb, var(--activity-colour) 42%, #4b405d);
+  border-radius: 12px;
+  color: color-mix(in srgb, var(--activity-colour) 72%, white);
+  background: color-mix(in srgb, var(--activity-colour) 9%, #0f0c16);
+  font-weight: 750;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.activity-button svg {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.activity-option input:checked + .activity-button {
+  border-color: var(--activity-colour);
+  color: #130f19;
+  background: var(--activity-colour);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--activity-colour) 22%, transparent);
+}
+
+.activity-option input:focus-visible + .activity-button {
+  outline: 3px solid color-mix(in srgb, var(--activity-colour) 45%, transparent);
+  outline-offset: 2px;
+}
+
 .time-field {
   min-width: 0;
   min-inline-size: 0;
@@ -362,7 +451,8 @@ input {
 #weight-plot,
 #difference-plot,
 #rate-plot,
-#sleep-plot {
+#sleep-plot,
+#daily-plot {
   width: 100%;
 }
 
@@ -382,6 +472,11 @@ input {
   min-height: 600px;
 }
 
+#daily-plot {
+  height: min(68vh, 600px);
+  min-height: 500px;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .section-tab:hover {
     color: #f4f0fa;
@@ -398,6 +493,15 @@ input {
 
   .entry-card .date-step:hover:not(:disabled) {
     background: #403353;
+  }
+
+  .activity-option:hover .activity-button {
+    border-color: var(--activity-colour);
+    background: color-mix(in srgb, var(--activity-colour) 16%, #0f0c16);
+  }
+
+  .activity-option:hover input:checked + .activity-button {
+    background: color-mix(in srgb, var(--activity-colour) 88%, white);
   }
 }
 
@@ -455,5 +559,16 @@ input {
   #sleep-plot {
     height: min(80vh, 640px);
     min-height: 520px;
+  }
+
+  #daily-plot {
+    height: min(72vh, 560px);
+    min-height: 460px;
+  }
+}
+
+@media (max-width: 480px) {
+  .activity-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
