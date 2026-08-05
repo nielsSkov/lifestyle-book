@@ -28,8 +28,8 @@ def test_daily_figure_shows_used_active_categories_in_two_bands():
     assert serialized["data"][0]["dy"] == 1
     assert serialized["data"][0]["z"] == [[1, None, 1]]
     assert serialized["data"][1]["z"] == [[None, None, 1]]
-    assert serialized["data"][0]["xgap"] == 2
-    assert serialized["data"][0]["ygap"] == 2
+    assert serialized["data"][0]["xgap"] == 10
+    assert serialized["data"][0]["ygap"] == 10
     assert serialized["data"][0]["colorscale"] == [[0, "#777777"], [1, "#777777"]]
     assert serialized["layout"]["yaxis"]["ticktext"] == ["Walk", "Cooked"]
     assert len(serialized["layout"]["shapes"]) == 3

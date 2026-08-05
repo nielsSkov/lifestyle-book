@@ -81,6 +81,32 @@
 
     const dailyFigure = {{ graph_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};
-    Plotly.newPlot("daily-plot", dailyFigure.data, dailyFigure.layout, plotlyConfig);
+    const dailyPlot = document.getElementById("daily-plot");
+    let currentTileGap = null;
+
+    function updateTileGap() {
+      const xaxis = dailyPlot._fullLayout?.xaxis;
+      if (!dailyPlot.data.length || !xaxis?.range || !xaxis._length) return;
+
+      const rangeDates = xaxis.range.map((value) => new Date(value)).sort((first, second) => first - second);
+      const eightMonthsLater = new Date(rangeDates[0]);
+      eightMonthsLater.setUTCMonth(eightMonthsLater.getUTCMonth() + 8);
+      const visibleMilliseconds = rangeDates[1] - rangeDates[0];
+      const visibleDays = Math.max(visibleMilliseconds / 86400000, 1);
+      const dayWidth = xaxis._length / visibleDays;
+      const tileGap = rangeDates[1] >= eightMonthsLater
+        ? 0
+        : Math.round(Math.min(10, dayWidth * 0.25) * 100) / 100;
+      if (tileGap === currentTileGap) return;
+
+      currentTileGap = tileGap;
+      Plotly.restyle(dailyPlot, {xgap: tileGap});
+    }
+
+    Plotly.newPlot(dailyPlot, dailyFigure.data, dailyFigure.layout, plotlyConfig).then(() => {
+      updateTileGap();
+      dailyPlot.on("plotly_relayout", () => requestAnimationFrame(updateTileGap));
+      window.addEventListener("resize", () => requestAnimationFrame(updateTileGap));
+    });
   </script>
 {% endblock %}
