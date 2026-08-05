@@ -6,6 +6,7 @@ import pytest
 
 import app as app_module
 from daily_data import DailyRecord, read_daily_records
+from lifestyle_config import LifestyleSettings, load_lifestyle_settings
 from sleep_data import SleepRecord, read_sleep_records, store_sleep
 from weight_data import read_series
 
@@ -26,10 +27,11 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(app_module, "PLAN_CSV", plan_csv)
     monkeypatch.setattr(app_module, "SLEEP_CSV", tmp_path / "data" / "sleep.csv")
     monkeypatch.setattr(app_module, "DAILY_CSV", tmp_path / "data" / "daily.csv")
+    monkeypatch.setattr(app_module, "LIFESTYLE_CONFIG", tmp_path / "lifestyle.local.json")
     monkeypatch.setattr(app_module, "current_date", lambda: date(2026, 8, 3))
     monkeypatch.setattr(app_module, "current_night_start", lambda: date(2026, 8, 2))
     app_module.app.config.update(TESTING=True)
-    app_module.app.config["RECORD_SUBTITLE"] = "Everyday Record"
+    app_module.app.config["LIFESTYLE_SETTINGS"] = LifestyleSettings()
     return app_module.app.test_client()
 
 
@@ -45,7 +47,8 @@ def test_weight_page_exposes_entry_controls_and_chart_regions(client):
 
     assert response.status_code == 200
     assert b'<html lang="en-US">' in response.data
-    assert b"<small>Everyday Record</small>" in response.data
+    assert b"<small>Everyday log</small>" in response.data
+    assert b'href="/options" aria-label="Options"' in response.data
     assert b'<nav class="section-tabs" aria-label=' in response.data
     assert b'href="/weight" aria-current="page"' in response.data
     assert b'href="/sleep"' in response.data
@@ -79,7 +82,48 @@ def test_daily_route_sets_active_navigation_and_exposes_categories(client):
     assert b"<h1>Achievements</h1>" in response.data
     assert b'value="cycling"' in response.data
     assert b"<span>Bike</span>" in response.data
+    assert b'value="roller_skate"' not in response.data
     assert b'id="daily-plot"' in response.data
+
+
+def test_options_page_shows_catalog_with_roller_skate_inactive(client):
+    response = client.get("/options")
+
+    assert response.status_code == 200
+    assert b'href="/options" aria-label="Options" aria-current="page"' in response.data
+    assert b'name="active_achievement" value="walk" checked' in response.data
+    assert b'name="active_achievement" value="roller_skate">' in response.data
+    assert b"Roller Skate" in response.data
+
+
+def test_save_options_personalizes_log_and_changes_daily_categories(client):
+    response = client.post(
+        "/options",
+        data={
+            "name": "Niels",
+            "active_achievement": ["walk", "roller_skate", "cooked"],
+        },
+    )
+
+    parameters = redirect_parameters(response, "/options")
+    assert "saved" in parameters
+    assert load_lifestyle_settings(app_module.LIFESTYLE_CONFIG) == LifestyleSettings(
+        "Niels", ("walk", "roller_skate", "cooked")
+    )
+    page = client.get("/daily")
+    assert b"<small>Niels&#39; log</small>" in page.data
+    assert b'value="roller_skate"' in page.data
+    assert b'value="run"' not in page.data
+
+
+def test_save_options_rejects_unknown_achievement(client):
+    response = client.post(
+        "/options",
+        data={"name": "Niels", "active_achievement": ["walk", "unknown"]},
+    )
+
+    assert "error" in redirect_parameters(response, "/options")
+    assert not app_module.LIFESTYLE_CONFIG.exists()
 
 
 def test_old_movement_food_route_redirects_to_daily(client):

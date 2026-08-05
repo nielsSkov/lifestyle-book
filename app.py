@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 from flask import Flask, Response, redirect, render_template, request, url_for
 
-from daily_categories import active_categories
+from daily_categories import DAILY_CATEGORIES, active_categories
 from daily_data import parse_daily_date, read_daily_records, store_daily_record
 from daily_plot import build_daily_figure
 from interactive_plot import (
@@ -15,7 +15,7 @@ from interactive_plot import (
     build_rate_figure,
     plotly_javascript,
 )
-from lifestyle_config import load_record_subtitle
+from lifestyle_config import LifestyleSettings, load_lifestyle_settings, store_lifestyle_settings
 from sleep_data import (
     build_sleep_record,
     delete_sleep,
@@ -38,16 +38,24 @@ WEIGHT_CSV = BASE_DIR / "weight.csv"
 PLAN_CSV = BASE_DIR / "plan.csv"
 SLEEP_CSV = BASE_DIR / "data" / "sleep.csv"
 DAILY_CSV = BASE_DIR / "data" / "daily.csv"
+LIFESTYLE_CONFIG = BASE_DIR / "lifestyle.local.json"
 COPENHAGEN = ZoneInfo("Europe/Copenhagen")
 PLOTLY_VERSION = version("plotly")
 
 app = Flask(__name__)
-app.config["RECORD_SUBTITLE"] = load_record_subtitle(BASE_DIR / "lifestyle.local.json")
+app.config["LIFESTYLE_SETTINGS"] = load_lifestyle_settings(LIFESTYLE_CONFIG)
+
+
+def lifestyle_settings() -> LifestyleSettings:
+    settings = app.config["LIFESTYLE_SETTINGS"]
+    if not isinstance(settings, LifestyleSettings):
+        raise TypeError("Expected LifestyleSettings in application configuration")
+    return settings
 
 
 @app.context_processor
 def site_identity() -> dict[str, str]:
-    return {"record_subtitle": app.config["RECORD_SUBTITLE"]}
+    return {"record_subtitle": lifestyle_settings().record_subtitle}
 
 
 def current_date() -> date:
@@ -194,7 +202,7 @@ def save_sleep():
 
 @app.get("/daily")
 def daily():
-    categories = active_categories()
+    categories = active_categories(lifestyle_settings().active_achievements)
     records = read_daily_records(DAILY_CSV)
     today = current_date()
     try:
@@ -230,7 +238,7 @@ def save_daily():
     raw_date = request.form.get("date")
     try:
         selected_date = parse_daily_date(raw_date, current_date())
-        categories = active_categories()
+        categories = active_categories(lifestyle_settings().active_achievements)
         store_daily_record(
             DAILY_CSV,
             selected_date,
@@ -247,6 +255,46 @@ def save_daily():
 @app.get("/movement-food")
 def movement_food():
     return redirect(url_for("daily"))
+
+
+@app.get("/options")
+def options():
+    settings = lifestyle_settings()
+    categories = active_categories(settings.active_achievements)
+    active_keys = {category.key for category in categories}
+    return render_template(
+        "options.html",
+        active_section="options",
+        settings=settings,
+        movement_categories=[
+            category for category in DAILY_CATEGORIES if category.group == "movement"
+        ],
+        food_categories=[category for category in DAILY_CATEGORIES if category.group == "food"],
+        active_keys=active_keys,
+        saved=request.args.get("saved"),
+        error=request.args.get("error"),
+    )
+
+
+@app.post("/options")
+def save_options():
+    raw_name = request.form.get("name", "").strip()
+    selected_keys = request.form.getlist("active_achievement")
+    try:
+        if len(raw_name) > 80:
+            raise ValueError("Name must be 80 characters or fewer")
+        if len(selected_keys) != len(set(selected_keys)):
+            raise ValueError("Each achievement can only be selected once")
+        active_categories(selected_keys)
+        ordered_keys = tuple(
+            category.key for category in DAILY_CATEGORIES if category.key in selected_keys
+        )
+        settings = LifestyleSettings(raw_name or None, ordered_keys)
+        store_lifestyle_settings(LIFESTYLE_CONFIG, settings)
+        app.config["LIFESTYLE_SETTINGS"] = settings
+    except ValueError as error:
+        return redirect(url_for("options", error=str(error)))
+    return redirect(url_for("options", saved="1"))
 
 
 @app.get("/plotly.min.js")

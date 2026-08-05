@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from dataclasses import dataclass
 
 
@@ -20,6 +21,16 @@ DAILY_CATEGORIES = (
     DailyCategory("dance", "Dance", "movement", "#b77bc9", "#563d60", "#7e4695", "dance"),
     DailyCategory("cycling", "Bike", "movement", "#d0a64f", "#62522d", "#927126", "cycling"),
     DailyCategory(
+        "roller_skate",
+        "Roller Skate",
+        "movement",
+        "#67b4a5",
+        "#345a52",
+        "#3b8176",
+        "roller-skate",
+        active=False,
+    ),
+    DailyCategory(
         "low_sugar",
         "Low Sugar",
         "food",
@@ -32,5 +43,12 @@ DAILY_CATEGORIES = (
 )
 
 
-def active_categories() -> tuple[DailyCategory, ...]:
-    return tuple(category for category in DAILY_CATEGORIES if category.active)
+def active_categories(selected_keys: Collection[str] | None = None) -> tuple[DailyCategory, ...]:
+    if selected_keys is None:
+        return tuple(category for category in DAILY_CATEGORIES if category.active)
+
+    selected = set(selected_keys)
+    known = {category.key for category in DAILY_CATEGORIES}
+    if selected - known:
+        raise ValueError("Unknown achievement selected")
+    return tuple(category for category in DAILY_CATEGORIES if category.key in selected)

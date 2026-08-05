@@ -36,15 +36,18 @@ date,weight_kg
 
 Real CSV files are ignored by Git. Fictional examples are available under `examples/`.
 
-The header subtitle defaults to `Everyday Record`. To personalize it, create the ignored
-local configuration from the example:
+The header subtitle defaults to `Everyday log`. Personal identity and visible Daily
+achievements can be managed from the gear icon in the application header. Settings are
+stored in the ignored local configuration. It can also be created from the example:
 
 ```sh
 cp lifestyle.local.example.json lifestyle.local.json
 ```
 
-Setting `"name": "Alex"` displays `Alex's Record`; names ending in `s`, such as `Niels`,
-display as `Niels' Record`.
+Setting `"name": "Alex"` displays `Alex's log`; names ending in `s`, such as `Niels`,
+display as `Niels' log`. The `active_achievements` list controls which fixed catalog
+entries appear in the Daily form and graph. Deselecting an achievement never removes its
+CSV column or historical values.
 
 Daily achievements use a wide, append-only schema for category columns:
 

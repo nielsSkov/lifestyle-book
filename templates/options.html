@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Options{% endblock %}
+{% block content %}
+  <section class="entry-card options-card">
+    <div class="heading">
+      <div>
+        <p class="eyebrow">Lifestyle Book</p>
+        <h1>Options</h1>
+      </div>
+    </div>
+
+    <form action="{{ url_for('save_options') }}" method="post">
+      <section class="option-section">
+        <label for="options-name">Name</label>
+        <input class="options-name" id="options-name" name="name" type="text" value="{{ settings.name or '' }}" maxlength="80" autocomplete="name" placeholder="Optional">
+        <p class="option-help">Used in the header. Leave blank for Everyday log.</p>
+      </section>
+
+      <fieldset class="option-section option-fieldset">
+        <legend>Tracked Achievements</legend>
+        <p class="option-help">Only selected achievements appear in Daily. Historical records are always preserved.</p>
+
+        <h2>Movement</h2>
+        <div class="option-grid">
+          {% for category in movement_categories %}
+            <label class="option-check" style="--activity-colour: {{ category.colour }}">
+              <input type="checkbox" name="active_achievement" value="{{ category.key }}"{% if category.key in active_keys %} checked{% endif %}>
+              <span>{{ category.label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+
+        <h2>Food</h2>
+        <div class="option-grid">
+          {% for category in food_categories %}
+            <label class="option-check" style="--activity-colour: {{ category.colour }}">
+              <input type="checkbox" name="active_achievement" value="{{ category.key }}"{% if category.key in active_keys %} checked{% endif %}>
+              <span>{{ category.label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <div class="feedback-slot" aria-live="polite">
+        {% if saved %}<p class="message success" data-feedback>Saved options</p>{% endif %}
+        {% if error %}<p class="message error" data-feedback>{{ error }}</p>{% endif %}
+      </div>
+      <button type="submit">Save Options</button>
+    </form>
+  </section>
+{% endblock %}
