@@ -10,10 +10,13 @@
     </div>
 
     <form action="{{ url_for('save_sleep') }}" method="post">
-      <label for="sleep-date">Date</label>
+      <label for="sleep-date">Night</label>
       <div class="date-row" data-date-navigation data-today="{{ today.isoformat() }}">
         <button class="date-step" type="button" data-date-step="-1" aria-label="Previous date">&larr;</button>
-        <input id="sleep-date" name="date" type="date" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" data-date-input required>
+        <div class="night-date-picker">
+          <span data-night-label aria-hidden="true"></span>
+          <input id="sleep-date" name="date" type="date" value="{{ selected_date.isoformat() }}" max="{{ today.isoformat() }}" data-date-input aria-label="Select night" required>
+        </div>
         <button class="date-step" type="button" data-date-step="1" aria-label="Next date">&rarr;</button>
       </div>
       <div class="time-grid">

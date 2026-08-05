@@ -1,4 +1,4 @@
-from datetime import date, time
+from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -25,6 +25,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(app_module, "PLAN_CSV", plan_csv)
     monkeypatch.setattr(app_module, "SLEEP_CSV", tmp_path / "data" / "sleep.csv")
     monkeypatch.setattr(app_module, "current_date", lambda: date(2026, 8, 3))
+    monkeypatch.setattr(app_module, "current_night_start", lambda: date(2026, 8, 2))
     app_module.app.config.update(TESTING=True)
     return app_module.app.test_client()
 
@@ -79,6 +80,8 @@ def test_sleep_page_exposes_entry_controls_and_chart_region(client):
     assert b'name="sleep_time"' in response.data
     assert b'name="wake_time"' in response.data
     assert b"data-date-navigation" in response.data
+    assert b"data-night-label" in response.data
+    assert b'value="2026-08-02"' in response.data
     assert b'id="sleep-plot"' in response.data
 
 
@@ -89,10 +92,10 @@ def test_save_sleep_accepts_wake_time_without_sleep_time(client):
     )
 
     parameters = redirect_parameters(response, "/sleep")
-    assert parameters["date"] == ["2026-08-02"]
+    assert parameters["date"] == ["2026-08-01"]
     assert "saved" in parameters
     assert read_sleep_records(app_module.SLEEP_CSV) == [
-        SleepRecord(date(2026, 8, 1), wake_time=time(7, 15))
+        SleepRecord(date(2026, 8, 1), wake_at=datetime(2026, 8, 2, 7, 15))
     ]
 
 
@@ -104,14 +107,18 @@ def test_save_sleep_accepts_sleep_time_without_wake_time(client):
 
     assert "saved" in redirect_parameters(response, "/sleep")
     assert read_sleep_records(app_module.SLEEP_CSV) == [
-        SleepRecord(date(2026, 8, 1), sleep_time=time(23, 30))
+        SleepRecord(date(2026, 8, 1), sleep_at=datetime(2026, 8, 1, 23, 30))
     ]
 
 
-def test_blank_sleep_times_delete_existing_record_and_advance(client):
+def test_blank_sleep_times_delete_existing_night(client):
     store_sleep(
         app_module.SLEEP_CSV,
-        SleepRecord(date(2026, 8, 1), wake_time=time(7), sleep_time=time(23)),
+        SleepRecord(
+            date(2026, 8, 1),
+            sleep_at=datetime(2026, 8, 1, 23),
+            wake_at=datetime(2026, 8, 2, 7),
+        ),
     )
 
     response = client.post(
@@ -120,7 +127,7 @@ def test_blank_sleep_times_delete_existing_record_and_advance(client):
     )
 
     parameters = redirect_parameters(response, "/sleep")
-    assert parameters["date"] == ["2026-08-02"]
+    assert parameters["date"] == ["2026-08-01"]
     assert "deleted" in parameters
     assert read_sleep_records(app_module.SLEEP_CSV) == []
 

@@ -1,5 +1,5 @@
 import math
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from plotly import graph_objects as go
 
@@ -11,20 +11,26 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
     lower_values: list[float] = []
     upper_values: list[float] = []
     night_dates: list[date] = []
-    sleep_times: list[time | None] = []
-    wake_times: list[time | None] = []
+    sleep_events: list[datetime | None] = []
+    wake_events: list[datetime | None] = []
 
     if records:
-        records_by_date = {record.date: record for record in records}
-        night_dates = _daily_dates(records[0].date - timedelta(days=1), records[-1].date)
+        records_by_date = {record.night_start_date: record for record in records}
+        night_dates = _daily_dates(
+            records[0].night_start_date,
+            records[-1].night_start_date,
+        )
         night_keys = [_night_label(day) for day in night_dates]
         for day in night_dates:
             record = records_by_date.get(day)
-            next_record = records_by_date.get(day + timedelta(days=1))
-            sleep_times.append(record.sleep_time if record else None)
-            wake_times.append(next_record.wake_time if next_record else None)
-        lower_values = [_sleep_hour(value) for value in sleep_times]
-        upper_values = [_wake_hour(value) for value in wake_times]
+            sleep_events.append(record.sleep_at if record else None)
+            wake_events.append(record.wake_at if record else None)
+        lower_values = [
+            _event_hour(value, day) for value, day in zip(sleep_events, night_dates, strict=True)
+        ]
+        upper_values = [
+            _event_hour(value, day) for value, day in zip(wake_events, night_dates, strict=True)
+        ]
 
         for run in _complete_runs(lower_values, upper_values):
             if len(run) == 1:
@@ -56,15 +62,15 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
                     )
                 )
 
-        for name, colour, values, times in (
-            ("Sleep time", "#6d4cc4", lower_values, sleep_times),
-            ("Wake time", "#a78bfa", upper_values, wake_times),
+        for name, colour, values, events in (
+            ("Sleep time", "#6d4cc4", lower_values, sleep_events),
+            ("Wake time", "#a78bfa", upper_values, wake_events),
         ):
             figure.add_trace(
                 go.Scatter(
                     x=night_keys,
                     y=values,
-                    customdata=[_format_time(value) for value in times],
+                    customdata=[_format_time(value) for value in events],
                     mode="lines+markers",
                     name=name,
                     connectgaps=False,
@@ -131,17 +137,11 @@ def _daily_dates(start: date, end: date) -> list[date]:
     return [start + timedelta(days=offset) for offset in range((end - start).days + 1)]
 
 
-def _sleep_hour(value: time | None) -> float:
+def _event_hour(value: datetime | None, night_start_date: date) -> float:
     if value is None:
         return math.nan
-    hour = value.hour + value.minute / 60
-    return hour + 24 if hour < 12 else hour
-
-
-def _wake_hour(value: time | None) -> float:
-    if value is None:
-        return math.nan
-    return 24 + value.hour + value.minute / 60
+    night_start = datetime.combine(night_start_date, time())
+    return (value - night_start).total_seconds() / 3600
 
 
 def _complete_runs(lower_values: list[float], upper_values: list[float]) -> list[list[int]]:
@@ -167,5 +167,5 @@ def _night_label(day: date) -> str:
     return f"{day.day}–{next_day.day} {day:%b}<br>{day.year}"
 
 
-def _format_time(value: time | None) -> str:
+def _format_time(value: datetime | None) -> str:
     return "" if value is None else value.strftime("%H:%M")
