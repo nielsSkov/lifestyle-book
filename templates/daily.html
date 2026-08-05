@@ -21,7 +21,7 @@
       </div>
     </div>
 
-    <form action="{{ url_for('save_daily') }}" method="post">
+    <div class="daily-controls">
       <label for="daily-date">Date</label>
       <div class="date-row" data-date-navigation data-today="{{ today.isoformat() }}">
         <button class="date-step" type="button" data-date-step="-1" aria-label="Previous date">&larr;</button>
@@ -67,12 +67,8 @@
         <p class="empty-achievements">No achievements selected. Choose them from Options.</p>
       {% endif %}
 
-      <div class="feedback-slot" aria-live="polite">
-        {% if saved %}<p class="message success" data-feedback>Saved daily record</p>{% endif %}
-        {% if error %}<p class="message error" data-feedback>{{ error }}</p>{% endif %}
-      </div>
-      <button type="submit">Save Day</button>
-    </form>
+      <p class="autosave-status" data-daily-status aria-live="polite"></p>
+    </div>
   </section>
 
   <section class="graph-card active-days-card">
@@ -87,14 +83,30 @@
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
   <script>
     const dailyEntries = {{ daily_entries | tojson }};
+    const dailyDate = document.getElementById("daily-date");
     const activityInputs = document.querySelectorAll("[data-activity-input]");
+    const dailyStatus = document.querySelector("[data-daily-status]");
+    let statusTimer = null;
+
+    function showDailyStatus(message, state = "") {
+      window.clearTimeout(statusTimer);
+      dailyStatus.textContent = message;
+      dailyStatus.dataset.state = state;
+      if (state === "saved") {
+        statusTimer = window.setTimeout(() => {
+          dailyStatus.textContent = "";
+          dailyStatus.dataset.state = "";
+        }, 1800);
+      }
+    }
+
     document.querySelector("[data-date-navigation]").addEventListener("datechange", (event) => {
       const selected = new Set(dailyEntries[event.detail.date] ?? []);
       for (const input of activityInputs) input.checked = selected.has(input.value);
     });
 
-    const activeDaysFigure = {{ active_days_graph_json | safe }};
-    const dailyFigure = {{ graph_json | safe }};
+    let activeDaysFigure = {{ active_days_graph_json | safe }};
+    let dailyFigure = {{ graph_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};
     const activeDaysPlot = document.getElementById("active-days-plot");
     const dailyPlot = document.getElementById("daily-plot");
@@ -127,10 +139,12 @@
       return null;
     }
 
-    Promise.all([
+    const plotsReady = Promise.all([
       Plotly.newPlot(activeDaysPlot, activeDaysFigure.data, activeDaysFigure.layout, plotlyConfig),
       Plotly.newPlot(dailyPlot, dailyFigure.data, dailyFigure.layout, plotlyConfig),
-    ]).then((linkedPlots) => {
+    ]);
+
+    plotsReady.then((linkedPlots) => {
       let syncingXAxes = false;
       for (const plot of linkedPlots) {
         updateTileGap(plot);
@@ -158,5 +172,46 @@
         for (const plot of linkedPlots) requestAnimationFrame(() => updateTileGap(plot));
       });
     });
+
+    for (const input of activityInputs) {
+      input.addEventListener("change", async () => {
+        const selected = input.checked;
+        const selectedDate = dailyDate.value;
+        input.disabled = true;
+        showDailyStatus("Saving...");
+        try {
+          const response = await fetch("{{ url_for('save_daily_activity') }}", {
+            method: "POST",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({
+              date: selectedDate,
+              key: input.value,
+              selected: String(selected),
+            }),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error ?? "Could not save achievement");
+
+          dailyEntries[selectedDate] = result.activities;
+          activeDaysFigure = result.active_days_figure;
+          dailyFigure = result.daily_figure;
+          const linkedPlots = await plotsReady;
+          await Promise.all([
+            Plotly.react(activeDaysPlot, activeDaysFigure.data, activeDaysFigure.layout, plotlyConfig),
+            Plotly.react(dailyPlot, dailyFigure.data, dailyFigure.layout, plotlyConfig),
+          ]);
+          for (const plot of linkedPlots) {
+            currentTileGaps.delete(plot);
+            updateTileGap(plot);
+          }
+          showDailyStatus("Saved", "saved");
+        } catch (error) {
+          if (dailyDate.value === selectedDate) input.checked = !selected;
+          showDailyStatus(error.message, "error");
+        } finally {
+          input.disabled = false;
+        }
+      });
+    }
   </script>
 {% endblock %}

@@ -9,43 +9,107 @@
       </div>
     </div>
 
-    <form action="{{ url_for('save_options') }}" method="post">
+    <form action="{{ url_for('save_options_name') }}" method="post" data-name-form>
       <section class="option-section">
         <label for="options-name">Name</label>
-        <input class="options-name" id="options-name" name="name" type="text" value="{{ settings.name or '' }}" maxlength="80" autocomplete="name" placeholder="Optional">
+        <div class="option-name-row">
+          <input class="options-name" id="options-name" name="name" type="text" value="{{ settings.name or '' }}" maxlength="80" autocomplete="name" placeholder="Optional">
+          <button class="save-name-button" type="submit">Save Name</button>
+        </div>
         <p class="option-help">Used in the header. Leave blank for Everyday log.</p>
       </section>
-
-      <fieldset class="option-section option-fieldset">
-        <legend>Tracked Achievements</legend>
-        <p class="option-help">Only selected achievements appear in Daily. Historical records are always preserved.</p>
-
-        <h2>Movement</h2>
-        <div class="option-grid">
-          {% for category in movement_categories %}
-            <label class="option-check" style="--activity-colour: {{ category.colour }}">
-              <input type="checkbox" name="active_achievement" value="{{ category.key }}"{% if category.key in active_keys %} checked{% endif %}>
-              <span>{{ category.label }}</span>
-            </label>
-          {% endfor %}
-        </div>
-
-        <h2>Food</h2>
-        <div class="option-grid">
-          {% for category in food_categories %}
-            <label class="option-check" style="--activity-colour: {{ category.colour }}">
-              <input type="checkbox" name="active_achievement" value="{{ category.key }}"{% if category.key in active_keys %} checked{% endif %}>
-              <span>{{ category.label }}</span>
-            </label>
-          {% endfor %}
-        </div>
-      </fieldset>
-
-      <div class="feedback-slot" aria-live="polite">
-        {% if saved %}<p class="message success" data-feedback>Saved options</p>{% endif %}
-        {% if error %}<p class="message error" data-feedback>{{ error }}</p>{% endif %}
-      </div>
-      <button type="submit">Save Options</button>
     </form>
+
+    <fieldset class="option-section option-fieldset">
+      <legend>Tracked Achievements</legend>
+      <p class="option-help">Changes save immediately. Historical records are always preserved.</p>
+
+      <h2>Movement</h2>
+      <div class="option-grid">
+        {% for category in movement_categories %}
+          <label class="option-check" style="--activity-colour: {{ category.colour }}">
+            <input type="checkbox" value="{{ category.key }}" data-option-achievement{% if category.key in active_keys %} checked{% endif %}>
+            <span>{{ category.label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+
+      <h2>Food</h2>
+      <div class="option-grid">
+        {% for category in food_categories %}
+          <label class="option-check" style="--activity-colour: {{ category.colour }}">
+            <input type="checkbox" value="{{ category.key }}" data-option-achievement{% if category.key in active_keys %} checked{% endif %}>
+            <span>{{ category.label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <p class="autosave-status options-status" data-options-status aria-live="polite"></p>
   </section>
+{% endblock %}
+{% block scripts %}
+  <script>
+    const optionsStatus = document.querySelector("[data-options-status]");
+    const nameForm = document.querySelector("[data-name-form]");
+    let statusTimer = null;
+
+    function showOptionsStatus(message, state = "") {
+      window.clearTimeout(statusTimer);
+      optionsStatus.textContent = message;
+      optionsStatus.dataset.state = state;
+      if (state === "saved") {
+        statusTimer = window.setTimeout(() => {
+          optionsStatus.textContent = "";
+          optionsStatus.dataset.state = "";
+        }, 1800);
+      }
+    }
+
+    nameForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = nameForm.querySelector("button");
+      const name = nameForm.querySelector("input").value;
+      button.disabled = true;
+      showOptionsStatus("Saving...");
+      try {
+        const response = await fetch(nameForm.action, {
+          method: "POST",
+          headers: {"Content-Type": "application/x-www-form-urlencoded"},
+          body: new URLSearchParams({name}),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Could not save name");
+        document.querySelector("[data-record-subtitle]").textContent = result.record_subtitle;
+        showOptionsStatus("Saved", "saved");
+      } catch (error) {
+        showOptionsStatus(error.message, "error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    for (const input of document.querySelectorAll("[data-option-achievement]")) {
+      input.addEventListener("change", async () => {
+        const selected = input.checked;
+        input.disabled = true;
+        showOptionsStatus("Saving...");
+        try {
+          const response = await fetch("{{ url_for('save_options_achievement') }}", {
+            method: "POST",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: new URLSearchParams({key: input.value, selected: String(selected)}),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error ?? "Could not save achievement");
+          showOptionsStatus("Saved", "saved");
+        } catch (error) {
+          input.checked = !selected;
+          showOptionsStatus(error.message, "error");
+        } finally {
+          input.disabled = false;
+        }
+      });
+    }
+  </script>
 {% endblock %}

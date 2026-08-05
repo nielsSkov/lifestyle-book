@@ -47,7 +47,7 @@ def test_weight_page_exposes_entry_controls_and_chart_regions(client):
 
     assert response.status_code == 200
     assert b'<html lang="en-US">' in response.data
-    assert b"<small>Everyday log</small>" in response.data
+    assert b"<small data-record-subtitle>Everyday log</small>" in response.data
     assert b'href="/options" aria-label="Options"' in response.data
     assert b'<nav class="section-tabs" aria-label=' in response.data
     assert b'href="/weight" aria-current="page"' in response.data
@@ -86,6 +86,7 @@ def test_daily_route_sets_active_navigation_and_exposes_categories(client):
     assert b'value="roller_skate"' not in response.data
     assert b'id="active-days-plot"' in response.data
     assert b'id="daily-plot"' in response.data
+    assert b"Save Day" not in response.data
 
 
 def test_options_page_shows_catalog_with_roller_skate_inactive(client):
@@ -93,10 +94,12 @@ def test_options_page_shows_catalog_with_roller_skate_inactive(client):
 
     assert response.status_code == 200
     assert b'href="/options" aria-label="Options" aria-current="page"' in response.data
-    assert b'name="active_achievement" value="walk" checked' in response.data
-    assert b'name="active_achievement" value="other_activity" checked' in response.data
-    assert b'name="active_achievement" value="roller_skate">' in response.data
+    assert b'value="walk" data-option-achievement checked' in response.data
+    assert b'value="other_activity" data-option-achievement checked' in response.data
+    assert b'value="roller_skate" data-option-achievement>' in response.data
     assert b"Roller Skate" in response.data
+    assert b"Save Name" in response.data
+    assert b"Save Options" not in response.data
 
 
 def test_save_options_personalizes_log_and_changes_daily_categories(client):
@@ -114,7 +117,7 @@ def test_save_options_personalizes_log_and_changes_daily_categories(client):
         "Niels", ("walk", "roller_skate", "cooked")
     )
     page = client.get("/daily")
-    assert b"<small>Niels&#39; log</small>" in page.data
+    assert b"<small data-record-subtitle>Niels&#39; log</small>" in page.data
     assert b'value="roller_skate"' in page.data
     assert b'value="run"' not in page.data
 
@@ -126,6 +129,45 @@ def test_save_options_rejects_unknown_achievement(client):
     )
 
     assert "error" in redirect_parameters(response, "/options")
+    assert not app_module.LIFESTYLE_CONFIG.exists()
+
+
+def test_save_options_name_preserves_active_achievements_without_redirect(client):
+    app_module.app.config["LIFESTYLE_SETTINGS"] = LifestyleSettings("Old Name", ("walk", "cooked"))
+
+    response = client.post("/options/name", data={"name": "Niels"})
+
+    assert response.status_code == 200
+    assert response.json == {"record_subtitle": "Niels' log"}
+    assert load_lifestyle_settings(app_module.LIFESTYLE_CONFIG) == LifestyleSettings(
+        "Niels", ("walk", "cooked")
+    )
+
+
+def test_options_achievement_autosave_preserves_name_and_materializes_defaults(client):
+    app_module.app.config["LIFESTYLE_SETTINGS"] = LifestyleSettings("Niels")
+
+    response = client.post(
+        "/options/achievement",
+        data={"key": "roller_skate", "selected": "true"},
+    )
+
+    assert response.status_code == 200
+    settings = load_lifestyle_settings(app_module.LIFESTYLE_CONFIG)
+    assert settings.name == "Niels"
+    assert settings.active_achievements is not None
+    assert "roller_skate" in settings.active_achievements
+    assert "walk" in settings.active_achievements
+
+
+def test_options_achievement_autosave_rejects_unknown_key(client):
+    response = client.post(
+        "/options/achievement",
+        data={"key": "unknown", "selected": "true"},
+    )
+
+    assert response.status_code == 400
+    assert "error" in response.json
     assert not app_module.LIFESTYLE_CONFIG.exists()
 
 
@@ -161,6 +203,31 @@ def test_save_daily_rejects_unknown_categories_without_changing_data(client):
 
     assert "error" in redirect_parameters(response, "/daily")
     assert app_module.DAILY_CSV.read_bytes() == original
+
+
+def test_daily_activity_autosave_updates_one_achievement_without_redirect(client):
+    response = client.post(
+        "/daily/activity",
+        data={"date": "2026-08-02", "key": "run", "selected": "true"},
+    )
+
+    assert response.status_code == 200
+    assert response.json["activities"] == ["run"]
+    assert response.json["active_days_figure"]["data"][0]["z"] == [[1]]
+    assert read_daily_records(app_module.DAILY_CSV) == [
+        DailyRecord(date(2026, 8, 2), frozenset({"run"}))
+    ]
+
+
+def test_daily_activity_autosave_rejects_untracked_achievement(client):
+    response = client.post(
+        "/daily/activity",
+        data={"date": "2026-08-02", "key": "roller_skate", "selected": "true"},
+    )
+
+    assert response.status_code == 400
+    assert "error" in response.json
+    assert not app_module.DAILY_CSV.exists()
 
 
 def test_daily_page_uses_nightly_record_sleep_heading(client):

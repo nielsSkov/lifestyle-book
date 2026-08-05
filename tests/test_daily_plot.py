@@ -72,10 +72,12 @@ def test_active_days_figure_counts_inactive_movement_but_not_food():
     serialized = json.loads(cast(str, build_active_days_figure(records, categories).to_json()))
 
     assert serialized["data"][0]["name"] == "Active Day"
+    assert serialized["data"][0]["dy"] == 0.5
     assert serialized["data"][0]["z"] == [[1, None, 1]]
     assert serialized["data"][0]["colorscale"] == [[0, "#6930d1"], [1, "#6930d1"]]
     assert serialized["layout"]["title"]["text"] == "Active Days"
-    assert serialized["layout"]["xaxis"]["showticklabels"] is False
+    assert serialized["layout"]["xaxis"]["showticklabels"] is True
+    assert serialized["layout"]["yaxis"]["title"]["text"] == "Active"
 
 
 def test_active_days_figure_supports_no_movement_data():

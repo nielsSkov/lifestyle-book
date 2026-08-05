@@ -330,6 +330,23 @@ input {
   font-size: 1.1rem;
 }
 
+.option-name-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.entry-card .save-name-button {
+  width: auto;
+  min-width: 112px;
+  padding-inline: 16px;
+}
+
+.entry-card .save-name-button:disabled {
+  opacity: 0.68;
+  cursor: wait;
+}
+
 .options-name:focus {
   border-color: #8354e8;
   box-shadow: 0 0 0 3px rgb(131 84 232 / 18%);
@@ -369,6 +386,11 @@ input {
   flex: 0 0 19px;
   margin: 0;
   accent-color: var(--activity-colour);
+}
+
+.option-check input:disabled {
+  cursor: wait;
+  opacity: 0.68;
 }
 
 .option-check:has(input:checked) {
@@ -462,6 +484,33 @@ input {
 .activity-option input:focus-visible + .activity-button {
   outline: 3px solid color-mix(in srgb, var(--activity-colour) 45%, transparent);
   outline-offset: 2px;
+}
+
+.activity-option input:disabled + .activity-button {
+  opacity: 0.68;
+  cursor: wait;
+}
+
+.autosave-status {
+  min-height: 22px;
+  margin: -8px 0 0;
+  color: #a99db9;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.autosave-status[data-state="saved"] {
+  color: #bfa9ef;
+}
+
+.autosave-status[data-state="error"] {
+  color: #ffc1c1;
+}
+
+.options-status {
+  margin-top: -10px;
 }
 
 .empty-achievements {

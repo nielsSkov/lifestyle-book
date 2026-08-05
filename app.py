@@ -1,12 +1,19 @@
+import json
 from datetime import date, datetime, timedelta
 from importlib.metadata import version
 from pathlib import Path
+from typing import cast
 from zoneinfo import ZoneInfo
 
-from flask import Flask, Response, redirect, render_template, request, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, url_for
 
 from daily_categories import DAILY_CATEGORIES, active_categories
-from daily_data import parse_daily_date, read_daily_records, store_daily_record
+from daily_data import (
+    parse_daily_date,
+    read_daily_records,
+    store_daily_activity,
+    store_daily_record,
+)
 from daily_plot import build_active_days_figure, build_daily_figure
 from interactive_plot import (
     PLOTLY_CONFIG,
@@ -254,6 +261,37 @@ def save_daily():
     )
 
 
+@app.post("/daily/activity")
+def save_daily_activity():
+    try:
+        selected_date = parse_daily_date(request.form.get("date"), current_date())
+        key = request.form.get("key", "")
+        raw_selected = request.form.get("selected")
+        if raw_selected not in {"true", "false"}:
+            raise ValueError("Choose whether the achievement is selected")
+
+        categories = active_categories(lifestyle_settings().active_achievements)
+        active_keys = {category.key for category in categories}
+        if key not in active_keys:
+            raise ValueError("Achievement is not currently tracked")
+        store_daily_activity(DAILY_CSV, selected_date, key, raw_selected == "true")
+
+        records = read_daily_records(DAILY_CSV)
+        record = next((item for item in records if item.day == selected_date), None)
+        daily_figure = build_daily_figure(records, categories)
+        active_days_figure = build_active_days_figure(records, DAILY_CATEGORIES)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except OSError:
+        return jsonify(error="Could not save achievement"), 500
+
+    return jsonify(
+        activities=sorted(record.activities & active_keys) if record else [],
+        daily_figure=json.loads(cast(str, daily_figure.to_json())),
+        active_days_figure=json.loads(cast(str, active_days_figure.to_json())),
+    )
+
+
 @app.get("/movement-food")
 def movement_food():
     return redirect(url_for("daily"))
@@ -297,6 +335,55 @@ def save_options():
     except ValueError as error:
         return redirect(url_for("options", error=str(error)))
     return redirect(url_for("options", saved="1"))
+
+
+@app.post("/options/name")
+def save_options_name():
+    raw_name = request.form.get("name", "").strip()
+    try:
+        if len(raw_name) > 80:
+            raise ValueError("Name must be 80 characters or fewer")
+        current = lifestyle_settings()
+        settings = LifestyleSettings(raw_name or None, current.active_achievements)
+        store_lifestyle_settings(LIFESTYLE_CONFIG, settings)
+        app.config["LIFESTYLE_SETTINGS"] = settings
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except OSError:
+        return jsonify(error="Could not save name"), 500
+    return jsonify(record_subtitle=settings.record_subtitle)
+
+
+@app.post("/options/achievement")
+def save_options_achievement():
+    key = request.form.get("key", "")
+    raw_selected = request.form.get("selected")
+    try:
+        if raw_selected not in {"true", "false"}:
+            raise ValueError("Choose whether the achievement is tracked")
+        known_keys = {category.key for category in DAILY_CATEGORIES}
+        if key not in known_keys:
+            raise ValueError("Unknown achievement selected")
+
+        current = lifestyle_settings()
+        selected_keys = {
+            category.key for category in active_categories(current.active_achievements)
+        }
+        if raw_selected == "true":
+            selected_keys.add(key)
+        else:
+            selected_keys.discard(key)
+        ordered_keys = tuple(
+            category.key for category in DAILY_CATEGORIES if category.key in selected_keys
+        )
+        settings = LifestyleSettings(current.name, ordered_keys)
+        store_lifestyle_settings(LIFESTYLE_CONFIG, settings)
+        app.config["LIFESTYLE_SETTINGS"] = settings
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except OSError:
+        return jsonify(error="Could not save tracked achievement"), 500
+    return jsonify(active_achievements=list(settings.active_achievements or ()))
 
 
 @app.get("/plotly.min.js")

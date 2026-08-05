@@ -12,7 +12,7 @@
   <header class="site-header">
     <a class="site-title" href="{{ url_for('weight') }}">
       <span>Lifestyle Book</span>
-      <small>{{ record_subtitle }}</small>
+      <small data-record-subtitle>{{ record_subtitle }}</small>
     </a>
     <a class="options-link{% if active_section == 'options' %} active{% endif %}" href="{{ url_for('options') }}" aria-label="Options"{% if active_section == 'options' %} aria-current="page"{% endif %}>
       <svg viewBox="0 0 24 24" aria-hidden="true">

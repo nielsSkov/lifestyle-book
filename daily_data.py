@@ -67,6 +67,32 @@ def store_daily_record(
     )
 
 
+def store_daily_activity(path: Path, day: date, key: str, selected: bool) -> None:
+    daily_file = _read_daily_file(path)
+    columns = [*daily_file.columns]
+    if key not in columns:
+        columns.append(key)
+
+    records_by_date = {record.day: record for record in daily_file.records}
+    previous = records_by_date.get(day, DailyRecord(day, frozenset()))
+    activities = set(previous.activities)
+    if selected:
+        activities.add(key)
+    else:
+        activities.discard(key)
+
+    if activities:
+        records_by_date[day] = DailyRecord(day, frozenset(activities))
+    else:
+        records_by_date.pop(day, None)
+
+    _replace_daily_records(
+        path,
+        columns,
+        [records_by_date[record_date] for record_date in sorted(records_by_date)],
+    )
+
+
 def _read_daily_file(path: Path) -> _DailyFile:
     if not path.exists():
         return _DailyFile((), ())

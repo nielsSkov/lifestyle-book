@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from daily_data import DailyRecord, parse_daily_date, read_daily_records, store_daily_record
+from daily_data import (
+    DailyRecord,
+    parse_daily_date,
+    read_daily_records,
+    store_daily_activity,
+    store_daily_record,
+)
 
 
 def test_parse_daily_date_rejects_future_dates():
@@ -57,6 +63,18 @@ def test_clearing_all_active_values_removes_empty_record(tmp_path: Path):
 
     assert read_daily_records(path) == []
     assert path.read_text(encoding="utf-8") == "date,walk,run\n"
+
+
+def test_store_daily_activity_changes_only_one_column(tmp_path: Path):
+    path = tmp_path / "daily.csv"
+    day = date(2026, 8, 1)
+    store_daily_record(path, day, {"walk", "cycling"}, ["walk", "cycling"])
+
+    store_daily_activity(path, day, "run", True)
+    store_daily_activity(path, day, "walk", False)
+
+    assert read_daily_records(path) == [DailyRecord(day, frozenset({"cycling", "run"}))]
+    assert path.read_text(encoding="utf-8") == "date,walk,cycling,run\n2026-08-01,,1,1\n"
 
 
 @pytest.mark.parametrize(
