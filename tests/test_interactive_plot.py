@@ -30,7 +30,8 @@ def test_build_interactive_figure_preserves_data_gaps_and_interactions():
     assert weight_trace["y"] == [100.0, 99.5]
     assert latest_trace["x"] == ["2026-08-02"]
     assert latest_trace["y"] == [99.5]
-    assert serialized["layout"]["xaxis"]["rangeslider"]["visible"] is True
+    assert "rangeslider" not in serialized["layout"]["xaxis"]
+    assert serialized["layout"]["margin"]["r"] == 24
     assert serialized["layout"]["yaxis"]["fixedrange"] is False
 
 

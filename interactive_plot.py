@@ -95,7 +95,7 @@ def build_interactive_figure(
             "font": {"color": "#f4f0fa"},
         },
         uirevision="weight-tracker",
-        margin={"l": 64, "r": 72, "t": 70, "b": 48},
+        margin={"l": 64, "r": 24, "t": 70, "b": 48},
         legend={
             "orientation": "h",
             "x": 0,
@@ -107,12 +107,6 @@ def build_interactive_figure(
             "title": "Date",
             "gridcolor": "#383047",
             "linecolor": "#524762",
-            "rangeslider": {
-                "visible": True,
-                "bgcolor": "#0f0c16",
-                "bordercolor": "#30283e",
-                "borderwidth": 1,
-            },
         },
         yaxis={
             "title": "Weight (kg)",
