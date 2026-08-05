@@ -21,12 +21,12 @@
       </div>
       <div class="time-grid">
         <div class="time-field">
-          <label for="wake-time">Wake Time</label>
-          <input id="wake-time" name="wake_time" type="time">
-        </div>
-        <div class="time-field">
           <label for="sleep-time">Sleep Time</label>
           <input id="sleep-time" name="sleep_time" type="time">
+        </div>
+        <div class="time-field">
+          <label for="wake-time">Wake Time</label>
+          <input id="wake-time" name="wake_time" type="time">
         </div>
       </div>
       <div class="feedback-slot" aria-live="polite">
@@ -46,8 +46,8 @@
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
   <script>
     const sleepEntries = {{ sleep_entries | tojson }};
-    const wakeTimeInput = document.getElementById("wake-time");
     const sleepTimeInput = document.getElementById("sleep-time");
+    const wakeTimeInput = document.getElementById("wake-time");
     document.querySelector("[data-date-navigation]").addEventListener("datechange", (event) => {
       const entry = sleepEntries[event.detail.date];
       sleepTimeInput.value = entry?.sleep_time ?? "";
