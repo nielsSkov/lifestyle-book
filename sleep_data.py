@@ -17,14 +17,14 @@ class SleepRecord:
     wake_at: datetime | None = None
 
 
-def parse_night_start_date(raw_value: str | None, today: date) -> date:
+def parse_night_start_date(raw_value: str | None, latest_night_start: date) -> date:
     if not raw_value:
         raise ValueError("Choose a valid night")
     try:
         night_start_date = date.fromisoformat(raw_value)
     except ValueError:
         raise ValueError("Choose a valid night") from None
-    if night_start_date > today:
+    if night_start_date > latest_night_start:
         raise ValueError("Night cannot start in the future")
     return night_start_date
 

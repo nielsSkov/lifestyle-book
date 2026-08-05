@@ -133,7 +133,26 @@ def test_sleep_page_exposes_entry_controls_and_chart_region(client):
     assert b"data-date-navigation" in response.data
     assert b"data-night-label" in response.data
     assert b'value="2026-08-02"' in response.data
+    assert b'max="2026-08-02"' in response.data
     assert b'id="sleep-plot"' in response.data
+
+
+def test_sleep_page_rejects_explicit_night_that_has_not_started(client):
+    response = client.get("/sleep?date=2026-08-03")
+
+    assert response.status_code == 200
+    assert b'value="2026-08-02"' in response.data
+
+
+def test_save_sleep_rejects_night_that_has_not_started(client):
+    response = client.post(
+        "/sleep",
+        data={"date": "2026-08-03", "wake_time": "07:15", "sleep_time": "23:30"},
+    )
+
+    parameters = redirect_parameters(response, "/sleep")
+    assert "error" in parameters
+    assert not app_module.SLEEP_CSV.exists()
 
 
 def test_save_sleep_accepts_wake_time_without_sleep_time(client):

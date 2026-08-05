@@ -129,19 +129,19 @@ def save_weight():
 @app.get("/sleep")
 def sleep():
     records = read_sleep_records(SLEEP_CSV)
-    today = current_date()
+    latest_night_start = current_night_start()
     try:
         selected_date = parse_night_start_date(
-            request.args.get("date", current_night_start().isoformat()),
-            today,
+            request.args.get("date", latest_night_start.isoformat()),
+            latest_night_start,
         )
     except ValueError:
-        selected_date = today
+        selected_date = latest_night_start
     figure = build_sleep_figure(records)
     return render_template(
         "sleep.html",
         active_section="sleep",
-        today=today,
+        latest_night_start=latest_night_start,
         selected_date=selected_date,
         sleep_entries={
             record.night_start_date.isoformat(): {
@@ -165,8 +165,7 @@ def save_sleep():
     raw_sleep_time = request.form.get("sleep_time")
     raw_wake_time = request.form.get("wake_time")
     try:
-        today = current_date()
-        night_start_date = parse_night_start_date(raw_date, today)
+        night_start_date = parse_night_start_date(raw_date, current_night_start())
         if not (raw_sleep_time or "").strip() and not (raw_wake_time or "").strip():
             if not delete_sleep(SLEEP_CSV, night_start_date):
                 raise ValueError("No sleep record exists for this night")
