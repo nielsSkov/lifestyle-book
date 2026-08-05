@@ -4,7 +4,10 @@ from daily_categories import active_categories
 
 
 def test_default_categories_do_not_include_roller_skate():
-    assert "roller_skate" not in {category.key for category in active_categories()}
+    keys = {category.key for category in active_categories()}
+
+    assert "roller_skate" not in keys
+    assert "other_activity" in keys
 
 
 def test_configured_categories_follow_catalog_order():

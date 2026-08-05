@@ -31,6 +31,15 @@ DAILY_CATEGORIES = (
         active=False,
     ),
     DailyCategory(
+        "other_activity",
+        "Other Activity",
+        "movement",
+        "#9b86cb",
+        "#4c4064",
+        "#7054a3",
+        "other-activity",
+    ),
+    DailyCategory(
         "low_sugar",
         "Low Sugar",
         "food",

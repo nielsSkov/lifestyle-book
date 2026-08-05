@@ -52,8 +52,8 @@ CSV column or historical values.
 Daily achievements use a wide, append-only schema for category columns:
 
 ```csv
-date,walk,run,swim,dance,cycling,low_sugar,cooked
-2026-08-05,1,,1,,,1,
+date,walk,run,swim,dance,cycling,other_activity,low_sugar,cooked
+2026-08-05,1,,1,,,,1,
 ```
 
 Visible buttons are controlled by `daily_categories.py`. Setting a category's `active`

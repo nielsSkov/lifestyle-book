@@ -8,6 +8,7 @@
     <symbol id="daily-icon-dance" viewBox="0 0 24 24"><path d="M9 18V5l10-2v13M9 8l10-2"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></symbol>
     <symbol id="daily-icon-cycling" viewBox="0 0 24 24"><circle cx="5" cy="17" r="4"/><circle cx="19" cy="17" r="4"/><path d="m5 17 4-8h5l5 8M9 9l4 8H5M12 5h3M14 9l2-3"/></symbol>
     <symbol id="daily-icon-roller-skate" viewBox="0 0 24 24"><path d="M5 4h7v6l6 3v4H4v-5l1-2Z"/><path d="M4 13h14M8 7h4"/><circle cx="7" cy="20" r="2"/><circle cx="15" cy="20" r="2"/></symbol>
+    <symbol id="daily-icon-other-activity" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></symbol>
     <symbol id="daily-icon-low-sugar" viewBox="0 0 24 24"><path d="m5 8 7-4 7 4v8l-7 4-7-4Z"/><path d="m5 8 7 4 7-4M12 12v8M8 3l8 18"/></symbol>
     <symbol id="daily-icon-cooked" viewBox="0 0 24 24"><path d="M4 10h16v4a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7ZM2 10h20M8 6c0-2 2-2 2-4M13 6c0-2 2-2 2-4"/></symbol>
   </svg>
@@ -74,6 +75,10 @@
     </form>
   </section>
 
+  <section class="graph-card active-days-card">
+    <div id="active-days-plot" role="region" aria-label="Interactive active days chart"></div>
+  </section>
+
   <section class="graph-card">
     <div id="daily-plot" role="region" aria-label="Interactive movement and food achievements chart"></div>
   </section>
@@ -88,14 +93,16 @@
       for (const input of activityInputs) input.checked = selected.has(input.value);
     });
 
+    const activeDaysFigure = {{ active_days_graph_json | safe }};
     const dailyFigure = {{ graph_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};
+    const activeDaysPlot = document.getElementById("active-days-plot");
     const dailyPlot = document.getElementById("daily-plot");
-    let currentTileGap = null;
+    const currentTileGaps = new WeakMap();
 
-    function updateTileGap() {
-      const xaxis = dailyPlot._fullLayout?.xaxis;
-      if (!dailyPlot.data.length || !xaxis?.range || !xaxis._length) return;
+    function updateTileGap(plot) {
+      const xaxis = plot._fullLayout?.xaxis;
+      if (!plot.data.length || !xaxis?.range || !xaxis._length) return;
 
       const rangeDates = xaxis.range.map((value) => new Date(value)).sort((first, second) => first - second);
       const eightMonthsLater = new Date(rangeDates[0]);
@@ -106,16 +113,50 @@
       const tileGap = rangeDates[1] >= eightMonthsLater
         ? 0
         : Math.round(Math.min(10, dayWidth * 0.25) * 100) / 100;
-      if (tileGap === currentTileGap) return;
+      if (tileGap === currentTileGaps.get(plot)) return;
 
-      currentTileGap = tileGap;
-      Plotly.restyle(dailyPlot, {xgap: tileGap});
+      currentTileGaps.set(plot, tileGap);
+      Plotly.restyle(plot, {xgap: tileGap});
     }
 
-    Plotly.newPlot(dailyPlot, dailyFigure.data, dailyFigure.layout, plotlyConfig).then(() => {
-      updateTileGap();
-      dailyPlot.on("plotly_relayout", () => requestAnimationFrame(updateTileGap));
-      window.addEventListener("resize", () => requestAnimationFrame(updateTileGap));
+    function readXRange(update) {
+      if (Array.isArray(update["xaxis.range"])) return update["xaxis.range"];
+      if (update["xaxis.range[0]"] !== undefined && update["xaxis.range[1]"] !== undefined) {
+        return [update["xaxis.range[0]"], update["xaxis.range[1]"]];
+      }
+      return null;
+    }
+
+    Promise.all([
+      Plotly.newPlot(activeDaysPlot, activeDaysFigure.data, activeDaysFigure.layout, plotlyConfig),
+      Plotly.newPlot(dailyPlot, dailyFigure.data, dailyFigure.layout, plotlyConfig),
+    ]).then((linkedPlots) => {
+      let syncingXAxes = false;
+      for (const plot of linkedPlots) {
+        updateTileGap(plot);
+        plot.on("plotly_relayout", (update) => {
+          requestAnimationFrame(() => updateTileGap(plot));
+          if (syncingXAxes) return;
+
+          const range = readXRange(update);
+          const resetsRange = update["xaxis.autorange"] === true;
+          if (!range && !resetsRange) return;
+
+          syncingXAxes = true;
+          const linkedUpdate = range ? {"xaxis.range": range} : {"xaxis.autorange": true};
+          Promise.all(
+            linkedPlots
+              .filter((target) => target !== plot)
+              .map((target) => Plotly.relayout(target, linkedUpdate)),
+          ).finally(() => {
+            syncingXAxes = false;
+            for (const target of linkedPlots) requestAnimationFrame(() => updateTileGap(target));
+          });
+        });
+      }
+      window.addEventListener("resize", () => {
+        for (const plot of linkedPlots) requestAnimationFrame(() => updateTileGap(plot));
+      });
     });
   </script>
 {% endblock %}

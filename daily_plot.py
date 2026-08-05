@@ -22,10 +22,8 @@ def build_daily_figure(
         for index, category in enumerate(movement)
     }
 
-    displayed_keys = {category.key for category in displayed}
-    active_records = [record for record in records if record.activities & displayed_keys]
-    dates = _daily_dates(active_records[0].day, active_records[-1].day) if active_records else []
-    activities_by_date = {record.day: record.activities for record in active_records}
+    dates = _daily_dates(records[0].day, records[-1].day) if displayed and records else []
+    activities_by_date = {record.day: record.activities for record in records}
 
     for category in displayed:
         figure.add_trace(
@@ -141,6 +139,84 @@ def build_daily_figure(
             "linecolor": "#524762",
             "fixedrange": True,
             "automargin": True,
+        },
+    )
+    return figure
+
+
+def build_active_days_figure(
+    records: Sequence[DailyRecord],
+    categories: Sequence[DailyCategory],
+) -> go.Figure:
+    figure = go.Figure()
+    movement_keys = {category.key for category in categories if category.group == "movement"}
+    dates = _daily_dates(records[0].day, records[-1].day) if records else []
+    activities_by_date = {record.day: record.activities for record in records}
+    values = [
+        1 if activities_by_date.get(day, frozenset()) & movement_keys else None for day in dates
+    ]
+
+    if dates:
+        figure.add_trace(
+            go.Heatmap(
+                z=[values],
+                x0=dates[0],
+                dx=86_400_000,
+                y0=1,
+                dy=1,
+                name="Active Day",
+                colorscale=[[0, "#6930d1"], [1, "#6930d1"]],
+                zmin=0,
+                zmax=1,
+                xgap=10,
+                ygap=10,
+                showscale=False,
+                showlegend=False,
+                hoverongaps=False,
+                hovertemplate="%{x|%d %b %Y}<extra>Active Day</extra>",
+            )
+        )
+    if not any(value == 1 for value in values):
+        figure.add_annotation(
+            text="Movement achievements will appear here",
+            x=0.5,
+            y=0.5,
+            xref="paper",
+            yref="paper",
+            showarrow=False,
+            font={"color": "#8f859d", "size": 13},
+        )
+
+    figure.update_layout(
+        template="none",
+        autosize=True,
+        title={"text": "Active Days", "x": 0.5, "font": {"size": 15}},
+        paper_bgcolor="#15111f",
+        plot_bgcolor="#15111f",
+        font={
+            "color": "#bbb3c9",
+            "family": 'Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif',
+        },
+        hoverlabel={
+            "bgcolor": "#2c2340",
+            "bordercolor": "#524762",
+            "font": {"color": "#f4f0fa"},
+        },
+        uirevision="active-days",
+        margin={"l": 92, "r": 28, "t": 58, "b": 18},
+        xaxis={
+            "type": "date",
+            "showticklabels": False,
+            "gridcolor": "#383047",
+            "linecolor": "#524762",
+            "fixedrange": False,
+        },
+        yaxis={
+            "range": [0.5, 1.5],
+            "showticklabels": False,
+            "showgrid": False,
+            "linecolor": "#524762",
+            "fixedrange": True,
         },
     )
     return figure

@@ -572,6 +572,7 @@ input {
 #difference-plot,
 #rate-plot,
 #sleep-plot,
+#active-days-plot,
 #daily-plot {
   width: 100%;
 }
@@ -591,6 +592,14 @@ input {
 #daily-plot {
   height: min(68vh, 600px);
   min-height: 500px;
+}
+
+#active-days-plot {
+  height: 180px;
+}
+
+.active-days-card {
+  background: linear-gradient(180deg, #171221, #15111f);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -682,6 +691,10 @@ input {
   #daily-plot {
     height: min(72vh, 560px);
     min-height: 460px;
+  }
+
+  #active-days-plot {
+    height: 160px;
   }
 }
 

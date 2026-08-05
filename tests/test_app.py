@@ -82,7 +82,9 @@ def test_daily_route_sets_active_navigation_and_exposes_categories(client):
     assert b"<h1>Achievements</h1>" in response.data
     assert b'value="cycling"' in response.data
     assert b"<span>Bike</span>" in response.data
+    assert b'value="other_activity"' in response.data
     assert b'value="roller_skate"' not in response.data
+    assert b'id="active-days-plot"' in response.data
     assert b'id="daily-plot"' in response.data
 
 
@@ -92,6 +94,7 @@ def test_options_page_shows_catalog_with_roller_skate_inactive(client):
     assert response.status_code == 200
     assert b'href="/options" aria-label="Options" aria-current="page"' in response.data
     assert b'name="active_achievement" value="walk" checked' in response.data
+    assert b'name="active_achievement" value="other_activity" checked' in response.data
     assert b'name="active_achievement" value="roller_skate">' in response.data
     assert b"Roller Skate" in response.data
 

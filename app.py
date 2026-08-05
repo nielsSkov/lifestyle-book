@@ -7,7 +7,7 @@ from flask import Flask, Response, redirect, render_template, request, url_for
 
 from daily_categories import DAILY_CATEGORIES, active_categories
 from daily_data import parse_daily_date, read_daily_records, store_daily_record
-from daily_plot import build_daily_figure
+from daily_plot import build_active_days_figure, build_daily_figure
 from interactive_plot import (
     PLOTLY_CONFIG,
     build_difference_figure,
@@ -210,6 +210,7 @@ def daily():
     except ValueError:
         selected_date = today
     figure = build_daily_figure(records, categories)
+    active_days_figure = build_active_days_figure(records, DAILY_CATEGORIES)
     return render_template(
         "daily.html",
         active_section="daily",
@@ -228,6 +229,7 @@ def daily():
         saved=request.args.get("saved"),
         error=request.args.get("error"),
         graph_json=figure.to_json(),
+        active_days_graph_json=active_days_figure.to_json(),
         plotly_config=PLOTLY_CONFIG,
         plotly_version=PLOTLY_VERSION,
     )
