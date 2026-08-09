@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class DailyCategory:
+class Achievement:
     key: str
     label: str
     group: str
@@ -14,13 +14,13 @@ class DailyCategory:
     active: bool = True
 
 
-DAILY_CATEGORIES = (
-    DailyCategory("walk", "Walk", "movement", "#78b68b", "#3b5745", "#3f8659", "walk"),
-    DailyCategory("run", "Run", "movement", "#dc786f", "#68413f", "#a94f4a", "run"),
-    DailyCategory("swim", "Swim", "movement", "#61a9c4", "#34505d", "#377992", "swim"),
-    DailyCategory("dance", "Dance", "movement", "#b77bc9", "#563d60", "#7e4695", "dance"),
-    DailyCategory("cycling", "Bike", "movement", "#d0a64f", "#62522d", "#927126", "cycling"),
-    DailyCategory(
+ACHIEVEMENTS = (
+    Achievement("walk", "Walk", "movement", "#78b68b", "#3b5745", "#3f8659", "walk"),
+    Achievement("run", "Run", "movement", "#dc786f", "#68413f", "#a94f4a", "run"),
+    Achievement("swim", "Swim", "movement", "#61a9c4", "#34505d", "#377992", "swim"),
+    Achievement("dance", "Dance", "movement", "#b77bc9", "#563d60", "#7e4695", "dance"),
+    Achievement("bike", "Bike", "movement", "#d0a64f", "#62522d", "#927126", "bike"),
+    Achievement(
         "roller_skate",
         "Roller Skate",
         "movement",
@@ -30,7 +30,7 @@ DAILY_CATEGORIES = (
         "roller-skate",
         active=False,
     ),
-    DailyCategory(
+    Achievement(
         "other_activity",
         "Other Activity",
         "movement",
@@ -39,7 +39,7 @@ DAILY_CATEGORIES = (
         "#7054a3",
         "other-activity",
     ),
-    DailyCategory(
+    Achievement(
         "low_sugar",
         "Low Sugar",
         "food",
@@ -48,16 +48,18 @@ DAILY_CATEGORIES = (
         "#5d8339",
         "low-sugar",
     ),
-    DailyCategory("cooked", "Cooked", "food", "#cf865f", "#604137", "#98513a", "cooked"),
+    Achievement("cooked", "Cooked", "food", "#cf865f", "#604137", "#98513a", "cooked"),
 )
 
 
-def active_categories(selected_keys: Collection[str] | None = None) -> tuple[DailyCategory, ...]:
+def configured_achievements(
+    selected_keys: Collection[str] | None = None,
+) -> tuple[Achievement, ...]:
     if selected_keys is None:
-        return tuple(category for category in DAILY_CATEGORIES if category.active)
+        return tuple(achievement for achievement in ACHIEVEMENTS if achievement.active)
 
     selected = set(selected_keys)
-    known = {category.key for category in DAILY_CATEGORIES}
+    known = {achievement.key for achievement in ACHIEVEMENTS}
     if selected - known:
         raise ValueError("Unknown achievement selected")
-    return tuple(category for category in DAILY_CATEGORIES if category.key in selected)
+    return tuple(achievement for achievement in ACHIEVEMENTS if achievement.key in selected)

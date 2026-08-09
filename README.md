@@ -1,15 +1,14 @@
 # Lifestyle Book
 
 A private-data, public-source Flask application for recording weight, sleep, movement,
-and everyday food achievements without goals, streaks, or judgment. Lifestyle Book is
-derived from Weight Tracker and retains its complete weight-recording workflow.
+and everyday food achievements without goals, streaks, or judgment.
 
 ## Features
 
 - Fast mobile weight entry
 - Same-day entries replace the previous value
 - Historical backfill and correction with date navigation
-- Interactive zooming, panning, hover values, and range slider
+- Interactive zooming, panning, and hover values
 - Recorded and planned weight lines
 - Plan deviation and four-week average weight-change charts
 - Independent Sleep and Wake time entry organized by night
@@ -27,7 +26,7 @@ data/sleep.csv  Sleep and Wake times
 data/daily.csv  Movement and Food achievements
 ```
 
-Both use this format:
+The Weight files use this format:
 
 ```csv
 date,weight_kg
@@ -49,17 +48,17 @@ display as `Niels' log`. The `active_achievements` list controls which fixed cat
 entries appear in the Daily form and graph. Deselecting an achievement never removes its
 CSV column or historical values.
 
-Daily achievements use a wide, append-only schema for category columns:
+Daily achievements use a wide, append-only schema for achievement columns:
 
 ```csv
-date,walk,run,swim,dance,cycling,other_activity,low_sugar,cooked
+date,walk,run,swim,dance,bike,other_activity,low_sugar,cooked
 2026-08-05,1,,1,,,,1,
 ```
 
-Visible buttons are controlled by `achievement_catalog.py`. Setting a category's `active`
-field to `False` hides its button and graph row without deleting its CSV column or
-historical values. Adding a category appends its stable key as a new column the next time
-a day is saved. Editing a day updates only active categories, so archived achievements
+Visible buttons are controlled by `achievement_catalog.py`. Setting an achievement's
+`active` field to `False` hides its button and graph row without deleting its CSV column
+or historical values. Adding an achievement appends its stable key as a new column the
+next time a day is saved. Editing a day updates only active achievements, so archived data
 remain intact.
 
 Selecting an existing measurement date pre-fills its weight. Clear that value and save to
@@ -91,8 +90,8 @@ sudo apt update
 sudo apt install curl git
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source "$HOME/.local/bin/env"
-git clone https://github.com/nielsSkov/weight-tracker.git /home/YOUR_USER/weight-tracker
-cd /home/YOUR_USER/weight-tracker
+git clone https://github.com/nielsSkov/lifestyle-book.git /home/YOUR_USER/lifestyle-book
+cd /home/YOUR_USER/lifestyle-book
 uv sync --no-dev
 uv run --no-dev gunicorn --check-config app:app
 ```
@@ -106,11 +105,11 @@ chmod 600 weight.csv plan.csv
 Prepare and install the service:
 
 ```sh
-cp deploy/lifestyle-book.service.example weight-tracker.service
-# Replace YOUR_USER and SERVER_IP in weight-tracker.service.
-sudo install -m 644 weight-tracker.service /etc/systemd/system/weight-tracker.service
+cp deploy/lifestyle-book.service.example lifestyle-book.service
+# Replace YOUR_USER and SERVER_IP in lifestyle-book.service.
+sudo install -m 644 lifestyle-book.service /etc/systemd/system/lifestyle-book.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now weight-tracker.service
+sudo systemctl enable --now lifestyle-book.service
 ```
 
 Use a router DHCP reservation to keep `SERVER_IP` stable. Linux can continue using DHCP.
@@ -120,11 +119,11 @@ Use a router DHCP reservation to keep `SERVER_IP` stable. Linux can continue usi
 Deploy only commits that have passed CI:
 
 ```sh
-cd /home/YOUR_USER/weight-tracker
+cd /home/YOUR_USER/lifestyle-book
 git pull --ff-only origin main
 uv sync --no-dev
 uv run --no-dev gunicorn --check-config app:app
-sudo systemctl restart weight-tracker.service
+sudo systemctl restart lifestyle-book.service
 git rev-parse HEAD
 ```
 
@@ -143,7 +142,7 @@ Set the SSH target and deployment directory:
 ```json
 {
   "target": "user@server",
-  "directory": "/home/user/weight-tracker"
+  "directory": "/home/user/lifestyle-book"
 }
 ```
 
@@ -188,13 +187,13 @@ The utility validates the plan, uploads it under a temporary name, backs up the 
 ## Operations
 
 ```sh
-sudo systemctl status weight-tracker.service
-sudo systemctl restart weight-tracker.service
-sudo journalctl -u weight-tracker.service -f
+sudo systemctl status lifestyle-book.service
+sudo systemctl restart lifestyle-book.service
+sudo journalctl -u lifestyle-book.service -f
 ```
 
 Back up the ignored CSV files separately from the Git repository. For example:
 
 ```sh
-scp user@server:/home/user/weight-tracker/weight.csv .
+scp user@server:/home/user/lifestyle-book/weight.csv .
 ```

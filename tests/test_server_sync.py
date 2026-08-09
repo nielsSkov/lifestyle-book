@@ -8,11 +8,11 @@ from server_sync import file_checksum, load_server_config
 def test_load_server_config(tmp_path: Path):
     config = tmp_path / "server.json"
     config.write_text(
-        '{"target": "user@example", "directory": "/srv/weight-tracker/"}',
+        '{"target": "user@example", "directory": "/srv/lifestyle-book/"}',
         encoding="utf-8",
     )
 
-    assert load_server_config(config) == ("user@example", "/srv/weight-tracker")
+    assert load_server_config(config) == ("user@example", "/srv/lifestyle-book")
 
 
 @pytest.mark.parametrize(
@@ -20,9 +20,9 @@ def test_load_server_config(tmp_path: Path):
     [
         "not json",
         "{}",
-        '{"target": "", "directory": "/srv/weight-tracker"}',
+        '{"target": "", "directory": "/srv/lifestyle-book"}',
         '{"target": "user@example", "directory": ""}',
-        '{"target": 42, "directory": "/srv/weight-tracker"}',
+        '{"target": 42, "directory": "/srv/lifestyle-book"}',
         '{"target": "user@example", "directory": 42}',
     ],
 )

@@ -5,9 +5,7 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 CSV_HEADER = ["night_start_date", "sleep_at", "wake_at"]
-DAILY_CSV_HEADER = ["date", "wake_time", "sleep_time"]
-LEGACY_CSV_HEADER = ["wake_date", "sleep_time", "wake_time"]
-NEXT_DAY_SLEEP_CUTOFF = 12
+NIGHT_ROLLOVER_HOUR = 12
 
 
 @dataclass(frozen=True)
@@ -48,7 +46,7 @@ def build_sleep_record(
     sleep_at = None
     if sleep_time is not None:
         sleep_date = night_start_date
-        if sleep_time.hour < NEXT_DAY_SLEEP_CUTOFF:
+        if sleep_time.hour < NIGHT_ROLLOVER_HOUR:
             sleep_date += timedelta(days=1)
         sleep_at = datetime.combine(sleep_date, sleep_time)
 
@@ -67,20 +65,9 @@ def read_sleep_records(path: Path) -> list[SleepRecord]:
 
     with path.open(newline="", encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file)
-        if reader.fieldnames == CSV_HEADER:
-            return _read_night_records(reader)
-        if reader.fieldnames == DAILY_CSV_HEADER:
-            return _migrate_daily_records(reader, "date")
-        if reader.fieldnames == LEGACY_CSV_HEADER:
-            return _migrate_daily_records(reader, "wake_date")
-        raise ValueError("Expected header: night_start_date,sleep_at,wake_at")
-
-
-def migrate_sleep_file(path: Path) -> int:
-    records = read_sleep_records(path)
-    if path.exists():
-        _replace_sleep_records(path, records)
-    return len(records)
+        if reader.fieldnames != CSV_HEADER:
+            raise ValueError("Expected header: night_start_date,sleep_at,wake_at")
+        return _read_sleep_records(reader)
 
 
 def store_sleep(path: Path, record: SleepRecord) -> None:
@@ -99,7 +86,7 @@ def delete_sleep(path: Path, night_start_date: date) -> bool:
     return True
 
 
-def _read_night_records(reader: csv.DictReader) -> list[SleepRecord]:
+def _read_sleep_records(reader: csv.DictReader) -> list[SleepRecord]:
     records = []
     previous_date = None
     for row in reader:
@@ -114,37 +101,6 @@ def _read_night_records(reader: csv.DictReader) -> list[SleepRecord]:
         _validate_record(record)
         records.append(record)
         previous_date = night_start_date
-    return records
-
-
-def _migrate_daily_records(reader: csv.DictReader, date_column: str) -> list[SleepRecord]:
-    records_by_date: dict[date, SleepRecord] = {}
-    for row in reader:
-        event_date = date.fromisoformat(row[date_column])
-        wake_time = _parse_optional_time(row["wake_time"])
-        sleep_time = _parse_optional_time(row["sleep_time"])
-        if wake_time is not None:
-            night_start = event_date - timedelta(days=1)
-            existing = records_by_date.get(night_start, SleepRecord(night_start))
-            records_by_date[night_start] = SleepRecord(
-                night_start,
-                existing.sleep_at,
-                datetime.combine(event_date, wake_time),
-            )
-        if sleep_time is not None:
-            night_start = event_date
-            if sleep_time.hour < NEXT_DAY_SLEEP_CUTOFF:
-                night_start -= timedelta(days=1)
-            existing = records_by_date.get(night_start, SleepRecord(night_start))
-            records_by_date[night_start] = SleepRecord(
-                night_start,
-                datetime.combine(event_date, sleep_time),
-                existing.wake_at,
-            )
-
-    records = [records_by_date[day] for day in sorted(records_by_date)]
-    for record in records:
-        _validate_record(record)
     return records
 
 

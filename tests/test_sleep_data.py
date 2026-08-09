@@ -8,7 +8,6 @@ from sleep_data import (
     SleepRecord,
     build_sleep_record,
     delete_sleep,
-    migrate_sleep_file,
     parse_night_start_date,
     parse_sleep_times,
     read_sleep_records,
@@ -94,33 +93,6 @@ def test_delete_sleep_removes_only_the_selected_night(tmp_path: Path):
     assert delete_sleep(path, first.night_start_date) is True
     assert delete_sleep(path, date(2026, 7, 31)) is False
     assert read_sleep_records(path) == [second]
-
-
-@pytest.mark.parametrize(
-    "content",
-    [
-        ("date,wake_time,sleep_time\n2026-08-02,06:30,23:00\n2026-08-03,07:00,22:30\n"),
-        ("wake_date,sleep_time,wake_time\n2026-08-02,23:00,06:30\n2026-08-03,22:30,07:00\n"),
-    ],
-)
-def test_migrate_sleep_file_converts_daily_events_into_night_buckets(
-    tmp_path: Path,
-    content: str,
-):
-    path = tmp_path / "sleep.csv"
-    path.write_text(content, encoding="utf-8")
-
-    assert migrate_sleep_file(path) == 3
-    assert read_sleep_records(path) == [
-        SleepRecord(date(2026, 8, 1), wake_at=datetime(2026, 8, 2, 6, 30)),
-        SleepRecord(
-            date(2026, 8, 2),
-            sleep_at=datetime(2026, 8, 2, 23),
-            wake_at=datetime(2026, 8, 3, 7),
-        ),
-        SleepRecord(date(2026, 8, 3), sleep_at=datetime(2026, 8, 3, 22, 30)),
-    ]
-    assert path.read_text(encoding="utf-8").startswith("night_start_date,sleep_at,wake_at\n")
 
 
 def test_read_sleep_records_rejects_an_incompatible_schema(tmp_path: Path):

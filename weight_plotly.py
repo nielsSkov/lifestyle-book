@@ -1,27 +1,11 @@
 import math
 from collections.abc import Sequence
 from datetime import date
-from functools import cache
 
 from plotly import graph_objects as go
-from plotly.offline import get_plotlyjs
-
-PLOTLY_CONFIG: dict[str, object] = {
-    "displaylogo": False,
-    "displayModeBar": True,
-    "modeBarButtons": [["zoom2d", "pan2d", "resetScale2d"]],
-    "responsive": True,
-    "scrollZoom": True,
-    "showTips": False,
-}
 
 
-@cache
-def plotly_javascript() -> str:
-    return get_plotlyjs()
-
-
-def build_interactive_figure(
+def build_weight_figure(
     weight_dates: Sequence[date],
     weights: Sequence[float],
     plan_dates: Sequence[date],
@@ -94,7 +78,7 @@ def build_interactive_figure(
             "bordercolor": "#524762",
             "font": {"color": "#f4f0fa"},
         },
-        uirevision="weight-tracker",
+        uirevision="weight",
         margin={"l": 64, "r": 24, "t": 70, "b": 48},
         legend={
             "orientation": "h",

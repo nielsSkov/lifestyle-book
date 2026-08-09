@@ -26,20 +26,20 @@
 
       <h2>Movement</h2>
       <div class="option-grid">
-        {% for category in movement_categories %}
-          <label class="option-check" style="--activity-colour: {{ category.colour }}">
-            <input type="checkbox" value="{{ category.key }}" data-option-achievement{% if category.key in active_keys %} checked{% endif %}>
-            <span>{{ category.label }}</span>
+        {% for achievement in movement_achievements %}
+          <label class="option-check" style="--achievement-colour: {{ achievement.colour }}">
+            <input type="checkbox" value="{{ achievement.key }}" data-option-achievement{% if achievement.key in active_keys %} checked{% endif %}>
+            <span>{{ achievement.label }}</span>
           </label>
         {% endfor %}
       </div>
 
       <h2>Food</h2>
       <div class="option-grid">
-        {% for category in food_categories %}
-          <label class="option-check" style="--activity-colour: {{ category.colour }}">
-            <input type="checkbox" value="{{ category.key }}" data-option-achievement{% if category.key in active_keys %} checked{% endif %}>
-            <span>{{ category.label }}</span>
+        {% for achievement in food_achievements %}
+          <label class="option-check" style="--achievement-colour: {{ achievement.colour }}">
+            <input type="checkbox" value="{{ achievement.key }}" data-option-achievement{% if achievement.key in active_keys %} checked{% endif %}>
+            <span>{{ achievement.label }}</span>
           </label>
         {% endfor %}
       </div>

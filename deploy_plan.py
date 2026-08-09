@@ -48,7 +48,9 @@ def deploy(plan_path, config_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Safely deploy plan.csv to the weight tracker")
+    parser = argparse.ArgumentParser(
+        description="Safely deploy plan.csv to the Lifestyle Book server"
+    )
     parser.add_argument("plan", nargs="?", type=Path, default=PROJECT_DIR / "plan.csv")
     parser.add_argument(
         "--config",

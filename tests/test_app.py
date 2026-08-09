@@ -73,7 +73,7 @@ def test_home_redirects_to_weight(client):
     assert response.headers["Location"] == "/weight"
 
 
-def test_daily_route_sets_active_navigation_and_exposes_categories(client):
+def test_daily_route_sets_active_navigation_and_exposes_achievements(client):
     response = client.get("/daily")
 
     assert response.status_code == 200
@@ -81,7 +81,7 @@ def test_daily_route_sets_active_navigation_and_exposes_categories(client):
     assert response.data.count(b'aria-current="page"') == 1
     assert b'<p class="eyebrow">Daily</p>' in response.data
     assert b"<h1>Achievements</h1>" in response.data
-    assert b'value="cycling"' in response.data
+    assert b'value="bike"' in response.data
     assert b"<span>Bike</span>" in response.data
     assert b'id="daily-icon-swim-figurative"' in response.data
     assert b'value="other_activity"' in response.data
@@ -102,36 +102,6 @@ def test_options_page_shows_catalog_with_roller_skate_inactive(client):
     assert b"Roller Skate" in response.data
     assert b"Save Name" in response.data
     assert b"Save Options" not in response.data
-
-
-def test_save_options_personalizes_log_and_changes_daily_categories(client):
-    response = client.post(
-        "/options",
-        data={
-            "name": "Niels",
-            "active_achievement": ["walk", "roller_skate", "cooked"],
-        },
-    )
-
-    parameters = redirect_parameters(response, "/options")
-    assert "saved" in parameters
-    assert load_lifestyle_settings(app_module.LIFESTYLE_CONFIG) == LifestyleSettings(
-        "Niels", ("walk", "roller_skate", "cooked")
-    )
-    page = client.get("/daily")
-    assert b"<small data-record-subtitle>Niels&#39; log</small>" in page.data
-    assert b'value="roller_skate"' in page.data
-    assert b'value="run"' not in page.data
-
-
-def test_save_options_rejects_unknown_achievement(client):
-    response = client.post(
-        "/options",
-        data={"name": "Niels", "active_achievement": ["walk", "unknown"]},
-    )
-
-    assert "error" in redirect_parameters(response, "/options")
-    assert not app_module.LIFESTYLE_CONFIG.exists()
 
 
 def test_save_options_name_preserves_active_achievements_without_redirect(client):
@@ -173,57 +143,23 @@ def test_options_achievement_autosave_rejects_unknown_key(client):
     assert not app_module.LIFESTYLE_CONFIG.exists()
 
 
-def test_old_movement_food_route_redirects_to_daily(client):
-    response = client.get("/movement-food")
-
-    assert response.status_code == 302
-    assert response.headers["Location"] == "/daily"
-
-
-def test_save_daily_stays_on_date_and_records_selected_categories(client):
+def test_daily_achievement_autosave_updates_one_achievement_without_redirect(client):
     response = client.post(
-        "/daily",
-        data={"date": "2026-08-02", "activity": ["walk", "cycling", "cooked"]},
-    )
-
-    parameters = redirect_parameters(response, "/daily")
-    assert parameters["date"] == ["2026-08-02"]
-    assert "saved" in parameters
-    assert read_daily_records(app_module.DAILY_CSV) == [
-        DailyRecord(date(2026, 8, 2), frozenset({"walk", "cycling", "cooked"}))
-    ]
-
-
-def test_save_daily_rejects_unknown_categories_without_changing_data(client):
-    client.post("/daily", data={"date": "2026-08-02", "activity": "walk"})
-    original = app_module.DAILY_CSV.read_bytes()
-
-    response = client.post(
-        "/daily",
-        data={"date": "2026-08-02", "activity": ["walk", "unknown"]},
-    )
-
-    assert "error" in redirect_parameters(response, "/daily")
-    assert app_module.DAILY_CSV.read_bytes() == original
-
-
-def test_daily_activity_autosave_updates_one_achievement_without_redirect(client):
-    response = client.post(
-        "/daily/activity",
+        "/daily/achievement",
         data={"date": "2026-08-02", "key": "run", "selected": "true"},
     )
 
     assert response.status_code == 200
-    assert response.json["activities"] == ["run"]
+    assert response.json["achievements"] == ["run"]
     assert response.json["active_days_figure"]["data"][0]["z"] == [[1]]
     assert read_daily_records(app_module.DAILY_CSV) == [
         DailyRecord(date(2026, 8, 2), frozenset({"run"}))
     ]
 
 
-def test_daily_activity_autosave_rejects_untracked_achievement(client):
+def test_daily_achievement_autosave_rejects_untracked_achievement(client):
     response = client.post(
-        "/daily/activity",
+        "/daily/achievement",
         data={"date": "2026-08-02", "key": "roller_skate", "selected": "true"},
     )
 
@@ -232,7 +168,7 @@ def test_daily_activity_autosave_rejects_untracked_achievement(client):
     assert not app_module.DAILY_CSV.exists()
 
 
-def test_daily_page_uses_nightly_record_sleep_heading(client):
+def test_sleep_page_uses_nightly_record_heading(client):
     response = client.get("/sleep")
 
     assert b'<p class="eyebrow">Nightly record</p>' in response.data
@@ -349,7 +285,7 @@ def test_blank_sleep_times_delete_existing_night(client):
 
 def test_save_weight_inserts_historical_date_and_advances(client):
     response = client.post(
-        "/weights",
+        "/weight",
         data={"date": "2026-07-31", "weight": "100.5"},
     )
 
@@ -364,7 +300,7 @@ def test_save_weight_inserts_historical_date_and_advances(client):
 
 def test_save_weight_json_updates_summary_and_figures_without_redirect(client):
     response = client.post(
-        "/weights",
+        "/weight",
         data={"date": "2026-08-03", "weight": "99.4"},
         headers={"Accept": "application/json"},
     )
@@ -385,7 +321,7 @@ def test_save_weight_json_updates_summary_and_figures_without_redirect(client):
 
 def test_invalid_weight_json_returns_error_without_redirect(client):
     response = client.post(
-        "/weights",
+        "/weight",
         data={"date": "2026-08-03", "weight": "invalid"},
         headers={"Accept": "application/json"},
     )
@@ -397,7 +333,7 @@ def test_invalid_weight_json_returns_error_without_redirect(client):
 def test_save_weight_rejects_future_date(client):
     original = app_module.WEIGHT_CSV.read_bytes()
     response = client.post(
-        "/weights",
+        "/weight",
         data={"date": "2026-08-04", "weight": "99.0"},
     )
 
@@ -407,7 +343,7 @@ def test_save_weight_rejects_future_date(client):
 
 def test_save_weight_accepts_comma_decimal_separator(client):
     response = client.post(
-        "/weights",
+        "/weight",
         data={"date": "2026-08-03", "weight": "99,4"},
     )
 
@@ -420,7 +356,7 @@ def test_save_weight_accepts_comma_decimal_separator(client):
 def test_invalid_weight_preserves_existing_data(client):
     original = app_module.WEIGHT_CSV.read_bytes()
     response = client.post(
-        "/weights",
+        "/weight",
         data={"date": "2026-08-03", "weight": "29"},
     )
 
@@ -430,7 +366,7 @@ def test_invalid_weight_preserves_existing_data(client):
 
 def test_blank_weight_deletes_existing_date_and_advances(client):
     response = client.post(
-        "/weights",
+        "/weight",
         data={"date": "2026-08-01", "weight": ""},
     )
 
@@ -443,7 +379,7 @@ def test_blank_weight_deletes_existing_date_and_advances(client):
 def test_blank_weight_rejects_date_without_measurement(client):
     original = app_module.WEIGHT_CSV.read_bytes()
     response = client.post(
-        "/weights",
+        "/weight",
         data={"date": "2026-07-31", "weight": ""},
     )
 

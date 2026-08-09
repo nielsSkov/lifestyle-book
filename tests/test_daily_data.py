@@ -8,7 +8,7 @@ from daily_data import (
     DailyRecord,
     parse_daily_date,
     read_daily_records,
-    store_daily_activity,
+    store_daily_achievement,
     store_daily_record,
 )
 
@@ -20,32 +20,32 @@ def test_parse_daily_date_rejects_future_dates():
 
 def test_store_daily_record_creates_sorted_private_wide_csv(tmp_path: Path):
     path = tmp_path / "data" / "daily.csv"
-    keys = ["walk", "run", "cycling"]
-    store_daily_record(path, date(2026, 8, 3), {"cycling"}, keys)
+    keys = ["walk", "run", "bike"]
+    store_daily_record(path, date(2026, 8, 3), {"bike"}, keys)
     store_daily_record(path, date(2026, 8, 1), {"walk", "run"}, keys)
 
     assert path.read_text(encoding="utf-8") == (
-        "date,walk,run,cycling\n2026-08-01,1,1,\n2026-08-03,,,1\n"
+        "date,walk,run,bike\n2026-08-01,1,1,\n2026-08-03,,,1\n"
     )
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert read_daily_records(path) == [
         DailyRecord(date(2026, 8, 1), frozenset({"walk", "run"})),
-        DailyRecord(date(2026, 8, 3), frozenset({"cycling"})),
+        DailyRecord(date(2026, 8, 3), frozenset({"bike"})),
     ]
 
 
-def test_archiving_category_preserves_its_column_and_historical_value(tmp_path: Path):
+def test_hiding_achievement_preserves_its_column_and_historical_value(tmp_path: Path):
     path = tmp_path / "daily.csv"
     day = date(2026, 8, 1)
-    store_daily_record(path, day, {"walk", "cycling"}, ["walk", "cycling"])
+    store_daily_record(path, day, {"walk", "bike"}, ["walk", "bike"])
 
     store_daily_record(path, day, set(), ["walk"])
 
-    assert read_daily_records(path) == [DailyRecord(day, frozenset({"cycling"}))]
-    assert path.read_text(encoding="utf-8") == "date,walk,cycling\n2026-08-01,,1\n"
+    assert read_daily_records(path) == [DailyRecord(day, frozenset({"bike"}))]
+    assert path.read_text(encoding="utf-8") == "date,walk,bike\n2026-08-01,,1\n"
 
 
-def test_new_category_appends_column_without_changing_old_records(tmp_path: Path):
+def test_new_achievement_appends_column_without_changing_old_records(tmp_path: Path):
     path = tmp_path / "daily.csv"
     store_daily_record(path, date(2026, 8, 1), {"walk"}, ["walk"])
 
@@ -65,16 +65,16 @@ def test_clearing_all_active_values_removes_empty_record(tmp_path: Path):
     assert path.read_text(encoding="utf-8") == "date,walk,run\n"
 
 
-def test_store_daily_activity_changes_only_one_column(tmp_path: Path):
+def test_store_daily_achievement_changes_only_one_column(tmp_path: Path):
     path = tmp_path / "daily.csv"
     day = date(2026, 8, 1)
-    store_daily_record(path, day, {"walk", "cycling"}, ["walk", "cycling"])
+    store_daily_record(path, day, {"walk", "bike"}, ["walk", "bike"])
 
-    store_daily_activity(path, day, "run", True)
-    store_daily_activity(path, day, "walk", False)
+    store_daily_achievement(path, day, "run", True)
+    store_daily_achievement(path, day, "walk", False)
 
-    assert read_daily_records(path) == [DailyRecord(day, frozenset({"cycling", "run"}))]
-    assert path.read_text(encoding="utf-8") == "date,walk,cycling,run\n2026-08-01,,1,1\n"
+    assert read_daily_records(path) == [DailyRecord(day, frozenset({"bike", "run"}))]
+    assert path.read_text(encoding="utf-8") == "date,walk,bike,run\n2026-08-01,,1,1\n"
 
 
 @pytest.mark.parametrize(

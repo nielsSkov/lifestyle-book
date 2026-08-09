@@ -373,10 +373,10 @@ input {
   padding: 10px 12px;
   align-items: center;
   gap: 10px;
-  border: 1px solid color-mix(in srgb, var(--activity-colour) 35%, #4b405d);
+  border: 1px solid color-mix(in srgb, var(--achievement-colour) 35%, #4b405d);
   border-radius: 11px;
   color: #cfc6da;
-  background: color-mix(in srgb, var(--activity-colour) 6%, #0f0c16);
+  background: color-mix(in srgb, var(--achievement-colour) 6%, #0f0c16);
   cursor: pointer;
 }
 
@@ -385,7 +385,7 @@ input {
   height: 19px;
   flex: 0 0 19px;
   margin: 0;
-  accent-color: var(--activity-colour);
+  accent-color: var(--achievement-colour);
 }
 
 .option-check input:disabled {
@@ -394,9 +394,9 @@ input {
 }
 
 .option-check:has(input:checked) {
-  border-color: color-mix(in srgb, var(--activity-colour) 72%, #4b405d);
+  border-color: color-mix(in srgb, var(--achievement-colour) 72%, #4b405d);
   color: #f4f0fa;
-  background: color-mix(in srgb, var(--activity-colour) 12%, #0f0c16);
+  background: color-mix(in srgb, var(--achievement-colour) 12%, #0f0c16);
 }
 
 .icon-library {
@@ -406,14 +406,14 @@ input {
   overflow: hidden;
 }
 
-.activity-group {
+.achievement-group {
   min-width: 0;
   margin: 0 0 24px;
   padding: 0;
   border: 0;
 }
 
-.activity-group legend {
+.achievement-group legend {
   margin-bottom: 10px;
   font-size: 0.9rem;
   font-weight: 750;
@@ -423,7 +423,7 @@ input {
   margin-bottom: 6px;
 }
 
-.activity-grid {
+.achievement-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
@@ -433,37 +433,37 @@ input {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.activity-option {
+.achievement-option {
   position: relative;
   margin: 0;
   cursor: pointer;
 }
 
-.activity-option input {
+.achievement-option input {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
 }
 
-.activity-button {
+.achievement-button {
   display: flex;
   min-height: 62px;
   align-items: center;
   justify-content: center;
   gap: 9px;
   padding: 10px 12px;
-  border: 2px solid color-mix(in srgb, var(--activity-colour) 42%, #4b405d);
+  border: 2px solid color-mix(in srgb, var(--achievement-colour) 42%, #4b405d);
   border-radius: 12px;
-  color: color-mix(in srgb, var(--activity-colour) 72%, white);
-  background: color-mix(in srgb, var(--activity-colour) 9%, #0f0c16);
+  color: color-mix(in srgb, var(--achievement-colour) 72%, white);
+  background: color-mix(in srgb, var(--achievement-colour) 9%, #0f0c16);
   font-weight: 750;
   line-height: 1.15;
   text-align: center;
   transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
-.activity-button svg {
+.achievement-button svg {
   width: 24px;
   height: 24px;
   flex: 0 0 24px;
@@ -474,19 +474,19 @@ input {
   stroke-linejoin: round;
 }
 
-.activity-option input:checked + .activity-button {
-  border-color: var(--activity-colour);
-  color: color-mix(in srgb, var(--activity-colour) 55%, white);
-  background: var(--activity-fill);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--activity-colour) 12%, transparent);
+.achievement-option input:checked + .achievement-button {
+  border-color: var(--achievement-colour);
+  color: color-mix(in srgb, var(--achievement-colour) 55%, white);
+  background: var(--achievement-fill);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--achievement-colour) 12%, transparent);
 }
 
-.activity-option input:focus-visible + .activity-button {
-  outline: 3px solid color-mix(in srgb, var(--activity-colour) 45%, transparent);
+.achievement-option input:focus-visible + .achievement-button {
+  outline: 3px solid color-mix(in srgb, var(--achievement-colour) 45%, transparent);
   outline-offset: 2px;
 }
 
-.activity-option input:disabled + .activity-button {
+.achievement-option input:disabled + .achievement-button {
   opacity: 0.68;
   cursor: wait;
 }
@@ -595,35 +595,6 @@ input {
   cursor: not-allowed;
 }
 
-.feedback-slot {
-  display: flex;
-  min-height: 28px;
-  margin-bottom: 6px;
-  align-items: center;
-  justify-content: center;
-}
-
-.message {
-  width: 100%;
-  margin: 0;
-  padding: 5px 12px;
-  border-radius: 7px;
-  font-size: 0.8rem;
-  font-weight: 650;
-  line-height: 1.2;
-  text-align: center;
-}
-
-.success {
-  color: #d8c7ff;
-  background: #34205d;
-}
-
-.error {
-  color: #ffc1c1;
-  background: #4b2028;
-}
-
 .graph-card {
   margin-bottom: 20px;
   padding: 12px;
@@ -688,13 +659,13 @@ input {
     background: #403353;
   }
 
-  .activity-option:hover .activity-button {
-    border-color: var(--activity-colour);
-    background: color-mix(in srgb, var(--activity-colour) 16%, #0f0c16);
+  .achievement-option:hover .achievement-button {
+    border-color: var(--achievement-colour);
+    background: color-mix(in srgb, var(--achievement-colour) 16%, #0f0c16);
   }
 
-  .activity-option:hover input:checked + .activity-button {
-    background: color-mix(in srgb, var(--activity-fill) 88%, var(--activity-colour));
+  .achievement-option:hover input:checked + .achievement-button {
+    background: color-mix(in srgb, var(--achievement-fill) 88%, var(--achievement-colour));
   }
 }
 
@@ -761,7 +732,7 @@ input {
 }
 
 @media (max-width: 480px) {
-  .activity-grid {
+  .achievement-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

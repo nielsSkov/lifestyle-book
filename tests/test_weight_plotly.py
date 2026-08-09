@@ -5,16 +5,11 @@ from typing import cast
 
 import pytest
 
-from weight_plotly import (
-    PLOTLY_CONFIG,
-    build_difference_figure,
-    build_interactive_figure,
-    build_rate_figure,
-)
+from weight_plotly import build_difference_figure, build_rate_figure, build_weight_figure
 
 
-def test_build_interactive_figure_preserves_data_gaps_and_interactions():
-    figure = build_interactive_figure(
+def test_build_weight_figure_preserves_data_gaps_and_interactions():
+    figure = build_weight_figure(
         [date(2026, 8, 1), date(2026, 8, 2)],
         [100.0, 99.5],
         [date(2026, 8, 1), date(2026, 8, 2), date(2026, 8, 3)],
@@ -35,8 +30,8 @@ def test_build_interactive_figure_preserves_data_gaps_and_interactions():
     assert serialized["layout"]["yaxis"]["fixedrange"] is False
 
 
-def test_build_interactive_figure_supports_empty_data():
-    figure = build_interactive_figure([], [], [], [])
+def test_build_weight_figure_supports_empty_data():
+    figure = build_weight_figure([], [], [], [])
 
     serialized = json.loads(cast(str, figure.to_json()))
     assert not serialized["data"]
@@ -91,10 +86,3 @@ def test_insight_figures_support_empty_data():
     for figure in (build_difference_figure([], [], [], []), build_rate_figure([], [], [], [])):
         serialized = json.loads(cast(str, figure.to_json()))
         assert not serialized["data"]
-
-
-def test_plotly_config_preserves_required_interactions():
-    assert PLOTLY_CONFIG["displayModeBar"] is True
-    assert PLOTLY_CONFIG["modeBarButtons"] == [["zoom2d", "pan2d", "resetScale2d"]]
-    assert PLOTLY_CONFIG["responsive"] is True
-    assert PLOTLY_CONFIG["scrollZoom"] is True

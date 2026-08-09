@@ -3,43 +3,43 @@ from datetime import date, timedelta
 
 from plotly import graph_objects as go
 
-from achievement_catalog import DailyCategory
+from achievement_catalog import Achievement
 from daily_data import DailyRecord
 
 
 def build_daily_figure(
     records: Sequence[DailyRecord],
-    categories: Sequence[DailyCategory],
+    achievements: Sequence[Achievement],
 ) -> go.Figure:
     figure = go.Figure()
-    used_keys = {key for record in records for key in record.activities}
-    displayed = [category for category in categories if category.key in used_keys]
-    movement = [category for category in displayed if category.group == "movement"]
-    food = [category for category in displayed if category.group == "food"]
+    used_keys = {key for record in records for key in record.achievements}
+    displayed = [achievement for achievement in achievements if achievement.key in used_keys]
+    movement = [achievement for achievement in displayed if achievement.group == "movement"]
+    food = [achievement for achievement in displayed if achievement.group == "food"]
     group_gap = 1 if movement and food else 0
-    y_positions = {category.key: len(food) - index for index, category in enumerate(food)} | {
-        category.key: len(food) + group_gap + len(movement) - index
-        for index, category in enumerate(movement)
+    y_positions = {achievement.key: len(food) - index for index, achievement in enumerate(food)} | {
+        achievement.key: len(food) + group_gap + len(movement) - index
+        for index, achievement in enumerate(movement)
     }
 
     dates = _daily_dates(records[0].day, records[-1].day) if displayed and records else []
-    activities_by_date = {record.day: record.activities for record in records}
+    achievements_by_date = {record.day: record.achievements for record in records}
 
-    for category in displayed:
+    for achievement in displayed:
         figure.add_trace(
             go.Heatmap(
                 z=[
                     [
-                        1 if category.key in activities_by_date.get(day, frozenset()) else None
+                        1 if achievement.key in achievements_by_date.get(day, frozenset()) else None
                         for day in dates
                     ]
                 ],
                 x0=dates[0] if dates else None,
                 dx=86_400_000,
-                y0=y_positions[category.key],
+                y0=y_positions[achievement.key],
                 dy=1,
-                name=category.label,
-                colorscale=[[0, category.tile_colour], [1, category.tile_colour]],
+                name=achievement.label,
+                colorscale=[[0, achievement.tile_colour], [1, achievement.tile_colour]],
                 zmin=0,
                 zmax=1,
                 xgap=10,
@@ -47,12 +47,12 @@ def build_daily_figure(
                 showscale=False,
                 showlegend=False,
                 hoverongaps=False,
-                hovertemplate=f"%{{x|%d %b %Y}}<extra>{category.label}</extra>",
+                hovertemplate=f"%{{x|%d %b %Y}}<extra>{achievement.label}</extra>",
             )
         )
 
     if movement:
-        movement_values = [y_positions[category.key] for category in movement]
+        movement_values = [y_positions[achievement.key] for achievement in movement]
         figure.add_hrect(
             y0=min(movement_values) - 0.5,
             y1=max(movement_values) + 0.5,
@@ -71,7 +71,7 @@ def build_daily_figure(
             font={"color": "#849dac", "size": 10},
         )
     if food:
-        food_values = [y_positions[category.key] for category in food]
+        food_values = [y_positions[achievement.key] for achievement in food]
         figure.add_hrect(
             y0=min(food_values) - 0.5,
             y1=max(food_values) + 0.5,
@@ -91,8 +91,8 @@ def build_daily_figure(
         )
     if movement and food:
         divider = (
-            min(y_positions[category.key] for category in movement)
-            + max(y_positions[category.key] for category in food)
+            min(y_positions[achievement.key] for achievement in movement)
+            + max(y_positions[achievement.key] for achievement in food)
         ) / 2
         figure.add_hline(y=divider, line={"color": "#524762", "width": 1})
 
@@ -133,8 +133,8 @@ def build_daily_figure(
         },
         yaxis={
             "range": [0.5, max(y_positions.values()) + 1] if displayed else [0, 1],
-            "tickvals": [y_positions[category.key] for category in displayed],
-            "ticktext": [category.label for category in displayed],
+            "tickvals": [y_positions[achievement.key] for achievement in displayed],
+            "ticktext": [achievement.label for achievement in displayed],
             "gridcolor": "rgba(56, 48, 71, 0.5)",
             "linecolor": "#524762",
             "fixedrange": True,
@@ -146,14 +146,16 @@ def build_daily_figure(
 
 def build_active_days_figure(
     records: Sequence[DailyRecord],
-    categories: Sequence[DailyCategory],
+    achievements: Sequence[Achievement],
 ) -> go.Figure:
     figure = go.Figure()
-    movement_keys = {category.key for category in categories if category.group == "movement"}
+    movement_keys = {
+        achievement.key for achievement in achievements if achievement.group == "movement"
+    }
     dates = _daily_dates(records[0].day, records[-1].day) if records else []
-    activities_by_date = {record.day: record.activities for record in records}
+    achievements_by_date = {record.day: record.achievements for record in records}
     values = [
-        1 if activities_by_date.get(day, frozenset()) & movement_keys else None for day in dates
+        1 if achievements_by_date.get(day, frozenset()) & movement_keys else None for day in dates
     ]
 
     if dates:

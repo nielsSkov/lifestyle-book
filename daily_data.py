@@ -9,7 +9,7 @@ from pathlib import Path
 @dataclass(frozen=True)
 class DailyRecord:
     day: date
-    activities: frozenset[str]
+    achievements: frozenset[str]
 
 
 @dataclass(frozen=True)
@@ -37,16 +37,16 @@ def read_daily_records(path: Path) -> list[DailyRecord]:
 def store_daily_record(
     path: Path,
     day: date,
-    selected_keys: Collection[str],
+    selected_achievements: Collection[str],
     active_keys: Sequence[str],
 ) -> None:
     if len(active_keys) != len(set(active_keys)):
-        raise ValueError("Daily category keys must be unique")
+        raise ValueError("Daily achievement keys must be unique")
 
-    selected = set(selected_keys)
+    selected = set(selected_achievements)
     active = set(active_keys)
     if not selected <= active:
-        raise ValueError("Unknown daily activity")
+        raise ValueError("Unknown daily achievement")
 
     daily_file = _read_daily_file(path)
     columns = [*daily_file.columns]
@@ -54,9 +54,9 @@ def store_daily_record(
 
     records_by_date = {record.day: record for record in daily_file.records}
     previous = records_by_date.get(day, DailyRecord(day, frozenset()))
-    activities = (set(previous.activities) - active) | selected
-    if activities:
-        records_by_date[day] = DailyRecord(day, frozenset(activities))
+    achievements = (set(previous.achievements) - active) | selected
+    if achievements:
+        records_by_date[day] = DailyRecord(day, frozenset(achievements))
     else:
         records_by_date.pop(day, None)
 
@@ -67,7 +67,7 @@ def store_daily_record(
     )
 
 
-def store_daily_activity(path: Path, day: date, key: str, selected: bool) -> None:
+def store_daily_achievement(path: Path, day: date, key: str, selected: bool) -> None:
     daily_file = _read_daily_file(path)
     columns = [*daily_file.columns]
     if key not in columns:
@@ -75,14 +75,14 @@ def store_daily_activity(path: Path, day: date, key: str, selected: bool) -> Non
 
     records_by_date = {record.day: record for record in daily_file.records}
     previous = records_by_date.get(day, DailyRecord(day, frozenset()))
-    activities = set(previous.activities)
+    achievements = set(previous.achievements)
     if selected:
-        activities.add(key)
+        achievements.add(key)
     else:
-        activities.discard(key)
+        achievements.discard(key)
 
-    if activities:
-        records_by_date[day] = DailyRecord(day, frozenset(activities))
+    if achievements:
+        records_by_date[day] = DailyRecord(day, frozenset(achievements))
     else:
         records_by_date.pop(day, None)
 
@@ -104,7 +104,7 @@ def _read_daily_file(path: Path) -> _DailyFile:
             raise ValueError("Expected daily CSV to begin with a date column")
         columns = fieldnames[1:]
         if any(not column for column in columns) or len(columns) != len(set(columns)):
-            raise ValueError("Daily CSV category columns must be named and unique")
+            raise ValueError("Daily CSV achievement columns must be named and unique")
 
         records = _read_daily_rows(reader, columns)
 
@@ -124,16 +124,16 @@ def _read_daily_rows(reader: csv.DictReader, columns: Sequence[str]) -> list[Dai
         if previous_date is not None and day <= previous_date:
             raise ValueError("Daily record dates must be unique and increasing")
 
-        activities = set()
+        achievements = set()
         for column in columns:
             value = row[column].strip()
             if value not in {"", "1"}:
                 raise ValueError("Daily CSV values must be 1 or blank")
             if value == "1":
-                activities.add(column)
-        if not activities:
+                achievements.add(column)
+        if not achievements:
             raise ValueError("Daily CSV cannot contain an empty record")
-        records.append(DailyRecord(day, frozenset(activities)))
+        records.append(DailyRecord(day, frozenset(achievements)))
         previous_date = day
     return records
 
@@ -148,7 +148,7 @@ def _replace_daily_records(path: Path, columns: list[str], records: list[DailyRe
             writer.writerows(
                 [
                     record.day.isoformat(),
-                    *("1" if key in record.activities else "" for key in columns),
+                    *("1" if key in record.achievements else "" for key in columns),
                 ]
                 for record in records
             )
