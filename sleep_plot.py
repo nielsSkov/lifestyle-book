@@ -193,6 +193,7 @@ def build_sleep_duration_figure(records: list[SleepRecord]) -> go.Figure:
         yaxis={
             "title": "Hours",
             "rangemode": "tozero",
+            "dtick": 1,
             "gridcolor": "#383047",
             "linecolor": "#524762",
             "fixedrange": False,

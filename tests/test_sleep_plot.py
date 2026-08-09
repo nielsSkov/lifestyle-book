@@ -76,6 +76,7 @@ def test_sleep_duration_figure_uses_same_night_buckets_and_complete_records():
     assert trace["marker"]["color"] == "#8354e8"
     assert serialized["layout"]["xaxis"]["categoryarray"] == expected_nights
     assert serialized["layout"]["yaxis"]["title"]["text"] == "Hours"
+    assert serialized["layout"]["yaxis"]["dtick"] == 1
 
 
 def test_sleep_duration_figure_supports_empty_data():
