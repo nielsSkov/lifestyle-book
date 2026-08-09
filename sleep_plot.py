@@ -132,6 +132,75 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
     return figure
 
 
+def build_sleep_duration_figure(records: list[SleepRecord]) -> go.Figure:
+    figure = go.Figure()
+    night_dates: list[date] = []
+
+    if records:
+        records_by_date = {record.night_start_date: record for record in records}
+        night_dates = _daily_dates(
+            records[0].night_start_date,
+            records[-1].night_start_date,
+        )
+        night_keys = [_night_label(day) for day in night_dates]
+        durations = []
+        duration_labels = []
+        for day in night_dates:
+            record = records_by_date.get(day)
+            duration = _sleep_duration(record)
+            durations.append(duration)
+            duration_labels.append(_format_duration(duration))
+
+        figure.add_trace(
+            go.Bar(
+                x=night_keys,
+                y=durations,
+                customdata=duration_labels,
+                marker={"color": "#8354e8"},
+                hovertemplate="%{x}<br>%{customdata}<extra>Sleep duration</extra>",
+                showlegend=False,
+            )
+        )
+
+    figure.update_layout(
+        template="none",
+        autosize=True,
+        title={"text": "Sleep Duration", "x": 0.5},
+        paper_bgcolor="#15111f",
+        plot_bgcolor="#15111f",
+        font={
+            "color": "#bbb3c9",
+            "family": 'Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif',
+        },
+        hovermode="x unified",
+        hoverlabel={
+            "bgcolor": "#2c2340",
+            "bordercolor": "#524762",
+            "font": {"color": "#f4f0fa"},
+        },
+        uirevision="sleep-duration",
+        margin={"l": 64, "r": 24, "t": 84, "b": 64},
+        xaxis={
+            "title": "Night",
+            "type": "category",
+            "categoryorder": "array",
+            "categoryarray": [_night_label(day) for day in night_dates],
+            "tickangle": -35,
+            "automargin": True,
+            "gridcolor": "#383047",
+            "linecolor": "#524762",
+        },
+        yaxis={
+            "title": "Hours",
+            "rangemode": "tozero",
+            "gridcolor": "#383047",
+            "linecolor": "#524762",
+            "fixedrange": False,
+        },
+    )
+    return figure
+
+
 def _daily_dates(start: date, end: date) -> list[date]:
     return [start + timedelta(days=offset) for offset in range((end - start).days + 1)]
 
@@ -168,3 +237,17 @@ def _night_label(day: date) -> str:
 
 def _format_time(value: datetime | None) -> str:
     return "" if value is None else value.strftime("%H:%M")
+
+
+def _sleep_duration(record: SleepRecord | None) -> float:
+    if record is None or record.sleep_at is None or record.wake_at is None:
+        return math.nan
+    return (record.wake_at - record.sleep_at).total_seconds() / 3600
+
+
+def _format_duration(duration: float) -> str:
+    if not math.isfinite(duration):
+        return ""
+    total_minutes = round(duration * 60)
+    hours, minutes = divmod(total_minutes, 60)
+    return f"{hours} h {minutes:02d} min"

@@ -24,7 +24,7 @@ from sleep_data import (
     read_sleep_records,
     store_sleep,
 )
-from sleep_plot import build_sleep_figure
+from sleep_plot import build_sleep_duration_figure, build_sleep_figure
 from weight_data import (
     delete_weight,
     parse_measurement_date,
@@ -156,6 +156,7 @@ def sleep():
     except ValueError:
         selected_date = latest_night_start
     figure = build_sleep_figure(records)
+    duration_figure = build_sleep_duration_figure(records)
     return render_template(
         "sleep.html",
         active_section="sleep",
@@ -172,6 +173,7 @@ def sleep():
         deleted=request.args.get("deleted"),
         error=request.args.get("error"),
         graph_json=figure.to_json(),
+        duration_graph_json=duration_figure.to_json(),
         plotly_config=PLOTLY_CONFIG,
         plotly_version=PLOTLY_VERSION,
     )
@@ -263,6 +265,7 @@ def _sleep_json_response(selected_date: date, message: str):
             for record in records
         },
         figure=json.loads(cast(str, build_sleep_figure(records).to_json())),
+        duration_figure=json.loads(cast(str, build_sleep_duration_figure(records).to_json())),
     )
 
 

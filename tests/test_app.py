@@ -237,6 +237,7 @@ def test_save_sleep_json_updates_entries_and_figure_without_redirect(client):
         "wake_time": "07:15",
     }
     assert response.json["figure"]["data"]
+    assert response.json["duration_figure"]["data"][0]["y"] == [7.75]
 
 
 def test_invalid_sleep_json_returns_error_without_redirect(client):

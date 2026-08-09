@@ -37,6 +37,9 @@
   <section class="graph-card">
     <div id="sleep-plot" role="region" aria-label="Interactive sleep timing chart"></div>
   </section>
+  <section class="graph-card">
+    <div id="sleep-duration-plot" role="region" aria-label="Interactive nightly sleep duration chart"></div>
+  </section>
 {% endblock %}
 {% block scripts %}
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
@@ -67,13 +70,46 @@
     });
 
     let sleepFigure = {{ graph_json | safe }};
+    let sleepDurationFigure = {{ duration_graph_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};
-    const plotReady = Plotly.newPlot(
-      "sleep-plot",
-      sleepFigure.data,
-      sleepFigure.layout,
-      plotlyConfig,
-    );
+    const plotsReady = Promise.all([
+      Plotly.newPlot("sleep-plot", sleepFigure.data, sleepFigure.layout, plotlyConfig),
+      Plotly.newPlot(
+        "sleep-duration-plot",
+        sleepDurationFigure.data,
+        sleepDurationFigure.layout,
+        plotlyConfig,
+      ),
+    ]);
+
+    plotsReady.then((linkedPlots) => {
+      let syncingXAxes = false;
+
+      function readXRange(update) {
+        if (Array.isArray(update["xaxis.range"])) return update["xaxis.range"];
+        const start = update["xaxis.range[0]"];
+        const end = update["xaxis.range[1]"];
+        return start !== undefined && end !== undefined ? [start, end] : null;
+      }
+
+      for (const source of linkedPlots) {
+        source.on("plotly_relayout", (update) => {
+          if (syncingXAxes) return;
+          const range = readXRange(update);
+          if (!range && update["xaxis.autorange"] !== true) return;
+
+          syncingXAxes = true;
+          const linkedUpdate = range ? {"xaxis.range": range} : {"xaxis.autorange": true};
+          Promise.all(
+            linkedPlots
+              .filter((target) => target !== source)
+              .map((target) => Plotly.relayout(target, linkedUpdate)),
+          ).finally(() => {
+            syncingXAxes = false;
+          });
+        });
+      }
+    });
 
     sleepForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -91,8 +127,17 @@
 
         sleepEntries = result.entries;
         sleepFigure = result.figure;
-        await plotReady;
-        await Plotly.react("sleep-plot", sleepFigure.data, sleepFigure.layout, plotlyConfig);
+        sleepDurationFigure = result.duration_figure;
+        await plotsReady;
+        await Promise.all([
+          Plotly.react("sleep-plot", sleepFigure.data, sleepFigure.layout, plotlyConfig),
+          Plotly.react(
+            "sleep-duration-plot",
+            sleepDurationFigure.data,
+            sleepDurationFigure.layout,
+            plotlyConfig,
+          ),
+        ]);
         const entry = sleepEntries[result.selected_date];
         sleepTimeInput.value = entry?.sleep_time ?? "";
         wakeTimeInput.value = entry?.wake_time ?? "";

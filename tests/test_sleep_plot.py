@@ -3,7 +3,7 @@ from datetime import date, datetime
 from typing import cast
 
 from sleep_data import SleepRecord
-from sleep_plot import build_sleep_figure
+from sleep_plot import build_sleep_duration_figure, build_sleep_figure
 
 
 def test_sleep_figure_uses_night_buckets_and_fills_only_complete_nights():
@@ -46,3 +46,37 @@ def test_sleep_figure_uses_night_buckets_and_fills_only_complete_nights():
 
 def test_sleep_figure_supports_empty_data():
     assert not build_sleep_figure([]).data
+
+
+def test_sleep_duration_figure_uses_same_night_buckets_and_complete_records():
+    figure = build_sleep_duration_figure(
+        [
+            SleepRecord(date(2026, 8, 1), datetime(2026, 8, 1, 23), datetime(2026, 8, 2, 7)),
+            SleepRecord(date(2026, 8, 3), wake_at=datetime(2026, 8, 4, 7)),
+            SleepRecord(
+                date(2026, 8, 4),
+                datetime(2026, 8, 4, 22, 30),
+                datetime(2026, 8, 5, 6, 45),
+            ),
+        ]
+    )
+
+    serialized = json.loads(cast(str, figure.to_json()))
+    trace = serialized["data"][0]
+    expected_nights = [
+        "1–2 Aug<br>2026",
+        "2–3 Aug<br>2026",
+        "3–4 Aug<br>2026",
+        "4–5 Aug<br>2026",
+    ]
+    assert trace["type"] == "bar"
+    assert trace["x"] == expected_nights
+    assert trace["y"] == [8.0, None, None, 8.25]
+    assert trace["customdata"] == ["8 h 00 min", "", "", "8 h 15 min"]
+    assert trace["marker"]["color"] == "#8354e8"
+    assert serialized["layout"]["xaxis"]["categoryarray"] == expected_nights
+    assert serialized["layout"]["yaxis"]["title"]["text"] == "Hours"
+
+
+def test_sleep_duration_figure_supports_empty_data():
+    assert not build_sleep_duration_figure([]).data
