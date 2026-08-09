@@ -28,6 +28,8 @@ from sleep_data import (
 )
 from sleep_plot import build_sleep_duration_figure, build_sleep_figure
 from weight_data import (
+    MAX_WEIGHT_KG,
+    MIN_WEIGHT_KG,
     delete_weight,
     parse_measurement_date,
     parse_weight,
@@ -132,6 +134,18 @@ def weight_plan():
         duration_days,
         taper,
     )
+    weight_range_min, weight_range_max = _planning_slider_window(
+        start_weight,
+        10,
+        MIN_WEIGHT_KG,
+        MAX_WEIGHT_KG,
+    )
+    duration_range_min, duration_range_max = _planning_slider_window(
+        duration_days,
+        90,
+        1,
+        MAX_PLAN_DURATION_DAYS,
+    )
     figure = build_weight_figure(
         weight_dates,
         weights,
@@ -153,6 +167,12 @@ def weight_plan():
         plotly_version=PLOTLY_VERSION,
         max_duration_days=MAX_PLAN_DURATION_DAYS,
         max_taper=MAX_TAPER,
+        min_weight=MIN_WEIGHT_KG,
+        max_weight=MAX_WEIGHT_KG,
+        weight_range_min=weight_range_min,
+        weight_range_max=weight_range_max,
+        duration_range_min=duration_range_min,
+        duration_range_max=duration_range_max,
     )
 
 
@@ -319,14 +339,29 @@ def _default_planning_weight(
     for day, weight in reversed(list(zip(weight_dates, weights, strict=True))):
         age = (start_date - day).days
         if 0 <= age <= 7:
-            return weight
+            return round(weight, 1)
         if age > 7:
             break
 
     planned_weight = dict(zip(plan_dates, plan, strict=True)).get(start_date)
     if planned_weight is not None and math.isfinite(planned_weight):
-        return planned_weight
+        return round(planned_weight, 1)
     return 100.0
+
+
+def _planning_slider_window(
+    value: float,
+    radius: float,
+    hard_minimum: float,
+    hard_maximum: float,
+) -> tuple[float, float]:
+    minimum = max(hard_minimum, value - radius)
+    maximum = min(hard_maximum, value + radius)
+    if minimum == hard_minimum:
+        maximum = min(hard_maximum, minimum + 2 * radius)
+    if maximum == hard_maximum:
+        minimum = max(hard_minimum, maximum - 2 * radius)
+    return minimum, maximum
 
 
 def _parse_planning_preview(payload: dict) -> tuple[date, float, float, int, float]:

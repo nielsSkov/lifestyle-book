@@ -27,8 +27,8 @@ def write_csv(tmp_path: Path, content: str) -> Path:
 def test_parse_weight():
     assert parse_weight("109.8") == Decimal("109.8")
     assert parse_weight("109,8") == Decimal("109.8")
-    assert parse_weight("30") == Decimal("30")
-    assert parse_weight("300") == Decimal("300")
+    assert parse_weight("0") == Decimal("0")
+    assert parse_weight("700") == Decimal("700")
 
 
 @pytest.mark.parametrize(
@@ -39,12 +39,12 @@ def test_parse_weight():
         "hello",
         "NaN",
         "Infinity",
-        "29",
-        "301",
+        "-0.1",
+        "701",
     ],
 )
 def test_parse_weight_rejects_invalid_values(value: str | None):
-    with pytest.raises(ValueError, match="valid weight|between 30 and 300"):
+    with pytest.raises(ValueError, match="valid weight|between 0 and 700"):
         parse_weight(value)
 
 
@@ -148,7 +148,7 @@ def test_validate_csv_allows_explicit_plan_gaps(tmp_path: Path):
     path = write_csv(tmp_path, "date,weight_kg\n2026-07-25,100.0\n2026-07-26,NaN\n")
 
     assert validate_csv(path, allow_gaps=True) == 2
-    with pytest.raises(ValueError, match="between 30 and 300"):
+    with pytest.raises(ValueError, match="between 0 and 700"):
         validate_csv(path)
 
 

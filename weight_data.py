@@ -7,6 +7,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 CSV_HEADER = ["date", "weight_kg"]
+MIN_WEIGHT_KG = 0
+MAX_WEIGHT_KG = 700
 
 
 def parse_weight(raw_value: str | None) -> Decimal:
@@ -17,8 +19,8 @@ def parse_weight(raw_value: str | None) -> Decimal:
     except InvalidOperation:
         raise ValueError("Enter a valid weight") from None
 
-    if not weight.is_finite() or not Decimal("30") <= weight <= Decimal("300"):
-        raise ValueError("Weight must be between 30 and 300 kg")
+    if not weight.is_finite() or not Decimal(MIN_WEIGHT_KG) <= weight <= Decimal(MAX_WEIGHT_KG):
+        raise ValueError(f"Weight must be between {MIN_WEIGHT_KG} and {MAX_WEIGHT_KG} kg")
     return weight
 
 
@@ -69,8 +71,13 @@ def validate_csv(path: Path, allow_gaps: bool = False) -> int:
                 raise ValueError(f"Line {line_number}: invalid weight {row[1]!r}") from None
             if row[1] == "NaN" and allow_gaps:
                 pass
-            elif not weight.is_finite() or not Decimal("30") <= weight <= Decimal("300"):
-                raise ValueError(f"Line {line_number}: weight must be between 30 and 300 kg")
+            elif not weight.is_finite() or not Decimal(MIN_WEIGHT_KG) <= weight <= Decimal(
+                MAX_WEIGHT_KG
+            ):
+                raise ValueError(
+                    f"Line {line_number}: weight must be between "
+                    f"{MIN_WEIGHT_KG} and {MAX_WEIGHT_KG} kg"
+                )
             if previous_date is not None and day <= previous_date:
                 raise ValueError(f"Line {line_number}: dates must be unique and increasing")
             previous_date = day

@@ -76,6 +76,13 @@ def test_weight_plan_page_is_a_non_saving_linear_sandbox(client):
     assert response.data.count(b'value="99.5"') == 4
     assert b'id="taper-range"' in response.data
     assert b'value="0.0"' in response.data
+    assert b'max="10.0"' in response.data
+    assert b'data-hard-min="0"' in response.data
+    assert b'data-hard-max="700"' in response.data
+    assert b'data-window-radius="10"' in response.data
+    assert b'data-window-radius="90"' in response.data
+    assert b'min="89.5" max="109.5"' in response.data
+    assert b'min="1" max="181"' in response.data
     assert b'id="planning-weight-plot"' in response.data
     assert b"Candidate plan" in response.data
     assert b"This sandbox cannot change your active plan." in response.data
@@ -87,11 +94,15 @@ def test_weight_plan_defaults_to_current_plan_when_measurement_is_old(client):
         "date,weight_kg\n2026-07-01,110.0\n",
         encoding="utf-8",
     )
+    app_module.PLAN_CSV.write_text(
+        "date,weight_kg\n2026-08-03,95.123\n",
+        encoding="utf-8",
+    )
 
     response = client.get("/weight/plan")
 
     assert response.status_code == 200
-    assert response.data.count(b'value="95.0"') == 4
+    assert response.data.count(b'value="95.1"') == 4
 
 
 def test_weight_plan_preview_updates_candidate_without_writing_plan(client):
@@ -126,12 +137,12 @@ def test_weight_plan_preview_rejects_invalid_values(client):
             "start_weight": 100,
             "target_weight": 90,
             "duration_days": 10,
-            "taper": 4,
+            "taper": 11,
         },
     )
 
     assert response.status_code == 400
-    assert response.json == {"error": "Taper must be between 0 and 3"}
+    assert response.json == {"error": "Taper must be between 0 and 10"}
 
 
 def test_weight_plan_preview_rejects_date_overflow(client):
@@ -458,7 +469,7 @@ def test_invalid_weight_preserves_existing_data(client):
     original = app_module.WEIGHT_CSV.read_bytes()
     response = client.post(
         "/weight",
-        data={"date": "2026-08-03", "weight": "29"},
+        data={"date": "2026-08-03", "weight": "-0.1"},
     )
 
     assert "error" in redirect_parameters(response)

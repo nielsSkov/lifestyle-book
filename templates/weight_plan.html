@@ -30,40 +30,43 @@
           <div class="planning-label-row">
             <label for="start-weight-range">Start Weight</label>
             <div class="planning-exact-input">
-              <input id="start-weight-exact" name="start_weight" type="number" inputmode="decimal" min="30" max="300" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="start-weight-range" aria-label="Exact start weight">
+              <input id="start-weight-exact" name="start_weight" type="number" inputmode="decimal" min="{{ min_weight }}" max="{{ max_weight }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="start-weight-range" aria-label="Exact start weight" required>
               <span>kg</span>
             </div>
           </div>
-          <input id="start-weight-range" type="range" min="30" max="300" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="start-weight-exact" aria-label="Start weight slider">
+          <input id="start-weight-range" type="range" min="{{ weight_range_min }}" max="{{ weight_range_max }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="start-weight-exact" data-hard-min="{{ min_weight }}" data-hard-max="{{ max_weight }}" data-window-radius="10" aria-label="Start weight slider">
+          <div class="taper-scale adaptive-scale" data-range-scale="start-weight-range" data-unit=" kg" aria-hidden="true"><span data-range-min>{{ '%.1f'|format(weight_range_min) }} kg</span><span data-range-max>{{ '%.1f'|format(weight_range_max) }} kg</span></div>
         </div>
 
         <div class="planning-field">
           <div class="planning-label-row">
             <label for="target-weight-range">Target Weight</label>
             <div class="planning-exact-input">
-              <input id="target-weight-exact" name="target_weight" type="number" inputmode="decimal" min="30" max="300" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="target-weight-range" aria-label="Exact target weight">
+              <input id="target-weight-exact" name="target_weight" type="number" inputmode="decimal" min="{{ min_weight }}" max="{{ max_weight }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="target-weight-range" aria-label="Exact target weight" required>
               <span>kg</span>
             </div>
           </div>
-          <input id="target-weight-range" type="range" min="30" max="300" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="target-weight-exact" aria-label="Target weight slider">
+          <input id="target-weight-range" type="range" min="{{ weight_range_min }}" max="{{ weight_range_max }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="target-weight-exact" data-hard-min="{{ min_weight }}" data-hard-max="{{ max_weight }}" data-window-radius="10" aria-label="Target weight slider">
+          <div class="taper-scale adaptive-scale" data-range-scale="target-weight-range" data-unit=" kg" aria-hidden="true"><span data-range-min>{{ '%.1f'|format(weight_range_min) }} kg</span><span data-range-max>{{ '%.1f'|format(weight_range_max) }} kg</span></div>
         </div>
 
         <div class="planning-field">
           <div class="planning-label-row">
             <label for="duration-range">Duration</label>
             <div class="planning-exact-input">
-              <input id="duration-exact" name="duration_days" type="number" inputmode="numeric" min="1" max="{{ max_duration_days }}" step="1" value="{{ duration_days }}" data-sync="duration-range" aria-label="Exact duration">
+              <input id="duration-exact" name="duration_days" type="number" inputmode="numeric" min="1" max="{{ max_duration_days }}" step="1" value="{{ duration_days }}" data-sync="duration-range" aria-label="Exact duration" required>
               <span>days</span>
             </div>
           </div>
-          <input id="duration-range" type="range" min="1" max="{{ max_duration_days }}" step="1" value="{{ duration_days }}" data-sync="duration-exact" aria-label="Duration slider">
+          <input id="duration-range" type="range" min="{{ duration_range_min }}" max="{{ duration_range_max }}" step="1" value="{{ duration_days }}" data-sync="duration-exact" data-hard-min="1" data-hard-max="{{ max_duration_days }}" data-window-radius="90" aria-label="Duration slider">
+          <div class="taper-scale adaptive-scale" data-range-scale="duration-range" data-unit=" days" aria-hidden="true"><span data-range-min>{{ duration_range_min }} days</span><span data-range-max>{{ duration_range_max }} days</span></div>
         </div>
 
         <div class="planning-field">
           <div class="planning-label-row">
             <label for="taper-range">Taper</label>
             <div class="planning-exact-input taper-exact-input">
-              <input id="taper-exact" name="taper" type="number" inputmode="decimal" min="0" max="{{ max_taper }}" step="0.05" value="{{ taper }}" data-sync="taper-range" aria-label="Exact taper">
+              <input id="taper-exact" name="taper" type="number" inputmode="decimal" min="0" max="{{ max_taper }}" step="0.05" value="{{ taper }}" data-sync="taper-range" aria-label="Exact taper" required>
             </div>
           </div>
           <input id="taper-range" type="range" min="0" max="{{ max_taper }}" step="0.05" value="{{ taper }}" data-sync="taper-exact" aria-label="Taper slider">
@@ -108,7 +111,38 @@
       const partnerId = input.dataset.sync;
       if (!partnerId) return;
       const partner = document.getElementById(partnerId);
-      if (input.value !== "") partner.value = input.value;
+      if (input.value === "") return;
+
+      const value = Number(input.value);
+      if (input.type === "number" && input.validity.valid) {
+        if (value < Number(partner.min) || value > Number(partner.max)) {
+          setRangeWindow(partner, value);
+        }
+      }
+      partner.value = input.value;
+    }
+
+    function setRangeWindow(range, value) {
+      const radius = Number(range.dataset.windowRadius);
+      const hardMinimum = Number(range.dataset.hardMin);
+      const hardMaximum = Number(range.dataset.hardMax);
+      let minimum = Math.max(hardMinimum, value - radius);
+      let maximum = Math.min(hardMaximum, value + radius);
+      if (minimum === hardMinimum) maximum = Math.min(hardMaximum, minimum + 2 * radius);
+      if (maximum === hardMaximum) minimum = Math.max(hardMinimum, maximum - 2 * radius);
+      range.min = minimum;
+      range.max = maximum;
+      range.value = value;
+      updateRangeScale(range);
+    }
+
+    function updateRangeScale(range) {
+      const scale = document.querySelector(`[data-range-scale="${range.id}"]`);
+      if (!scale) return;
+      const unit = scale.dataset.unit;
+      const decimals = Number(range.step) < 1 ? 1 : 0;
+      scale.querySelector("[data-range-min]").textContent = `${Number(range.min).toFixed(decimals)}${unit}`;
+      scale.querySelector("[data-range-max]").textContent = `${Number(range.max).toFixed(decimals)}${unit}`;
     }
 
     function schedulePreview() {
@@ -174,6 +208,19 @@
     planningForm.addEventListener("input", (event) => {
       synchronizeInput(event.target);
       schedulePreview();
+    });
+
+    planningForm.addEventListener("change", (event) => {
+      const range = event.target;
+      if (range.type !== "range" || !range.dataset.windowRadius) return;
+      const value = Number(range.value);
+      const edgeTolerance = Number(range.step) / 2;
+      if (
+        value <= Number(range.min) + edgeTolerance
+        || value >= Number(range.max) - edgeTolerance
+      ) {
+        setRangeWindow(range, value);
+      }
     });
   </script>
 {% endblock %}

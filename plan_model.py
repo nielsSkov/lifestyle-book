@@ -2,15 +2,20 @@ import math
 from collections.abc import Callable, Sequence
 from datetime import date, timedelta
 
+from weight_data import MAX_WEIGHT_KG, MIN_WEIGHT_KG
+
 PlanFunction = Callable[[int], float]
 ControlValue = float | PlanFunction | None
 MAX_PLAN_DURATION_DAYS = 3650
-MAX_TAPER = 3.0
+MAX_TAPER = 10.0
 
 
 def validate_weight(weight: float, control_point: int) -> None:
-    if not math.isfinite(weight) or not 30 <= weight <= 300:
-        raise ValueError(f"Control point {control_point}: weight must be between 30 and 300 kg")
+    if not math.isfinite(weight) or not MIN_WEIGHT_KG <= weight <= MAX_WEIGHT_KG:
+        raise ValueError(
+            f"Control point {control_point}: weight must be between "
+            f"{MIN_WEIGHT_KG} and {MAX_WEIGHT_KG} kg"
+        )
 
 
 def build_plan_interval(
@@ -20,10 +25,10 @@ def build_plan_interval(
     duration_days: int,
     taper: float,
 ) -> tuple[list[date], list[float]]:
-    if not math.isfinite(start_weight) or not 30 <= start_weight <= 300:
-        raise ValueError("Starting weight must be between 30 and 300 kg")
-    if not math.isfinite(target_weight) or not 30 <= target_weight <= 300:
-        raise ValueError("Target weight must be between 30 and 300 kg")
+    if not math.isfinite(start_weight) or not MIN_WEIGHT_KG <= start_weight <= MAX_WEIGHT_KG:
+        raise ValueError(f"Starting weight must be between {MIN_WEIGHT_KG} and {MAX_WEIGHT_KG} kg")
+    if not math.isfinite(target_weight) or not MIN_WEIGHT_KG <= target_weight <= MAX_WEIGHT_KG:
+        raise ValueError(f"Target weight must be between {MIN_WEIGHT_KG} and {MAX_WEIGHT_KG} kg")
     if (
         isinstance(duration_days, bool)
         or not isinstance(duration_days, int)

@@ -30,11 +30,11 @@ def test_build_plan_interval_treats_negligible_taper_as_linear():
 @pytest.mark.parametrize(
     ("values", "message"),
     [
-        ((29.0, 90.0, 10, 0), "Starting weight"),
-        ((100.0, 301.0, 10, 0), "Target weight"),
+        ((-0.1, 90.0, 10, 0), "Starting weight"),
+        ((100.0, 701.0, 10, 0), "Target weight"),
         ((100.0, 90.0, 0, 0), "Duration"),
         ((100.0, 90.0, 1.5, 0), "Duration"),
-        ((100.0, 90.0, 10, 3.1), "Taper"),
+        ((100.0, 90.0, 10, 10.1), "Taper"),
         ((100.0, 90.0, 10, 0), "outside the supported date range"),
     ],
 )
@@ -144,9 +144,9 @@ def test_interpolate_plan_rejects_final_function_without_calling_it():
 
 def test_interpolate_plan_rejects_invalid_generated_function_values():
     def invalid_curve(_days):
-        return 301.0
+        return 701.0
 
-    with pytest.raises(ValueError, match="between 30 and 300"):
+    with pytest.raises(ValueError, match="between 0 and 700"):
         interpolate_plan(
             [
                 (date(2026, 8, 1), invalid_curve),
@@ -159,7 +159,7 @@ def test_interpolate_plan_rejects_invalid_generated_function_values():
     ("control_points", "error_category"),
     [
         ([], "at least one"),
-        ([(date(2026, 7, 25), 29.0)], "between 30 and 300"),
+        ([(date(2026, 7, 25), -0.1)], "between 0 and 700"),
         (
             [(date(2026, 7, 25), 100.0), (date(2026, 7, 25), 99.0)],
             "unique and increasing",
