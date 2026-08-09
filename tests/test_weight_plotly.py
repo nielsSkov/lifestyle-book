@@ -52,7 +52,7 @@ def test_build_weight_figure_adds_blue_candidate_plan():
     active_trace, candidate_trace = serialized["data"]
     assert active_trace["name"] == "Plan"
     assert candidate_trace["name"] == "Candidate plan"
-    assert candidate_trace["line"]["color"] == "#4f8edc"
+    assert candidate_trace["line"]["color"] == "#6366f1"
     assert candidate_trace["y"] == [100.0, 99.0]
 
 

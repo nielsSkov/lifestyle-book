@@ -455,12 +455,12 @@ input {
   height: 24px;
   margin: 0;
   padding: 0;
-  accent-color: #4f8edc;
+  accent-color: #6366f1;
   cursor: pointer;
 }
 
 .planning-field input[type="range"]:focus-visible {
-  outline: 3px solid #4f8edc;
+  outline: 3px solid #6366f1;
   outline-offset: 3px;
 }
 
@@ -512,7 +512,7 @@ input {
 }
 
 .planning-status[data-state="saved"] {
-  color: #8ab9ed;
+  color: #a5b4fc;
 }
 
 .planning-status[data-state="error"] {
