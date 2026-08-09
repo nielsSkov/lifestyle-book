@@ -25,6 +25,7 @@
         <p class="autosave-status form-save-status" data-weight-status aria-live="polite">{% if saved %}Saved {{ saved }} kg{% elif deleted %}Deleted entry for {{ deleted }}{% elif error %}{{ error }}{% endif %}</p>
         <button type="submit">Save Weight</button>
       </form>
+      <a class="planning-link" href="{{ url_for('weight_plan') }}">Edit Plan</a>
     </section>
 
     <section class="graph-card">

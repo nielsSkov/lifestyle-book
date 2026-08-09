@@ -1,4 +1,5 @@
 import json
+import math
 from datetime import date, datetime, timedelta
 from importlib.metadata import version
 from pathlib import Path
@@ -15,6 +16,7 @@ from daily_data import (
 )
 from daily_plot import build_active_days_figure, build_daily_figure
 from lifestyle_config import LifestyleSettings, load_lifestyle_settings, store_lifestyle_settings
+from plan_model import MAX_PLAN_DURATION_DAYS, MAX_TAPER, build_plan_interval
 from plotly_support import PLOTLY_CONFIG, plotly_javascript
 from sleep_data import (
     build_sleep_record,
@@ -106,6 +108,88 @@ def weight():
         rate_json=rate_figure.to_json(),
         plotly_config=PLOTLY_CONFIG,
         plotly_version=PLOTLY_VERSION,
+    )
+
+
+@app.get("/weight/plan")
+def weight_plan():
+    weight_dates, weights = read_series(WEIGHT_CSV)
+    plan_dates, plan = read_series(PLAN_CSV)
+    start_date = current_date()
+    start_weight = _default_planning_weight(
+        start_date,
+        weight_dates,
+        weights,
+        plan_dates,
+        plan,
+    )
+    duration_days = 84
+    taper = 0.0
+    candidate_dates, candidate_plan = build_plan_interval(
+        start_date,
+        start_weight,
+        start_weight,
+        duration_days,
+        taper,
+    )
+    figure = build_weight_figure(
+        weight_dates,
+        weights,
+        plan_dates,
+        plan,
+        candidate_dates,
+        candidate_plan,
+    )
+    return render_template(
+        "weight_plan.html",
+        active_section="weight",
+        start_date=start_date,
+        start_weight=start_weight,
+        duration_days=duration_days,
+        taper=taper,
+        end_date=candidate_dates[-1],
+        graph_json=figure.to_json(),
+        plotly_config=PLOTLY_CONFIG,
+        plotly_version=PLOTLY_VERSION,
+        max_duration_days=MAX_PLAN_DURATION_DAYS,
+        max_taper=MAX_TAPER,
+    )
+
+
+@app.post("/weight/plan/preview")
+def preview_weight_plan():
+    try:
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            raise ValueError("Enter valid planning values")
+        start_date, start_weight, target_weight, duration_days, taper = _parse_planning_preview(
+            payload
+        )
+        candidate_dates, candidate_plan = build_plan_interval(
+            start_date,
+            start_weight,
+            target_weight,
+            duration_days,
+            taper,
+        )
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+
+    weight_dates, weights = read_series(WEIGHT_CSV)
+    plan_dates, plan = read_series(PLAN_CSV)
+    figure = build_weight_figure(
+        weight_dates,
+        weights,
+        plan_dates,
+        plan,
+        candidate_dates,
+        candidate_plan,
+    )
+    return jsonify(
+        figure=json.loads(cast(str, figure.to_json())),
+        end_date=candidate_dates[-1].isoformat(),
+        end_date_label=candidate_dates[-1].strftime("%d %b %Y"),
+        weekly_change=(target_weight - start_weight) * 7 / duration_days,
     )
 
 
@@ -223,6 +307,53 @@ def save_sleep():
 
 def _wants_json() -> bool:
     return request.accept_mimetypes.best == "application/json"
+
+
+def _default_planning_weight(
+    start_date: date,
+    weight_dates: list[date],
+    weights: list[float],
+    plan_dates: list[date],
+    plan: list[float],
+) -> float:
+    for day, weight in reversed(list(zip(weight_dates, weights, strict=True))):
+        age = (start_date - day).days
+        if 0 <= age <= 7:
+            return weight
+        if age > 7:
+            break
+
+    planned_weight = dict(zip(plan_dates, plan, strict=True)).get(start_date)
+    if planned_weight is not None and math.isfinite(planned_weight):
+        return planned_weight
+    return 100.0
+
+
+def _parse_planning_preview(payload: dict) -> tuple[date, float, float, int, float]:
+    raw_start_date = payload.get("start_date")
+    try:
+        if not isinstance(raw_start_date, str):
+            raise ValueError
+        start_date = date.fromisoformat(raw_start_date)
+    except ValueError:
+        raise ValueError("Choose a valid start date") from None
+
+    start_weight = _planning_number(payload.get("start_weight"), "Starting weight")
+    target_weight = _planning_number(payload.get("target_weight"), "Target weight")
+    duration_days = payload.get("duration_days")
+    if isinstance(duration_days, bool) or not isinstance(duration_days, int):
+        raise ValueError("Duration must be a whole number of days")
+    taper = _planning_number(payload.get("taper"), "Taper")
+    return start_date, start_weight, target_weight, duration_days, taper
+
+
+def _planning_number(value: object, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{label} must be a number")
+    try:
+        return float(value)
+    except OverflowError:
+        raise ValueError(f"{label} must be a number") from None
 
 
 def _weight_json_response(selected_date: date, message: str):

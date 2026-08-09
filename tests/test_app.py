@@ -64,6 +64,106 @@ def test_weight_page_exposes_entry_controls_and_chart_regions(client):
     assert b'id="difference-plot"' in response.data
     assert b'id="rate-plot"' in response.data
     assert b"data-weight-form" in response.data
+    assert b'href="/weight/plan">Edit Plan</a>' in response.data
+
+
+def test_weight_plan_page_is_a_non_saving_linear_sandbox(client):
+    response = client.get("/weight/plan")
+
+    assert response.status_code == 200
+    assert b"<h1>Plan</h1>" in response.data
+    assert b'value="2026-08-03"' in response.data
+    assert response.data.count(b'value="99.5"') == 4
+    assert b'id="taper-range"' in response.data
+    assert b'value="0.0"' in response.data
+    assert b'id="planning-weight-plot"' in response.data
+    assert b"Candidate plan" in response.data
+    assert b"This sandbox cannot change your active plan." in response.data
+    assert b"Save Plan" not in response.data
+
+
+def test_weight_plan_defaults_to_current_plan_when_measurement_is_old(client):
+    app_module.WEIGHT_CSV.write_text(
+        "date,weight_kg\n2026-07-01,110.0\n",
+        encoding="utf-8",
+    )
+
+    response = client.get("/weight/plan")
+
+    assert response.status_code == 200
+    assert response.data.count(b'value="95.0"') == 4
+
+
+def test_weight_plan_preview_updates_candidate_without_writing_plan(client):
+    original_plan = app_module.PLAN_CSV.read_bytes()
+
+    response = client.post(
+        "/weight/plan/preview",
+        json={
+            "start_date": "2026-08-10",
+            "start_weight": 100,
+            "target_weight": 90,
+            "duration_days": 10,
+            "taper": 0,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json["end_date"] == "2026-08-20"
+    assert response.json["weekly_change"] == -7
+    candidate_trace = next(
+        trace for trace in response.json["figure"]["data"] if trace.get("name") == "Candidate plan"
+    )
+    assert candidate_trace["y"] == [float(weight) for weight in range(100, 89, -1)]
+    assert app_module.PLAN_CSV.read_bytes() == original_plan
+
+
+def test_weight_plan_preview_rejects_invalid_values(client):
+    response = client.post(
+        "/weight/plan/preview",
+        json={
+            "start_date": "2026-08-10",
+            "start_weight": 100,
+            "target_weight": 90,
+            "duration_days": 10,
+            "taper": 4,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Taper must be between 0 and 3"}
+
+
+def test_weight_plan_preview_rejects_date_overflow(client):
+    response = client.post(
+        "/weight/plan/preview",
+        json={
+            "start_date": "9999-12-31",
+            "start_weight": 100,
+            "target_weight": 90,
+            "duration_days": 1,
+            "taper": 0,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Interval end date is outside the supported date range"}
+
+
+def test_weight_plan_preview_rejects_oversized_number(client):
+    response = client.post(
+        "/weight/plan/preview",
+        json={
+            "start_date": "2026-08-10",
+            "start_weight": 10**400,
+            "target_weight": 90,
+            "duration_days": 10,
+            "taper": 0,
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Starting weight must be a number"}
 
 
 def test_home_redirects_to_weight(client):

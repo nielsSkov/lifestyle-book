@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Weight Plan{% endblock %}
+{% block content %}
+  <section class="planning-intro">
+    <div>
+      <p class="eyebrow">Weight</p>
+      <h1>Plan</h1>
+      <p class="planning-copy">Explore a single planning interval against your recorded weight and active plan.</p>
+    </div>
+    <a class="back-link" href="{{ url_for('weight') }}">Back to Weight</a>
+  </section>
+
+  <div class="planning-workspace">
+    <section class="planning-controls-card">
+      <div class="sandbox-heading">
+        <div>
+          <p class="eyebrow">Planning sandbox</p>
+          <h2>Candidate interval</h2>
+        </div>
+        <span class="sandbox-badge">Not saved</span>
+      </div>
+
+      <form data-planning-form data-preview-url="{{ url_for('preview_weight_plan') }}">
+        <div class="planning-field">
+          <label for="plan-start-date">Start Date</label>
+          <input class="planning-date-input" id="plan-start-date" name="start_date" type="date" lang="en-GB" value="{{ start_date.isoformat() }}" required>
+        </div>
+
+        <div class="planning-field">
+          <div class="planning-label-row">
+            <label for="start-weight-range">Start Weight</label>
+            <div class="planning-exact-input">
+              <input id="start-weight-exact" name="start_weight" type="number" inputmode="decimal" min="30" max="300" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="start-weight-range" aria-label="Exact start weight">
+              <span>kg</span>
+            </div>
+          </div>
+          <input id="start-weight-range" type="range" min="30" max="300" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="start-weight-exact" aria-label="Start weight slider">
+        </div>
+
+        <div class="planning-field">
+          <div class="planning-label-row">
+            <label for="target-weight-range">Target Weight</label>
+            <div class="planning-exact-input">
+              <input id="target-weight-exact" name="target_weight" type="number" inputmode="decimal" min="30" max="300" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="target-weight-range" aria-label="Exact target weight">
+              <span>kg</span>
+            </div>
+          </div>
+          <input id="target-weight-range" type="range" min="30" max="300" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="target-weight-exact" aria-label="Target weight slider">
+        </div>
+
+        <div class="planning-field">
+          <div class="planning-label-row">
+            <label for="duration-range">Duration</label>
+            <div class="planning-exact-input">
+              <input id="duration-exact" name="duration_days" type="number" inputmode="numeric" min="1" max="{{ max_duration_days }}" step="1" value="{{ duration_days }}" data-sync="duration-range" aria-label="Exact duration">
+              <span>days</span>
+            </div>
+          </div>
+          <input id="duration-range" type="range" min="1" max="{{ max_duration_days }}" step="1" value="{{ duration_days }}" data-sync="duration-exact" aria-label="Duration slider">
+        </div>
+
+        <div class="planning-field">
+          <div class="planning-label-row">
+            <label for="taper-range">Taper</label>
+            <div class="planning-exact-input taper-exact-input">
+              <input id="taper-exact" name="taper" type="number" inputmode="decimal" min="0" max="{{ max_taper }}" step="0.05" value="{{ taper }}" data-sync="taper-range" aria-label="Exact taper">
+            </div>
+          </div>
+          <input id="taper-range" type="range" min="0" max="{{ max_taper }}" step="0.05" value="{{ taper }}" data-sync="taper-exact" aria-label="Taper slider">
+          <div class="taper-scale" aria-hidden="true"><span>Linear</span><span>Stronger taper</span></div>
+        </div>
+      </form>
+
+      <dl class="planning-summary">
+        <div><dt>End date</dt><dd data-plan-end>{{ end_date.strftime("%d %b %Y") }}</dd></div>
+        <div><dt>Average change</dt><dd data-plan-rate>0.00 kg/week</dd></div>
+      </dl>
+      <p class="planning-status" data-planning-status aria-live="polite">Adjust any value to preview it.</p>
+      <p class="sandbox-note">This sandbox cannot change your active plan.</p>
+    </section>
+
+    <section class="graph-card planning-preview-card">
+      <div id="planning-weight-plot" role="region" aria-label="Interactive active and candidate weight plan chart"></div>
+    </section>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
+  <script>
+    const planningForm = document.querySelector("[data-planning-form]");
+    const planningStatus = document.querySelector("[data-planning-status]");
+    const planEnd = document.querySelector("[data-plan-end]");
+    const planRate = document.querySelector("[data-plan-rate]");
+    const plotlyConfig = {{ plotly_config | tojson }};
+    let planningFigure = {{ graph_json | safe }};
+    const plotReady = Plotly.newPlot(
+      "planning-weight-plot",
+      planningFigure.data,
+      planningFigure.layout,
+      plotlyConfig,
+    );
+    let plotUpdates = plotReady;
+    let previewTimer = null;
+    let previewRequest = null;
+    let previewVersion = 0;
+
+    function synchronizeInput(input) {
+      const partnerId = input.dataset.sync;
+      if (!partnerId) return;
+      const partner = document.getElementById(partnerId);
+      if (input.value !== "") partner.value = input.value;
+    }
+
+    function schedulePreview() {
+      window.clearTimeout(previewTimer);
+      previewRequest?.abort();
+      previewVersion += 1;
+      if (!planningForm.checkValidity()) {
+        planningStatus.textContent = "Complete the interval to update the preview.";
+        planningStatus.dataset.state = "error";
+        return;
+      }
+      planningStatus.textContent = "Updating preview...";
+      planningStatus.dataset.state = "";
+      const scheduledVersion = previewVersion;
+      previewTimer = window.setTimeout(() => updatePreview(scheduledVersion), 120);
+    }
+
+    async function updatePreview(version) {
+      const controller = new AbortController();
+      previewRequest = controller;
+      const values = new FormData(planningForm);
+      try {
+        const response = await fetch(planningForm.dataset.previewUrl, {
+          method: "POST",
+          headers: {"Content-Type": "application/json", Accept: "application/json"},
+          body: JSON.stringify({
+            start_date: values.get("start_date"),
+            start_weight: Number(values.get("start_weight")),
+            target_weight: Number(values.get("target_weight")),
+            duration_days: Number(values.get("duration_days")),
+            taper: Number(values.get("taper")),
+          }),
+          signal: controller.signal,
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Could not build the preview");
+        if (version !== previewVersion) return;
+
+        const render = plotUpdates.then(async () => {
+          if (version !== previewVersion) return;
+          planningFigure = result.figure;
+          await Plotly.react(
+            "planning-weight-plot",
+            planningFigure.data,
+            planningFigure.layout,
+            plotlyConfig,
+          );
+          if (version !== previewVersion) return;
+          planEnd.textContent = result.end_date_label;
+          planRate.textContent = `${result.weekly_change >= 0 ? "+" : ""}${result.weekly_change.toFixed(2)} kg/week`;
+          planningStatus.textContent = "Preview updated.";
+          planningStatus.dataset.state = "saved";
+        });
+        plotUpdates = render.catch(() => {});
+        await render;
+      } catch (error) {
+        if (error.name === "AbortError" || version !== previewVersion) return;
+        planningStatus.textContent = error.message;
+        planningStatus.dataset.state = "error";
+      }
+    }
+
+    planningForm.addEventListener("input", (event) => {
+      synchronizeInput(event.target);
+      schedulePreview();
+    });
+  </script>
+{% endblock %}

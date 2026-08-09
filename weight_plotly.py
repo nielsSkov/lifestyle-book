@@ -10,9 +10,12 @@ def build_weight_figure(
     weights: Sequence[float],
     plan_dates: Sequence[date],
     plan: Sequence[float],
+    candidate_dates: Sequence[date] = (),
+    candidate_plan: Sequence[float] = (),
 ) -> go.Figure:
     weight_points = list(zip(weight_dates, weights, strict=True))
     plan_points = list(zip(plan_dates, plan, strict=True))
+    candidate_points = list(zip(candidate_dates, candidate_plan, strict=True))
     figure = go.Figure()
 
     if plan_points:
@@ -25,6 +28,18 @@ def build_weight_figure(
                 connectgaps=False,
                 line={"color": "#087044", "width": 2.8},
                 hovertemplate="%{x|%d %b %Y}<br>%{y:.1f} kg<extra>Plan</extra>",
+            )
+        )
+
+    if candidate_points:
+        figure.add_trace(
+            go.Scatter(
+                x=[day for day, _weight in candidate_points],
+                y=[weight for _day, weight in candidate_points],
+                mode="lines",
+                name="Candidate plan",
+                line={"color": "#4f8edc", "width": 3},
+                hovertemplate="%{x|%d %b %Y}<br>%{y:.1f} kg<extra>Candidate plan</extra>",
             )
         )
 
