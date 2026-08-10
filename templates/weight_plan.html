@@ -13,10 +13,10 @@
     <section class="planning-controls-card" data-planner data-preview-url="{{ url_for('preview_weight_plan') }}" data-defaults-url="{{ url_for('weight_plan_defaults') }}">
       <div class="planning-list-heading">
         <h2>Plan Intervals</h2>
-        <button class="add-interval-button" type="button" data-add-interval><span aria-hidden="true">+</span> Add Interval</button>
       </div>
       <p class="planning-empty-copy" data-empty-copy>Add an interval to begin shaping a candidate plan.</p>
       <div class="planning-interval-list" data-interval-list></div>
+      <button class="add-interval-button" type="button" data-add-interval><span aria-hidden="true">+</span> Add Interval</button>
       <p class="planning-status" data-planning-status aria-live="polite"></p>
     </section>
 
@@ -35,20 +35,23 @@
         <div class="planning-field planning-date-field">
           <label data-label="start_date">Start Date</label>
           <input class="planning-date-input" data-field="start_date" type="date" lang="en-GB" required>
+          <p class="planning-field-error" data-date-error aria-live="polite"></p>
         </div>
         <div class="planning-field">
           <div class="planning-label-row">
             <label data-label="start_weight">Start Weight</label>
-            <div class="planning-exact-input"><input data-exact="start_weight" type="number" inputmode="decimal" min="{{ min_weight }}" max="{{ max_weight }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" aria-label="Exact start weight" required><span>kg</span></div>
+            <div class="planning-exact-input"><input data-exact="start_weight" type="text" inputmode="decimal" data-min="{{ min_weight }}" data-max="{{ max_weight }}" data-step="0.1" value="{{ '%.1f'|format(start_weight) }}" aria-label="Exact start weight" required><span>kg</span></div>
           </div>
+          <p class="planning-field-error" data-exact-error="start_weight" aria-live="polite"></p>
           <input data-range="start_weight" type="range" min="{{ weight_range_min }}" max="{{ weight_range_max }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-hard-min="{{ min_weight }}" data-hard-max="{{ max_weight }}" data-window-radius="10" aria-label="Start weight slider">
           <div class="taper-scale" data-scale="start_weight" data-unit=" kg" aria-hidden="true"><span data-range-min>{{ '%.1f'|format(weight_range_min) }} kg</span><span data-range-max>{{ '%.1f'|format(weight_range_max) }} kg</span></div>
         </div>
         <div class="planning-field">
           <div class="planning-label-row">
             <label data-label="target_weight">Target Weight</label>
-            <div class="planning-exact-input"><input data-exact="target_weight" type="number" inputmode="decimal" min="{{ min_weight }}" max="{{ max_weight }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" aria-label="Exact target weight" required><span>kg</span></div>
+            <div class="planning-exact-input"><input data-exact="target_weight" type="text" inputmode="decimal" data-min="{{ min_weight }}" data-max="{{ max_weight }}" data-step="0.1" value="{{ '%.1f'|format(start_weight) }}" aria-label="Exact target weight" required><span>kg</span></div>
           </div>
+          <p class="planning-field-error" data-exact-error="target_weight" aria-live="polite"></p>
           <input data-range="target_weight" type="range" min="{{ weight_range_min }}" max="{{ weight_range_max }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-hard-min="{{ min_weight }}" data-hard-max="{{ max_weight }}" data-window-radius="10" aria-label="Target weight slider">
           <div class="taper-scale" data-scale="target_weight" data-unit=" kg" aria-hidden="true"><span data-range-min>{{ '%.1f'|format(weight_range_min) }} kg</span><span data-range-max>{{ '%.1f'|format(weight_range_max) }} kg</span></div>
         </div>
@@ -57,14 +60,16 @@
             <label data-label="duration_days">Duration</label>
             <div class="planning-exact-input"><input data-exact="duration_days" type="number" inputmode="numeric" min="1" max="{{ max_duration_days }}" step="1" value="{{ duration_days }}" aria-label="Exact duration" required><span>days</span></div>
           </div>
-          <input data-range="duration_days" type="range" min="{{ duration_range_min }}" max="{{ duration_range_max }}" step="1" value="{{ duration_days }}" data-hard-min="1" data-hard-max="{{ max_duration_days }}" data-window-radius="90" aria-label="Duration slider">
+          <p class="planning-field-error" data-exact-error="duration_days" aria-live="polite"></p>
+          <input data-range="duration_days" type="range" min="{{ duration_range_min }}" max="{{ duration_range_max }}" step="1" value="{{ duration_days }}" data-hard-min="1" data-hard-max="{{ max_duration_days }}" data-window-radius="15" aria-label="Duration slider">
           <div class="taper-scale" data-scale="duration_days" data-unit=" days" aria-hidden="true"><span data-range-min>{{ duration_range_min }} days</span><span data-range-max>{{ duration_range_max }} days</span></div>
         </div>
         <div class="planning-field">
           <div class="planning-label-row">
             <label data-label="taper">Taper</label>
-            <div class="planning-exact-input taper-exact-input"><input data-exact="taper" type="number" inputmode="decimal" min="0" max="{{ max_taper }}" step="0.05" value="{{ taper }}" aria-label="Exact taper" required></div>
+            <div class="planning-exact-input taper-exact-input"><input data-exact="taper" type="text" inputmode="decimal" data-min="0" data-max="{{ max_taper }}" data-step="0.05" value="{{ taper }}" aria-label="Exact taper" required></div>
           </div>
+          <p class="planning-field-error" data-exact-error="taper" aria-live="polite"></p>
           <input data-range="taper" type="range" min="0" max="{{ max_taper }}" step="0.05" value="{{ taper }}" aria-label="Taper slider">
           <div class="taper-scale" aria-hidden="true"><span>Linear</span><span>Stronger taper</span></div>
         </div>
@@ -84,7 +89,18 @@
     const template = document.getElementById("planning-interval-template");
     const plotlyConfig = {{ plotly_config | tojson }};
     const baseFigure = {{ graph_json | safe }};
-    let plotUpdates = Plotly.newPlot("planning-weight-plot", baseFigure.data, baseFigure.layout, plotlyConfig);
+    const plotElement = document.getElementById("planning-weight-plot");
+    const compactPlot = window.matchMedia("(max-width: 600px)");
+    const plotReady = Plotly.newPlot(
+      plotElement,
+      baseFigure.data,
+      responsiveLayout(baseFigure.layout),
+      plotlyConfig,
+    );
+    let plotUpdates = plotReady;
+    let displayedFigure = baseFigure;
+    let preservedView = {};
+    let applyingFigure = false;
     let intervals = [];
     let nextId = 1;
     let previewTimer = null;
@@ -95,9 +111,50 @@
     function exact(card, name) { return card.querySelector(`[data-exact="${name}"]`); }
     function range(card, name) { return card.querySelector(`[data-range="${name}"]`); }
 
+    function numberValue(input) {
+      return Number(input.value.replace(",", "."));
+    }
+
+    function validateExactInput(input) {
+      if (input.type === "text") input.value = input.value.replace(",", ".");
+      const value = numberValue(input);
+      const minimum = Number(input.dataset.min ?? input.min);
+      const maximum = Number(input.dataset.max ?? input.max);
+      const step = Number(input.dataset.step ?? input.step);
+      const decimalSyntax = input.type !== "text" || /^\d+(?:\.\d+)?$/.test(input.value);
+      const onStep = Math.abs(
+        (value - minimum) / step - Math.round((value - minimum) / step)
+      ) < 1e-8;
+      const valid = input.value.trim() !== ""
+        && decimalSyntax
+        && Number.isFinite(value)
+        && value >= minimum
+        && value <= maximum
+        && onStep;
+      const message = valid ? "" : `Use increments of ${step} between ${minimum} and ${maximum}.`;
+      input.setCustomValidity(message);
+      input.closest(".planning-field").querySelector(`[data-exact-error="${input.dataset.exact}"]`).textContent = message;
+      return valid;
+    }
+
+    function updateRangeAppearance(slider) {
+      const span = Number(slider.max) - Number(slider.min);
+      const progress = span ? (Number(slider.value) - Number(slider.min)) / span * 100 : 0;
+      slider.style.setProperty("--range-progress", `${progress}%`);
+    }
+
+    function responsiveLayout(source) {
+      const layout = {...source};
+      if (compactPlot.matches) {
+        layout.title = {...layout.title, text: ""};
+        layout.margin = {...layout.margin, t: 72};
+      }
+      return layout;
+    }
+
     function setRangeWindow(card, name, value) {
       const slider = range(card, name);
-      if (!slider.dataset.windowRadius) { slider.value = value; return; }
+      if (!slider.dataset.windowRadius) { slider.value = value; updateRangeAppearance(slider); return; }
       const radius = Number(slider.dataset.windowRadius);
       const hardMin = Number(slider.dataset.hardMin);
       const hardMax = Number(slider.dataset.hardMax);
@@ -106,6 +163,7 @@
       if (min === hardMin) max = Math.min(hardMax, min + 2 * radius);
       if (max === hardMax) min = Math.max(hardMin, max - 2 * radius);
       slider.min = min; slider.max = max; slider.value = value;
+      updateRangeAppearance(slider);
       const scale = card.querySelector(`[data-scale="${name}"]`);
       const decimals = Number(slider.step) < 1 ? 1 : 0;
       scale.querySelector("[data-range-min]").textContent = `${min.toFixed(decimals)}${scale.dataset.unit}`;
@@ -114,9 +172,46 @@
 
     function setValue(card, name, value) {
       const input = exact(card, name);
-      input.value = Number(value).toFixed(Number(input.step) < 1 ? (name === "taper" ? 2 : 1) : 0);
+      const step = Number(input.dataset.step ?? input.step);
+      input.value = Number(value).toFixed(step < 1 ? (name === "taper" ? 2 : 1) : 0);
+      input.setCustomValidity("");
       setRangeWindow(card, name, Number(value));
     }
+
+    function captureRange(update, axis) {
+      if (Array.isArray(update[`${axis}.range`])) return update[`${axis}.range`];
+      const start = update[`${axis}.range[0]`];
+      const end = update[`${axis}.range[1]`];
+      return start !== undefined && end !== undefined ? [start, end] : null;
+    }
+
+    plotReady.then((plot) => {
+      plot.on("plotly_relayout", (update) => {
+        if (applyingFigure) return;
+        for (const axis of ["xaxis", "yaxis"]) {
+          const range = captureRange(update, axis);
+          if (range) preservedView[axis] = range;
+          else if (update[`${axis}.autorange`] === true) delete preservedView[axis];
+        }
+      });
+    });
+
+    function renderFigure(figure) {
+      const layout = responsiveLayout(figure.layout);
+      for (const [axis, range] of Object.entries(preservedView)) {
+        layout[axis] = {...layout[axis], range, autorange: false};
+      }
+      applyingFigure = true;
+      return Plotly.react(plotElement, figure.data, layout, plotlyConfig)
+        .finally(() => { applyingFigure = false; });
+    }
+
+    function rerenderForViewport() {
+      plotUpdates = plotUpdates.then(() => renderFigure(displayedFigure)).catch(() => {});
+    }
+
+    if (compactPlot.addEventListener) compactPlot.addEventListener("change", rerenderForViewport);
+    else compactPlot.addListener(rerenderForViewport);
 
     function collapseOthers(active) {
       for (const item of intervals) {
@@ -126,22 +221,77 @@
       }
     }
 
+    function reorderIntervals(active = null) {
+      intervals.sort((first, second) => {
+        const firstDate = field(first.card, "start_date").value || "9999-12-31";
+        const secondDate = field(second.card, "start_date").value || "9999-12-31";
+        return firstDate.localeCompare(secondDate) || first.id - second.id;
+      });
+      intervals.forEach((item, index) => {
+        intervalList.append(item.card);
+        item.card.querySelector("[data-interval-title]").textContent = `Interval ${index + 1}`;
+      });
+      if (active) collapseOthers(active);
+    }
+
+    function intervalBounds(item, startDate = field(item.card, "start_date").value) {
+      if (!startDate) return null;
+      const durationInput = exact(item.card, "duration_days");
+      const duration = numberValue(durationInput);
+      if (
+        !Number.isInteger(duration)
+        || duration < Number(durationInput.min)
+        || duration > Number(durationInput.max)
+      ) return null;
+      const end = addDays(startDate, duration);
+      return end ? {start: startDate, end} : null;
+    }
+
+    function proposedStartOverlaps(item, startDate) {
+      const proposed = intervalBounds(item, startDate);
+      if (!proposed) return false;
+      return intervals.some((other) => {
+        if (other === item) return false;
+        const bounds = intervalBounds(other);
+        return bounds && proposed.start <= bounds.end && proposed.end >= bounds.start;
+      });
+    }
+
+    function setDateError(item, message = "") {
+      item.card.querySelector("[data-date-error]").textContent = message;
+    }
+
+    function validateIntervalOverlaps() {
+      intervals.forEach((item) => setDateError(item));
+      const dated = intervals.filter((item) => intervalBounds(item));
+      for (let index = 1; index < dated.length; index += 1) {
+        const previous = intervalBounds(dated[index - 1]);
+        const current = intervalBounds(dated[index]);
+        if (previous.end >= current.start) {
+          setDateError(dated[index], `Choose a date after ${previous.end}.`);
+          return false;
+        }
+      }
+      return true;
+    }
+
     function intervalPayload(item) {
       return {
         start_date: field(item.card, "start_date").value,
-        start_weight: Number(exact(item.card, "start_weight").value),
-        target_weight: Number(exact(item.card, "target_weight").value),
-        duration_days: Number(exact(item.card, "duration_days").value),
-        taper: Number(exact(item.card, "taper").value),
+        start_weight: numberValue(exact(item.card, "start_weight")),
+        target_weight: numberValue(exact(item.card, "target_weight")),
+        duration_days: numberValue(exact(item.card, "duration_days")),
+        taper: numberValue(exact(item.card, "taper")),
       };
     }
 
     function resetGraph() {
       previewVersion += 1;
       previewController?.abort();
+      displayedFigure = baseFigure;
       const version = previewVersion;
       plotUpdates = plotUpdates.then(() => version === previewVersion
-        ? Plotly.react("planning-weight-plot", baseFigure.data, baseFigure.layout, plotlyConfig)
+        ? renderFigure(baseFigure)
         : undefined).catch(() => {});
     }
 
@@ -150,16 +300,31 @@
       status.dataset.state = state;
     }
 
+    function markPreviewUnchanged(items) {
+      items.forEach((item) => {
+        item.endDate = null;
+        item.card.querySelector("[data-plan-end]").textContent = "—";
+        item.card.querySelector("[data-plan-rate]").textContent = "—";
+        item.card.querySelector("[data-interval-summary]").textContent = "Preview unchanged; fix interval";
+      });
+    }
+
     function schedulePreview() {
       window.clearTimeout(previewTimer);
       previewController?.abort();
       previewVersion += 1;
+      reorderIntervals();
       const complete = intervals.filter((item) => item.initialized);
       if (!complete.length) { setStatus(""); resetGraph(); return; }
+      complete.forEach((item) => item.card.querySelectorAll("[data-exact]").forEach(validateExactInput));
       if (complete.some((item) => [...item.card.querySelectorAll("input")].some((input) => !input.checkValidity()))) {
-        complete.forEach((item) => item.endDate = null);
-        setStatus("Complete every interval to update the preview.", "error");
-        resetGraph();
+        markPreviewUnchanged(complete);
+        setStatus("Preview unchanged. Correct the highlighted value.", "error");
+        return;
+      }
+      if (!validateIntervalOverlaps()) {
+        markPreviewUnchanged(complete);
+        setStatus("");
         return;
       }
       complete.forEach((item) => item.endDate = null);
@@ -175,6 +340,7 @@
         const result = await response.json();
         if (!response.ok) throw new Error(result.error ?? "Could not build the preview");
         if (version !== previewVersion) return;
+        displayedFigure = result.figure;
         setStatus("");
         result.intervals.forEach((summary, index) => {
           const item = complete[index];
@@ -183,7 +349,7 @@
           item.card.querySelector("[data-plan-rate]").textContent = `${summary.weekly_change >= 0 ? "+" : ""}${summary.weekly_change.toFixed(2)} kg/week`;
           item.card.querySelector("[data-interval-summary]").textContent = `${summary.start_date_label} – ${summary.end_date_label}`;
         });
-        plotUpdates = plotUpdates.then(() => version === previewVersion ? Plotly.react("planning-weight-plot", result.figure.data, result.figure.layout, plotlyConfig) : undefined).catch(() => {});
+        plotUpdates = plotUpdates.then(() => version === previewVersion ? renderFigure(result.figure) : undefined).catch(() => {});
       } catch (error) {
         if (error.name !== "AbortError" && version === previewVersion) {
           complete.forEach((item) => {
@@ -193,12 +359,11 @@
             item.card.querySelector("[data-interval-summary]").textContent = "Needs attention";
           });
           setStatus(error.message, "error");
-          resetGraph();
         }
       }
     }
 
-    async function initializeInterval(item) {
+    async function initializeInterval(item, initialWeight = null) {
       const startDate = field(item.card, "start_date").value;
       if (!startDate) { item.initialized = false; schedulePreview(); return; }
       const defaultsVersion = ++item.defaultsVersion;
@@ -209,10 +374,12 @@
         const defaults = await response.json();
         if (!response.ok) throw new Error(defaults.error ?? "Could not initialize interval");
         if (defaultsVersion !== item.defaultsVersion || field(item.card, "start_date").value !== startDate) return;
-        setValue(item.card, "start_weight", defaults.start_weight);
-        setValue(item.card, "target_weight", defaults.target_weight);
+        const startWeight = initialWeight ?? defaults.start_weight;
+        setValue(item.card, "start_weight", startWeight);
+        setValue(item.card, "target_weight", startWeight);
         setValue(item.card, "duration_days", defaults.duration_days);
         setValue(item.card, "taper", defaults.taper);
+        item.acceptedStart = startDate;
         item.initialized = true;
         schedulePreview();
       } catch (error) { if (defaultsVersion === item.defaultsVersion) setStatus(error.message, "error"); }
@@ -222,6 +389,7 @@
     function addDays(rawDate, days) {
       const value = new Date(`${rawDate}T12:00:00Z`);
       value.setUTCDate(value.getUTCDate() + days);
+      if (!Number.isFinite(value.getTime()) || value.getUTCFullYear() > 9999) return "";
       return value.toISOString().slice(0, 10);
     }
 
@@ -236,9 +404,14 @@
         setStatus("Complete the current interval before adding another.", "error");
         return;
       }
+      const nextStart = previous?.endDate ? addDays(previous.endDate, 1) : "";
+      if (previous && !nextStart) {
+        setStatus("There is no supported date after the current interval.", "error");
+        return;
+      }
       const fragment = template.content.cloneNode(true);
       const card = fragment.querySelector("[data-interval-card]");
-      const item = {id: nextId++, card, initialized: false, endDate: null, defaultsVersion: 0};
+      const item = {id: nextId++, card, initialized: false, endDate: null, defaultsVersion: 0, acceptedStart: ""};
       card.querySelector("[data-interval-title]").textContent = `Interval ${intervals.length + 1}`;
       for (const label of card.querySelectorAll("[data-label]")) {
         const name = label.dataset.label;
@@ -247,19 +420,43 @@
         label.htmlFor = input.id;
       }
       card.querySelector("[data-interval-toggle]").addEventListener("click", () => collapseOthers(item));
-      card.querySelector("[data-remove-interval]").addEventListener("click", () => { intervals = intervals.filter((other) => other !== item); card.remove(); intervals.forEach((other, index) => other.card.querySelector("[data-interval-title]").textContent = `Interval ${index + 1}`); emptyCopy.hidden = intervals.length > 0; if (intervals.length) collapseOthers(intervals.at(-1)); schedulePreview(); });
+      card.querySelector("[data-remove-interval]").addEventListener("click", () => {
+        if (!window.confirm("Remove this interval? Your adjustments to it will be lost.")) return;
+        item.defaultsVersion += 1;
+        intervals = intervals.filter((other) => other !== item);
+        card.remove();
+        reorderIntervals();
+        emptyCopy.hidden = intervals.length > 0;
+        if (intervals.length) collapseOthers(intervals.at(-1));
+        schedulePreview();
+      });
       card.addEventListener("input", (event) => {
         const input = event.target;
         const name = input.dataset.exact ?? input.dataset.range;
         if (!name || !item.initialized) return;
         const partner = input.dataset.exact ? range(card, name) : exact(card, name);
-        if (input.value !== "") { const value = Number(input.value); if (input.dataset.exact && input.validity.valid && (value < Number(partner.min) || value > Number(partner.max))) setRangeWindow(card, name, value); partner.value = input.value; }
+        if (input.dataset.exact) validateExactInput(input);
+        if (input.value !== "" && input.checkValidity()) {
+          const value = numberValue(input);
+          if (input.dataset.exact && (value < Number(partner.min) || value > Number(partner.max))) setRangeWindow(card, name, value);
+          partner.value = value;
+          updateRangeAppearance(range(card, name));
+        }
         schedulePreview();
       });
       card.addEventListener("change", (event) => {
         if (event.target.dataset.field === "start_date") {
+          const proposedStart = event.target.value;
+          if (proposedStart && proposedStartOverlaps(item, proposedStart)) {
+            event.target.value = item.acceptedStart;
+            setDateError(item, "That date would overlap another interval.");
+            return;
+          }
           item.defaultsVersion += 1;
           item.endDate = null;
+          item.acceptedStart = proposedStart;
+          setDateError(item);
+          reorderIntervals(item);
           if (!event.target.value) {
             item.initialized = false;
             item.card.setAttribute("aria-busy", "false");
@@ -274,14 +471,16 @@
         const name = event.target.dataset.range;
         if (name && event.target.dataset.windowRadius) { const value = Number(event.target.value); if (value <= Number(event.target.min) + Number(event.target.step) / 2 || value >= Number(event.target.max) - Number(event.target.step) / 2) setRangeWindow(card, name, value); }
       });
+      card.querySelectorAll("[data-range]").forEach(updateRangeAppearance);
       intervals.push(item);
       intervalList.append(fragment);
       emptyCopy.hidden = true;
       setStatus("");
       collapseOthers(item);
       if (previous?.initialized && previous.endDate) {
-        field(card, "start_date").value = addDays(previous.endDate, 1);
-        initializeInterval(item);
+        field(card, "start_date").value = nextStart;
+        item.acceptedStart = field(card, "start_date").value;
+        initializeInterval(item, numberValue(exact(previous.card, "target_weight")));
       }
     }
 

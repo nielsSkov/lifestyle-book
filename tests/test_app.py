@@ -100,10 +100,14 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b'data-hard-min="0"' in response.data
     assert b'data-hard-max="700"' in response.data
     assert b'data-window-radius="10"' in response.data
-    assert b'data-window-radius="90"' in response.data
+    assert b'data-window-radius="15"' in response.data
+    assert b'data-exact="start_weight" type="text" inputmode="decimal"' in response.data
+    assert b'input.value.replace(",", ".")' in response.data
     assert b'min="90.0" max="110.0"' in response.data
-    assert b'min="92" max="272"' in response.data
+    assert b'min="167" max="197"' in response.data
     assert b'value="182"' in response.data
+    assert response.data.index(b"data-interval-list") < response.data.index(b"data-add-interval")
+    assert b'window.confirm("Remove this interval?' in response.data
     assert b'id="planning-weight-plot"' in response.data
     assert b'"name":"Candidate plan"' not in response.data
     assert b"Planning sandbox" not in response.data
@@ -134,16 +138,27 @@ def test_weight_plan_initialization_defaults_to_current_plan_when_measurement_is
     assert response.json["taper"] == 0
 
 
-def test_weight_plan_initialization_uses_recent_recorded_weight(client):
+def test_weight_plan_initialization_prefers_current_plan_over_recorded_weight(client):
     response = client.post(
         "/weight/plan/defaults",
         json={"start_date": "2026-08-03"},
     )
 
     assert response.status_code == 200
-    assert response.json["start_weight"] == 99.5
-    assert response.json["target_weight"] == 99.5
+    assert response.json["start_weight"] == 95.0
+    assert response.json["target_weight"] == 95.0
     assert response.json["duration_days"] == 182
+
+
+def test_weight_plan_initialization_defaults_to_100_without_current_plan(client):
+    response = client.post(
+        "/weight/plan/defaults",
+        json={"start_date": "2026-08-04"},
+    )
+
+    assert response.status_code == 200
+    assert response.json["start_weight"] == 100.0
+    assert response.json["target_weight"] == 100.0
 
 
 def test_weight_plan_preview_updates_candidate_without_writing_plan(client):
@@ -205,11 +220,48 @@ def test_weight_plan_preview_builds_independent_intervals_with_a_gap(client):
         "2026-08-10",
         "2026-08-11",
         "2026-08-12",
-        "2026-08-15",
+        "2026-08-13",
         "2026-08-15",
         "2026-08-16",
     ]
     assert candidate_trace["y"] == [100.0, 99.0, 98.0, None, 95.0, 94.0]
+
+
+def test_weight_plan_preview_sorts_intervals_and_connects_adjacent_segments(client):
+    response = client.post(
+        "/weight/plan/preview",
+        json={
+            "intervals": [
+                {
+                    "start_date": "2026-08-12",
+                    "start_weight": 98,
+                    "target_weight": 97,
+                    "duration_days": 1,
+                    "taper": 0,
+                },
+                {
+                    "start_date": "2026-08-10",
+                    "start_weight": 100,
+                    "target_weight": 99,
+                    "duration_days": 1,
+                    "taper": 0,
+                },
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    candidate_trace = next(
+        trace for trace in response.json["figure"]["data"] if trace.get("name") == "Candidate plan"
+    )
+    assert candidate_trace["x"] == [
+        "2026-08-10",
+        "2026-08-11",
+        "2026-08-12",
+        "2026-08-13",
+    ]
+    assert candidate_trace["y"] == [100.0, 99.0, 98.0, 97.0]
+    assert response.json["intervals"][0]["start_date_label"] == "10 Aug 2026"
 
 
 def test_weight_plan_preview_rejects_overlapping_intervals(client):

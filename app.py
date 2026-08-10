@@ -133,7 +133,7 @@ def weight_plan():
     )
     duration_range_min, duration_range_max = _planning_slider_window(
         duration_days,
-        90,
+        15,
         1,
         MAX_PLAN_DURATION_DAYS,
     )
@@ -201,12 +201,9 @@ def weight_plan_defaults():
         if not isinstance(payload, dict):
             raise ValueError("Choose a valid start date")
         start_date = _parse_planning_start_date(payload.get("start_date"))
-        weight_dates, weights = read_series(WEIGHT_CSV)
         plan_dates, plan = read_series(PLAN_CSV)
         start_weight = _default_planning_weight(
             start_date,
-            weight_dates,
-            weights,
             plan_dates,
             plan,
         )
@@ -338,18 +335,9 @@ def _wants_json() -> bool:
 
 def _default_planning_weight(
     start_date: date,
-    weight_dates: list[date],
-    weights: list[float],
     plan_dates: list[date],
     plan: list[float],
 ) -> float:
-    for day, weight in reversed(list(zip(weight_dates, weights, strict=True))):
-        age = (start_date - day).days
-        if 0 <= age <= 7:
-            return round(weight, 1)
-        if age > 7:
-            break
-
     planned_weight = dict(zip(plan_dates, plan, strict=True)).get(start_date)
     if planned_weight is not None and math.isfinite(planned_weight):
         return round(planned_weight, 1)
@@ -397,13 +385,16 @@ def _build_candidate_intervals(
     candidate_dates: list[date] = []
     candidate_weights: list[float] = []
     summaries: list[dict[str, object]] = []
-    previous_end: date | None = None
+    parsed_intervals = []
     for raw_interval in raw_intervals:
         if not isinstance(raw_interval, dict):
             raise ValueError("Enter valid interval values")
-        start_date, start_weight, target_weight, duration_days, taper = _parse_planning_preview(
-            raw_interval
-        )
+        parsed_intervals.append(_parse_planning_preview(raw_interval))
+
+    previous_end: date | None = None
+    for start_date, start_weight, target_weight, duration_days, taper in sorted(
+        parsed_intervals, key=lambda interval: interval[0]
+    ):
         interval_dates, interval_weights = build_plan_interval(
             start_date,
             start_weight,
@@ -414,8 +405,8 @@ def _build_candidate_intervals(
         end_date = interval_dates[-1]
         if previous_end is not None and start_date <= previous_end:
             raise ValueError("Planning intervals cannot overlap")
-        if previous_end is not None:
-            candidate_dates.append(start_date)
+        if previous_end is not None and start_date > previous_end + timedelta(days=1):
+            candidate_dates.append(previous_end + timedelta(days=1))
             candidate_weights.append(math.nan)
         candidate_dates.extend(interval_dates)
         candidate_weights.extend(interval_weights)
