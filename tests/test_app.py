@@ -107,7 +107,13 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b'min="167" max="197"' in response.data
     assert b'value="182"' in response.data
     assert response.data.index(b"data-interval-list") < response.data.index(b"data-add-interval")
-    assert b'window.confirm("Remove this interval?' in response.data
+    assert b'class="planning-confirm-dialog" data-remove-dialog' in response.data
+    assert b"input.dataset.exact) return;" in response.data
+    assert b"proposedDurationOverlaps(item" in response.data
+    assert b"shiftRangeWindowAtEdge(card, name)" in response.data
+    assert b"data-confirm-date hidden>Use Selected Date" in response.data
+    assert b"const payloads = complete.map(intervalPayload)" in response.data
+    assert b"cancelPendingPreview();" in response.data
     assert b'id="planning-weight-plot"' in response.data
     assert b'"name":"Candidate plan"' not in response.data
     assert b"Planning sandbox" not in response.data

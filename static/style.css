@@ -452,6 +452,65 @@ input {
   cursor: pointer;
 }
 
+.planning-confirm-dialog {
+  width: min(420px, calc(100% - 32px));
+  padding: 0;
+  border: 1px solid #4b405d;
+  border-radius: 18px;
+  color: #f4f0fa;
+  background: #171120;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 55%);
+}
+
+.planning-confirm-dialog::backdrop {
+  background: rgb(5 3 9 / 72%);
+  backdrop-filter: blur(4px);
+}
+
+.planning-confirm-dialog form {
+  padding: 26px;
+}
+
+.planning-confirm-dialog h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.65rem;
+  font-weight: 500;
+}
+
+.planning-confirm-dialog form > p:not(.eyebrow) {
+  margin: 12px 0 24px;
+  color: #aaa0b7;
+  line-height: 1.5;
+}
+
+.planning-confirm-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.planning-confirm-actions button {
+  min-height: 44px;
+  border: 1px solid #4b405d;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.planning-confirm-cancel {
+  color: #d8cfee;
+  background: #2a203a;
+}
+
+.planning-confirm-remove {
+  border-color: #8a554f !important;
+  color: #f0c2ba;
+  background: #4a2422;
+}
+
 .add-interval-button span {
   font-size: 1.35rem;
   font-weight: 500;
@@ -520,6 +579,24 @@ input {
 .planning-field-error:empty {
   min-height: 0;
   margin: 0;
+}
+
+.planning-date-confirm {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 7px;
+  border: 1px solid #4e66a8;
+  border-radius: 9px;
+  color: #c9d6ff;
+  background: #17264a;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.planning-date-confirm[hidden] {
+  display: none;
 }
 
 .planning-date-input:focus,
@@ -1065,6 +1142,12 @@ input {
   .add-interval-button:hover {
     border-color: #695781;
     background: #352847;
+  }
+
+  .remove-interval-button:hover {
+    border-color: #97615b;
+    color: #efc1ba;
+    background: #321c1b;
   }
 
   .entry-card .date-step:hover:not(:disabled) {
