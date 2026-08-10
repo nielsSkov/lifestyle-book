@@ -90,14 +90,11 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert response.status_code == 200
     assert b"<h1>Weight Plan</h1>" in response.data
     assert b"Add Interval</button>" in response.data
-    assert b"<h2>Candidate Interval</h2>" in response.data
-    assert b"data-planning-interval hidden" in response.data
-    assert b'id="plan-start-date" name="start_date" type="date"' in response.data
-    assert (
-        b'id="plan-start-date" name="start_date" type="date" lang="en-GB" value='
-        not in response.data
-    )
-    assert b'id="taper-range"' in response.data
+    assert b"<h2>Plan Intervals</h2>" in response.data
+    assert b"data-interval-list" in response.data
+    assert b'data-field="start_date" type="date" lang="en-GB" required' in response.data
+    assert b"startDateInput.focus()" not in response.data
+    assert b'data-range="taper"' in response.data
     assert b'value="0.0"' in response.data
     assert b'max="10.0"' in response.data
     assert b'data-hard-min="0"' in response.data
@@ -126,8 +123,8 @@ def test_weight_plan_initialization_defaults_to_current_plan_when_measurement_is
     )
 
     response = client.post(
-        "/weight/plan/preview",
-        json={"start_date": "2026-08-03", "initialize": True},
+        "/weight/plan/defaults",
+        json={"start_date": "2026-08-03"},
     )
 
     assert response.status_code == 200
@@ -139,14 +136,14 @@ def test_weight_plan_initialization_defaults_to_current_plan_when_measurement_is
 
 def test_weight_plan_initialization_uses_recent_recorded_weight(client):
     response = client.post(
-        "/weight/plan/preview",
-        json={"start_date": "2026-08-03", "initialize": True},
+        "/weight/plan/defaults",
+        json={"start_date": "2026-08-03"},
     )
 
     assert response.status_code == 200
     assert response.json["start_weight"] == 99.5
     assert response.json["target_weight"] == 99.5
-    assert response.json["end_date"] == "2027-02-01"
+    assert response.json["duration_days"] == 182
 
 
 def test_weight_plan_preview_updates_candidate_without_writing_plan(client):
@@ -155,17 +152,21 @@ def test_weight_plan_preview_updates_candidate_without_writing_plan(client):
     response = client.post(
         "/weight/plan/preview",
         json={
-            "start_date": "2026-08-10",
-            "start_weight": 100,
-            "target_weight": 90,
-            "duration_days": 10,
-            "taper": 0,
+            "intervals": [
+                {
+                    "start_date": "2026-08-10",
+                    "start_weight": 100,
+                    "target_weight": 90,
+                    "duration_days": 10,
+                    "taper": 0,
+                }
+            ]
         },
     )
 
     assert response.status_code == 200
-    assert response.json["end_date"] == "2026-08-20"
-    assert response.json["weekly_change"] == -7
+    assert response.json["intervals"][0]["end_date"] == "2026-08-20"
+    assert response.json["intervals"][0]["weekly_change"] == -7
     candidate_trace = next(
         trace for trace in response.json["figure"]["data"] if trace.get("name") == "Candidate plan"
     )
@@ -173,15 +174,84 @@ def test_weight_plan_preview_updates_candidate_without_writing_plan(client):
     assert app_module.PLAN_CSV.read_bytes() == original_plan
 
 
+def test_weight_plan_preview_builds_independent_intervals_with_a_gap(client):
+    response = client.post(
+        "/weight/plan/preview",
+        json={
+            "intervals": [
+                {
+                    "start_date": "2026-08-10",
+                    "start_weight": 100,
+                    "target_weight": 98,
+                    "duration_days": 2,
+                    "taper": 0,
+                },
+                {
+                    "start_date": "2026-08-15",
+                    "start_weight": 95,
+                    "target_weight": 94,
+                    "duration_days": 1,
+                    "taper": 0,
+                },
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    candidate_trace = next(
+        trace for trace in response.json["figure"]["data"] if trace.get("name") == "Candidate plan"
+    )
+    assert candidate_trace["x"] == [
+        "2026-08-10",
+        "2026-08-11",
+        "2026-08-12",
+        "2026-08-15",
+        "2026-08-15",
+        "2026-08-16",
+    ]
+    assert candidate_trace["y"] == [100.0, 99.0, 98.0, None, 95.0, 94.0]
+
+
+def test_weight_plan_preview_rejects_overlapping_intervals(client):
+    response = client.post(
+        "/weight/plan/preview",
+        json={
+            "intervals": [
+                {
+                    "start_date": "2026-08-10",
+                    "start_weight": 100,
+                    "target_weight": 98,
+                    "duration_days": 2,
+                    "taper": 0,
+                },
+                {
+                    "start_date": "2026-08-12",
+                    "start_weight": 98,
+                    "target_weight": 97,
+                    "duration_days": 1,
+                    "taper": 0,
+                },
+            ]
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Planning intervals cannot overlap"}
+
+
 def test_weight_plan_preview_rejects_invalid_values(client):
     response = client.post(
         "/weight/plan/preview",
         json={
-            "start_date": "2026-08-10",
-            "start_weight": 100,
-            "target_weight": 90,
-            "duration_days": 10,
-            "taper": 11,
+            "intervals": [
+                {
+                    "start_date": "2026-08-10",
+                    "start_weight": 100,
+                    "target_weight": 90,
+                    "duration_days": 10,
+                    "taper": 11,
+                }
+            ]
         },
     )
 
@@ -193,11 +263,15 @@ def test_weight_plan_preview_rejects_date_overflow(client):
     response = client.post(
         "/weight/plan/preview",
         json={
-            "start_date": "9999-12-31",
-            "start_weight": 100,
-            "target_weight": 90,
-            "duration_days": 1,
-            "taper": 0,
+            "intervals": [
+                {
+                    "start_date": "9999-12-31",
+                    "start_weight": 100,
+                    "target_weight": 90,
+                    "duration_days": 1,
+                    "taper": 0,
+                }
+            ]
         },
     )
 
@@ -209,11 +283,15 @@ def test_weight_plan_preview_rejects_oversized_number(client):
     response = client.post(
         "/weight/plan/preview",
         json={
-            "start_date": "2026-08-10",
-            "start_weight": 10**400,
-            "target_weight": 90,
-            "duration_days": 10,
-            "taper": 0,
+            "intervals": [
+                {
+                    "start_date": "2026-08-10",
+                    "start_weight": 10**400,
+                    "target_weight": 90,
+                    "duration_days": 10,
+                    "taper": 0,
+                }
+            ]
         },
     )
 

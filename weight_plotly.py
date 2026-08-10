@@ -38,7 +38,7 @@ def build_weight_figure(
                 y=[weight for _day, weight in candidate_points],
                 mode="lines",
                 name="Candidate plan",
-                line={"color": "#6366f1", "width": 3},
+                line={"color": "#2563eb", "width": 3},
                 hovertemplate="%{x|%d %b %Y}<br>%{y:.1f} kg<extra>Candidate plan</extra>",
             )
         )
@@ -124,12 +124,13 @@ def build_difference_figure(
     plan_dates: Sequence[date],
     plan: Sequence[float],
 ) -> go.Figure:
-    weight_points = list(zip(weight_dates, weights, strict=True))
-    plan_points = list(zip(plan_dates, plan, strict=True))
-    plan_by_date = {day: weight for day, weight in plan_points if math.isfinite(weight)}
-    differences = [
-        (day, weight, plan_by_date[day]) for day, weight in weight_points if day in plan_by_date
+    weight_points = [
+        (day, weight)
+        for day, weight in zip(weight_dates, weights, strict=True)
+        if math.isfinite(weight)
     ]
+    plan_points = list(zip(plan_dates, plan, strict=True))
+    differences = _interpolated_plan_differences(weight_points, plan_points)
 
     figure = go.Figure()
 
@@ -167,6 +168,45 @@ def build_difference_figure(
     _style_insight_figure(figure, "Difference from Plan", "weight-difference", "kg")
     figure.update_layout(bargap=0, barmode="overlay")
     return figure
+
+
+def _interpolated_plan_differences(
+    weight_points: list[tuple[date, float]],
+    plan_points: list[tuple[date, float]],
+) -> list[tuple[date, float, float]]:
+    if not weight_points:
+        return []
+    if len(weight_points) == 1:
+        recorded_date, recorded_weight = weight_points[0]
+        return [
+            (plan_date, recorded_weight, planned_weight)
+            for plan_date, planned_weight in plan_points
+            if plan_date == recorded_date and math.isfinite(planned_weight)
+        ]
+
+    differences: list[tuple[date, float, float]] = []
+    interval_index = 0
+    for plan_date, planned_weight in plan_points:
+        if not math.isfinite(planned_weight):
+            continue
+        while (
+            interval_index + 1 < len(weight_points)
+            and weight_points[interval_index + 1][0] < plan_date
+        ):
+            interval_index += 1
+        if interval_index + 1 >= len(weight_points):
+            break
+        start_date, start_weight = weight_points[interval_index]
+        end_date, end_weight = weight_points[interval_index + 1]
+        if plan_date < start_date:
+            continue
+        span_days = (end_date - start_date).days
+        if span_days <= 0 or plan_date > end_date:
+            continue
+        progress = (plan_date - start_date).days / span_days
+        recorded_weight = start_weight + (end_weight - start_weight) * progress
+        differences.append((plan_date, recorded_weight, planned_weight))
+    return differences
 
 
 def build_rate_figure(

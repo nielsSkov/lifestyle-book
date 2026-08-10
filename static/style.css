@@ -41,6 +41,7 @@ body {
   font-size: 0.78rem;
   font-weight: 650;
   letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .options-link {
@@ -357,33 +358,34 @@ input {
   box-shadow: 0 18px 45px rgb(0 0 0 / 28%);
 }
 
-.interval-heading {
+.planning-list-heading {
   display: flex;
-  margin-bottom: 24px;
-  align-items: start;
+  margin-bottom: 12px;
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
 }
 
-.interval-heading h2,
-.planning-empty-state h2 {
+.planning-list-heading h2 {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.65rem;
   font-weight: 500;
 }
 
-.planning-empty-state p {
-  margin: 9px 0 20px;
+.planning-empty-copy {
+  margin: 18px 0 4px;
   color: #a99db9;
   font-size: 0.9rem;
   line-height: 1.45;
+  text-align: center;
 }
 
 .add-interval-button {
   display: inline-flex;
-  width: 100%;
-  min-height: 48px;
+  width: auto;
+  min-height: 42px;
+  padding: 0 14px;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -393,6 +395,63 @@ input {
   background: #2a203a;
   font: inherit;
   font-weight: 800;
+  cursor: pointer;
+}
+
+.planning-interval-list {
+  display: grid;
+  gap: 12px;
+}
+
+.planning-interval-card {
+  min-width: 0;
+  border: 1px solid #3d324d;
+  border-radius: 13px;
+  background: #110d19;
+  overflow: hidden;
+}
+
+.interval-summary-button {
+  display: flex;
+  width: 100%;
+  min-height: 58px;
+  padding: 11px 13px;
+  align-items: start;
+  flex-direction: column;
+  gap: 3px;
+  border: 0;
+  color: #e4dcf3;
+  background: #21192e;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.interval-summary-button small {
+  color: #91869e;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.interval-body {
+  padding: 18px 14px 14px;
+}
+
+.interval-body[hidden] {
+  display: none;
+}
+
+.remove-interval-button {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #4b405d;
+  border-radius: 10px;
+  color: #b9aec6;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 750;
   cursor: pointer;
 }
 
@@ -426,13 +485,23 @@ input {
   max-width: 100%;
   min-width: 0;
   min-inline-size: 0;
-  height: 44px;
-  padding: 8px 10px;
+  height: 42px;
+  padding: 6px 14px;
   border: 2px solid #4b405d;
   border-radius: 11px;
   background: #0f0c16;
   font-size: 1rem;
   text-align: center;
+  overflow: hidden;
+}
+
+.planning-date-input::-webkit-date-and-time-value {
+  margin: 0;
+  text-align: center;
+}
+
+.planning-date-input::-webkit-datetime-edit {
+  padding-inline: 8px;
 }
 
 .planning-date-input:focus,
@@ -479,12 +548,12 @@ input {
   height: 24px;
   margin: 0;
   padding: 0;
-  accent-color: #6366f1;
+  accent-color: #2563eb;
   cursor: pointer;
 }
 
 .planning-field input[type="range"]:focus-visible {
-  outline: 3px solid #6366f1;
+  outline: 3px solid #2563eb;
   outline-offset: 3px;
 }
 
@@ -529,7 +598,7 @@ input {
 
 .planning-status {
   min-height: 20px;
-  margin: 0;
+  margin: 12px 0 0;
   color: #a99db9;
   font-size: 0.78rem;
   text-align: center;
@@ -973,6 +1042,15 @@ input {
   main {
     width: min(100% - 20px, 1100px);
     margin: 4px auto 24px;
+  }
+
+  .planning-list-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .add-interval-button {
+    width: 100%;
   }
 
   .entry-card {

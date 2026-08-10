@@ -52,7 +52,7 @@ def test_build_weight_figure_adds_blue_candidate_plan():
     active_trace, candidate_trace = serialized["data"]
     assert active_trace["name"] == "Plan"
     assert candidate_trace["name"] == "Candidate plan"
-    assert candidate_trace["line"]["color"] == "#6366f1"
+    assert candidate_trace["line"]["color"] == "#2563eb"
     assert candidate_trace["y"] == [100.0, 99.0]
 
 
@@ -69,6 +69,52 @@ def test_build_difference_figure_shows_plan_difference():
     assert above_plan_trace["x"] == ["2026-01-01", "2026-01-02", "2026-01-03"]
     assert above_plan_trace["y"] == [1.0, None, None]
     assert below_plan_trace["y"] == [None, -1.0, 0.0]
+
+
+def test_build_difference_figure_interpolates_between_measurements_only():
+    plan_dates = [date(2026, 1, day) for day in range(1, 8)]
+
+    serialized = json.loads(
+        cast(
+            str,
+            build_difference_figure(
+                [date(2026, 1, 2), date(2026, 1, 6)],
+                [102.0, 98.0],
+                plan_dates,
+                [100.0] * len(plan_dates),
+            ).to_json(),
+        )
+    )
+    above_plan_trace, below_plan_trace = serialized["data"]
+
+    assert above_plan_trace["x"] == [
+        "2026-01-02",
+        "2026-01-03",
+        "2026-01-04",
+        "2026-01-05",
+        "2026-01-06",
+    ]
+    assert above_plan_trace["y"] == [2.0, 1.0, None, None, None]
+    assert below_plan_trace["y"] == [None, None, 0.0, -1.0, -2.0]
+
+
+def test_build_difference_figure_keeps_single_exact_measurement():
+    measurement_date = date(2026, 1, 2)
+
+    serialized = json.loads(
+        cast(
+            str,
+            build_difference_figure(
+                [measurement_date],
+                [101.0],
+                [date(2026, 1, 1), measurement_date, date(2026, 1, 3)],
+                [100.0, 100.0, 100.0],
+            ).to_json(),
+        )
+    )
+
+    assert serialized["data"][0]["x"] == ["2026-01-02"]
+    assert serialized["data"][0]["y"] == [1.0]
 
 
 def test_build_rate_figure_shows_28_day_rates():
