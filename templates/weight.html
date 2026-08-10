@@ -71,6 +71,7 @@
     let weightFigure = {{ graph_json | safe }};
     let differenceFigure = {{ difference_json | safe }};
     let rateFigure = {{ rate_json | safe }};
+    let fullXRange = {{ full_x_range | tojson }};
     const plotlyConfig = {{ plotly_config | tojson }};
     const plotsReady = Promise.all([
       Plotly.newPlot("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig),
@@ -103,12 +104,15 @@
           if (!range && !resetsXRange(update)) return;
 
           syncingXAxes = true;
+          const resetting = !range && resetsXRange(update);
           const linkedUpdate = range
             ? {"xaxis.range": range}
-            : {"xaxis.autorange": true};
+            : fullXRange.length === 2
+              ? {"xaxis.range": fullXRange}
+              : {"xaxis.autorange": true};
           Promise.all(
             linkedPlots
-              .filter((target) => target !== source)
+              .filter((target) => resetting || target !== source)
               .map((target) => Plotly.relayout(target, linkedUpdate)),
           ).finally(() => {
             syncingXAxes = false;
@@ -135,6 +139,7 @@
         weightFigure = result.figure;
         differenceFigure = result.difference_figure;
         rateFigure = result.rate_figure;
+        fullXRange = result.full_x_range;
         await plotsReady;
         await Promise.all([
           Plotly.react("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig),

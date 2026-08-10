@@ -65,15 +65,38 @@ def test_weight_page_exposes_entry_controls_and_chart_regions(client):
     assert b'id="rate-plot"' in response.data
     assert b"data-weight-form" in response.data
     assert b'href="/weight/plan">Edit Plan</a>' in response.data
+    assert response.data.count(b'"range":["2026-07-31","2026-08-04"]') >= 3
+    assert b'let fullXRange = ["2026-07-31", "2026-08-04"]' in response.data
 
 
-def test_weight_plan_page_is_a_non_saving_linear_sandbox(client):
+def test_weight_page_range_padding_stays_within_supported_dates():
+    weight_figure, difference_figure, rate_figure, full_range = (
+        app_module._build_weight_page_figures(
+            [date.min],
+            [100.0],
+            [date.max],
+            [100.0],
+        )
+    )
+
+    assert full_range == [date.min.isoformat(), date.max.isoformat()]
+    for chart in (weight_figure, difference_figure, rate_figure):
+        assert list(chart.layout.xaxis.range) == full_range
+
+
+def test_weight_plan_page_starts_without_a_candidate_interval(client):
     response = client.get("/weight/plan")
 
     assert response.status_code == 200
-    assert b"<h1>Plan</h1>" in response.data
-    assert b'value="2026-08-03"' in response.data
-    assert response.data.count(b'value="99.5"') == 4
+    assert b"<h1>Weight Plan</h1>" in response.data
+    assert b"Add Interval</button>" in response.data
+    assert b"<h2>Candidate Interval</h2>" in response.data
+    assert b"data-planning-interval hidden" in response.data
+    assert b'id="plan-start-date" name="start_date" type="date"' in response.data
+    assert (
+        b'id="plan-start-date" name="start_date" type="date" lang="en-GB" value='
+        not in response.data
+    )
     assert b'id="taper-range"' in response.data
     assert b'value="0.0"' in response.data
     assert b'max="10.0"' in response.data
@@ -81,15 +104,18 @@ def test_weight_plan_page_is_a_non_saving_linear_sandbox(client):
     assert b'data-hard-max="700"' in response.data
     assert b'data-window-radius="10"' in response.data
     assert b'data-window-radius="90"' in response.data
-    assert b'min="89.5" max="109.5"' in response.data
-    assert b'min="1" max="181"' in response.data
+    assert b'min="90.0" max="110.0"' in response.data
+    assert b'min="92" max="272"' in response.data
+    assert b'value="182"' in response.data
     assert b'id="planning-weight-plot"' in response.data
-    assert b"Candidate plan" in response.data
-    assert b"This sandbox cannot change your active plan." in response.data
+    assert b'"name":"Candidate plan"' not in response.data
+    assert b"Planning sandbox" not in response.data
+    assert b"This sandbox" not in response.data
+    assert b"Not saved" not in response.data
     assert b"Save Plan" not in response.data
 
 
-def test_weight_plan_defaults_to_current_plan_when_measurement_is_old(client):
+def test_weight_plan_initialization_defaults_to_current_plan_when_measurement_is_old(client):
     app_module.WEIGHT_CSV.write_text(
         "date,weight_kg\n2026-07-01,110.0\n",
         encoding="utf-8",
@@ -99,10 +125,28 @@ def test_weight_plan_defaults_to_current_plan_when_measurement_is_old(client):
         encoding="utf-8",
     )
 
-    response = client.get("/weight/plan")
+    response = client.post(
+        "/weight/plan/preview",
+        json={"start_date": "2026-08-03", "initialize": True},
+    )
 
     assert response.status_code == 200
-    assert response.data.count(b'value="95.1"') == 4
+    assert response.json["start_weight"] == 95.1
+    assert response.json["target_weight"] == 95.1
+    assert response.json["duration_days"] == 182
+    assert response.json["taper"] == 0
+
+
+def test_weight_plan_initialization_uses_recent_recorded_weight(client):
+    response = client.post(
+        "/weight/plan/preview",
+        json={"start_date": "2026-08-03", "initialize": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json["start_weight"] == 99.5
+    assert response.json["target_weight"] == 99.5
+    assert response.json["end_date"] == "2027-02-01"
 
 
 def test_weight_plan_preview_updates_candidate_without_writing_plan(client):
@@ -410,25 +454,29 @@ def test_save_weight_inserts_historical_date_and_advances(client):
     )
 
 
-def test_save_weight_json_updates_summary_and_figures_without_redirect(client):
+def test_save_weight_json_updates_summary_and_figures_without_redirect(client, monkeypatch):
+    monkeypatch.setattr(app_module, "current_date", lambda: date(2026, 8, 5))
     response = client.post(
         "/weight",
-        data={"date": "2026-08-03", "weight": "99.4"},
+        data={"date": "2026-08-05", "weight": "99.4"},
         headers={"Accept": "application/json"},
     )
 
     assert response.status_code == 200
     assert response.json["message"] == "Saved 99.4 kg"
-    assert response.json["selected_date"] == "2026-08-03"
-    assert response.json["entries"]["2026-08-03"] == 99.4
+    assert response.json["selected_date"] == "2026-08-05"
+    assert response.json["entries"]["2026-08-05"] == 99.4
     assert response.json["latest"] == {
-        "date": "2026-08-03",
-        "date_label": "03 Aug 2026",
+        "date": "2026-08-05",
+        "date_label": "05 Aug 2026",
         "weight": 99.4,
     }
     assert response.json["figure"]["data"]
     assert "difference_figure" in response.json
     assert "rate_figure" in response.json
+    assert response.json["full_x_range"] == ["2026-07-31", "2026-08-06"]
+    for key in ("figure", "difference_figure", "rate_figure"):
+        assert response.json[key]["layout"]["xaxis"]["range"] == response.json["full_x_range"]
 
 
 def test_invalid_weight_json_returns_error_without_redirect(client):

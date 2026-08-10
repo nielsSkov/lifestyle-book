@@ -3,30 +3,32 @@
 {% block content %}
   <section class="planning-intro">
     <div>
-      <p class="eyebrow">Weight</p>
-      <h1>Plan</h1>
-      <p class="planning-copy">Explore a single planning interval against your recorded weight and active plan.</p>
+      <h1>Weight Plan</h1>
+      <p class="planning-copy">Build and compare a candidate plan against your recorded weight and active plan.</p>
     </div>
     <a class="back-link" href="{{ url_for('weight') }}">Back to Weight</a>
   </section>
 
   <div class="planning-workspace">
     <section class="planning-controls-card">
-      <div class="sandbox-heading">
-        <div>
-          <p class="eyebrow">Planning sandbox</p>
-          <h2>Candidate interval</h2>
-        </div>
-        <span class="sandbox-badge">Not saved</span>
+      <div class="planning-empty-state" data-planning-empty>
+        <h2>Plan Intervals</h2>
+        <p>Add an interval to begin shaping a candidate plan.</p>
+        <button class="add-interval-button" type="button" data-add-interval><span aria-hidden="true">+</span> Add Interval</button>
       </div>
 
-      <form data-planning-form data-preview-url="{{ url_for('preview_weight_plan') }}">
-        <div class="planning-field">
-          <label for="plan-start-date">Start Date</label>
-          <input class="planning-date-input" id="plan-start-date" name="start_date" type="date" lang="en-GB" value="{{ start_date.isoformat() }}" required>
+      <div data-planning-interval hidden>
+        <div class="interval-heading">
+          <h2>Candidate Interval</h2>
         </div>
 
-        <div class="planning-field">
+        <form data-planning-form data-preview-url="{{ url_for('preview_weight_plan') }}">
+          <div class="planning-field planning-date-field">
+            <label for="plan-start-date">Start Date</label>
+            <input class="planning-date-input" id="plan-start-date" name="start_date" type="date" lang="en-GB" required>
+          </div>
+
+          <div class="planning-field">
           <div class="planning-label-row">
             <label for="start-weight-range">Start Weight</label>
             <div class="planning-exact-input">
@@ -36,9 +38,9 @@
           </div>
           <input id="start-weight-range" type="range" min="{{ weight_range_min }}" max="{{ weight_range_max }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="start-weight-exact" data-hard-min="{{ min_weight }}" data-hard-max="{{ max_weight }}" data-window-radius="10" aria-label="Start weight slider">
           <div class="taper-scale adaptive-scale" data-range-scale="start-weight-range" data-unit=" kg" aria-hidden="true"><span data-range-min>{{ '%.1f'|format(weight_range_min) }} kg</span><span data-range-max>{{ '%.1f'|format(weight_range_max) }} kg</span></div>
-        </div>
+          </div>
 
-        <div class="planning-field">
+          <div class="planning-field">
           <div class="planning-label-row">
             <label for="target-weight-range">Target Weight</label>
             <div class="planning-exact-input">
@@ -48,9 +50,9 @@
           </div>
           <input id="target-weight-range" type="range" min="{{ weight_range_min }}" max="{{ weight_range_max }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-sync="target-weight-exact" data-hard-min="{{ min_weight }}" data-hard-max="{{ max_weight }}" data-window-radius="10" aria-label="Target weight slider">
           <div class="taper-scale adaptive-scale" data-range-scale="target-weight-range" data-unit=" kg" aria-hidden="true"><span data-range-min>{{ '%.1f'|format(weight_range_min) }} kg</span><span data-range-max>{{ '%.1f'|format(weight_range_max) }} kg</span></div>
-        </div>
+          </div>
 
-        <div class="planning-field">
+          <div class="planning-field">
           <div class="planning-label-row">
             <label for="duration-range">Duration</label>
             <div class="planning-exact-input">
@@ -60,9 +62,9 @@
           </div>
           <input id="duration-range" type="range" min="{{ duration_range_min }}" max="{{ duration_range_max }}" step="1" value="{{ duration_days }}" data-sync="duration-exact" data-hard-min="1" data-hard-max="{{ max_duration_days }}" data-window-radius="90" aria-label="Duration slider">
           <div class="taper-scale adaptive-scale" data-range-scale="duration-range" data-unit=" days" aria-hidden="true"><span data-range-min>{{ duration_range_min }} days</span><span data-range-max>{{ duration_range_max }} days</span></div>
-        </div>
+          </div>
 
-        <div class="planning-field">
+          <div class="planning-field">
           <div class="planning-label-row">
             <label for="taper-range">Taper</label>
             <div class="planning-exact-input taper-exact-input">
@@ -71,15 +73,15 @@
           </div>
           <input id="taper-range" type="range" min="0" max="{{ max_taper }}" step="0.05" value="{{ taper }}" data-sync="taper-exact" aria-label="Taper slider">
           <div class="taper-scale" aria-hidden="true"><span>Linear</span><span>Stronger taper</span></div>
-        </div>
-      </form>
+          </div>
+        </form>
 
-      <dl class="planning-summary">
-        <div><dt>End date</dt><dd data-plan-end>{{ end_date.strftime("%d %b %Y") }}</dd></div>
-        <div><dt>Average change</dt><dd data-plan-rate>0.00 kg/week</dd></div>
-      </dl>
-      <p class="planning-status" data-planning-status aria-live="polite">Adjust any value to preview it.</p>
-      <p class="sandbox-note">This sandbox cannot change your active plan.</p>
+        <dl class="planning-summary">
+          <div><dt>End date</dt><dd data-plan-end>&mdash;</dd></div>
+          <div><dt>Average change</dt><dd data-plan-rate>&mdash;</dd></div>
+        </dl>
+        <p class="planning-status" data-planning-status aria-live="polite">Choose a start date to preview the interval.</p>
+      </div>
     </section>
 
     <section class="graph-card planning-preview-card">
@@ -90,12 +92,17 @@
 {% block scripts %}
   <script src="{{ url_for('plotly_runtime', v=plotly_version) }}"></script>
   <script>
+    const planningEmpty = document.querySelector("[data-planning-empty]");
+    const planningInterval = document.querySelector("[data-planning-interval]");
+    const addIntervalButton = document.querySelector("[data-add-interval]");
     const planningForm = document.querySelector("[data-planning-form]");
+    const startDateInput = document.getElementById("plan-start-date");
     const planningStatus = document.querySelector("[data-planning-status]");
     const planEnd = document.querySelector("[data-plan-end]");
     const planRate = document.querySelector("[data-plan-rate]");
     const plotlyConfig = {{ plotly_config | tojson }};
-    let planningFigure = {{ graph_json | safe }};
+    const baseFigure = {{ graph_json | safe }};
+    let planningFigure = baseFigure;
     const plotReady = Plotly.newPlot(
       "planning-weight-plot",
       planningFigure.data,
@@ -106,6 +113,7 @@
     let previewTimer = null;
     let previewRequest = null;
     let previewVersion = 0;
+    let intervalInitialized = false;
 
     function synchronizeInput(input) {
       const partnerId = input.dataset.sync;
@@ -160,26 +168,87 @@
       previewTimer = window.setTimeout(() => updatePreview(scheduledVersion), 120);
     }
 
-    async function updatePreview(version) {
+    function initializePreview() {
+      window.clearTimeout(previewTimer);
+      previewRequest?.abort();
+      previewVersion += 1;
+      setPlanningControlsDisabled(true);
+      planningStatus.textContent = "Updating preview...";
+      planningStatus.dataset.state = "";
+      updatePreview(previewVersion, true);
+    }
+
+    function setPlanningControlsDisabled(disabled) {
+      for (const input of planningForm.elements) {
+        if (input !== startDateInput) input.disabled = disabled;
+      }
+      planningInterval.setAttribute("aria-busy", String(disabled));
+    }
+
+    function setPairedValue(exactId, value, decimals) {
+      const exact = document.getElementById(exactId);
+      const range = document.getElementById(exact.dataset.sync);
+      exact.value = Number(value).toFixed(decimals);
+      if (range.dataset.windowRadius) setRangeWindow(range, Number(value));
+      else range.value = value;
+    }
+
+    function applyInitialValues(result) {
+      setPairedValue("start-weight-exact", result.start_weight, 1);
+      setPairedValue("target-weight-exact", result.target_weight, 1);
+      setPairedValue("duration-exact", result.duration_days, 0);
+      setPairedValue("taper-exact", result.taper, 2);
+      intervalInitialized = true;
+    }
+
+    function resetCandidatePreview() {
+      window.clearTimeout(previewTimer);
+      previewRequest?.abort();
+      previewVersion += 1;
+      setPlanningControlsDisabled(false);
+      intervalInitialized = false;
+      planEnd.textContent = "—";
+      planRate.textContent = "—";
+      planningStatus.textContent = "Choose a start date to preview the interval.";
+      planningStatus.dataset.state = "";
+      const resetVersion = previewVersion;
+      const render = plotUpdates.then(async () => {
+        if (resetVersion !== previewVersion) return;
+        planningFigure = baseFigure;
+        await Plotly.react(
+          "planning-weight-plot",
+          planningFigure.data,
+          planningFigure.layout,
+          plotlyConfig,
+        );
+      });
+      plotUpdates = render.catch(() => {});
+    }
+
+    async function updatePreview(version, initialize = false) {
       const controller = new AbortController();
       previewRequest = controller;
       const values = new FormData(planningForm);
-      try {
-        const response = await fetch(planningForm.dataset.previewUrl, {
-          method: "POST",
-          headers: {"Content-Type": "application/json", Accept: "application/json"},
-          body: JSON.stringify({
+      const payload = initialize
+        ? {start_date: values.get("start_date"), initialize: true}
+        : {
             start_date: values.get("start_date"),
             start_weight: Number(values.get("start_weight")),
             target_weight: Number(values.get("target_weight")),
             duration_days: Number(values.get("duration_days")),
             taper: Number(values.get("taper")),
-          }),
+          };
+      try {
+        const response = await fetch(planningForm.dataset.previewUrl, {
+          method: "POST",
+          headers: {"Content-Type": "application/json", Accept: "application/json"},
+          body: JSON.stringify(payload),
           signal: controller.signal,
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error ?? "Could not build the preview");
         if (version !== previewVersion) return;
+        if (initialize) applyInitialValues(result);
 
         const render = plotUpdates.then(async () => {
           if (version !== previewVersion) return;
@@ -202,12 +271,25 @@
         if (error.name === "AbortError" || version !== previewVersion) return;
         planningStatus.textContent = error.message;
         planningStatus.dataset.state = "error";
+      } finally {
+        if (initialize && version === previewVersion) setPlanningControlsDisabled(false);
+      }
+    }
+
+    function handleStartDateChange() {
+      if (!startDateInput.value) {
+        resetCandidatePreview();
+      } else if (!intervalInitialized) {
+        initializePreview();
+      } else {
+        schedulePreview();
       }
     }
 
     planningForm.addEventListener("input", (event) => {
+      if (event.target === startDateInput) return;
       synchronizeInput(event.target);
-      schedulePreview();
+      if (intervalInitialized) schedulePreview();
     });
 
     planningForm.addEventListener("change", (event) => {
@@ -222,5 +304,13 @@
         setRangeWindow(range, value);
       }
     });
+
+    addIntervalButton.addEventListener("click", () => {
+      planningEmpty.hidden = true;
+      planningInterval.hidden = false;
+      startDateInput.focus();
+    });
+
+    startDateInput.addEventListener("change", handleStartDateChange);
   </script>
 {% endblock %}

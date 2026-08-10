@@ -46,6 +46,7 @@ DAILY_CSV = BASE_DIR / "data" / "daily.csv"
 LIFESTYLE_CONFIG = BASE_DIR / "lifestyle.local.json"
 COPENHAGEN = ZoneInfo("Europe/Copenhagen")
 PLOTLY_VERSION = version("plotly")
+DEFAULT_PLAN_DURATION_DAYS = 182
 
 app = Flask(__name__)
 app.config["LIFESTYLE_SETTINGS"] = load_lifestyle_settings(LIFESTYLE_CONFIG)
@@ -90,9 +91,12 @@ def weight():
     if dates:
         latest = {"date": dates[-1], "weight": weights[-1]}
 
-    figure = build_weight_figure(dates, weights, plan_dates, plan)
-    difference_figure = build_difference_figure(dates, weights, plan_dates, plan)
-    rate_figure = build_rate_figure(dates, weights, plan_dates, plan)
+    figure, difference_figure, rate_figure, full_x_range = _build_weight_page_figures(
+        dates,
+        weights,
+        plan_dates,
+        plan,
+    )
     return render_template(
         "weight.html",
         active_section="weight",
@@ -108,6 +112,7 @@ def weight():
         graph_json=figure.to_json(),
         difference_json=difference_figure.to_json(),
         rate_json=rate_figure.to_json(),
+        full_x_range=full_x_range,
         plotly_config=PLOTLY_CONFIG,
         plotly_version=PLOTLY_VERSION,
     )
@@ -117,23 +122,9 @@ def weight():
 def weight_plan():
     weight_dates, weights = read_series(WEIGHT_CSV)
     plan_dates, plan = read_series(PLAN_CSV)
-    start_date = current_date()
-    start_weight = _default_planning_weight(
-        start_date,
-        weight_dates,
-        weights,
-        plan_dates,
-        plan,
-    )
-    duration_days = 84
+    start_weight = 100.0
+    duration_days = DEFAULT_PLAN_DURATION_DAYS
     taper = 0.0
-    candidate_dates, candidate_plan = build_plan_interval(
-        start_date,
-        start_weight,
-        start_weight,
-        duration_days,
-        taper,
-    )
     weight_range_min, weight_range_max = _planning_slider_window(
         start_weight,
         10,
@@ -151,17 +142,13 @@ def weight_plan():
         weights,
         plan_dates,
         plan,
-        candidate_dates,
-        candidate_plan,
     )
     return render_template(
         "weight_plan.html",
         active_section="weight",
-        start_date=start_date,
         start_weight=start_weight,
         duration_days=duration_days,
         taper=taper,
-        end_date=candidate_dates[-1],
         graph_json=figure.to_json(),
         plotly_config=PLOTLY_CONFIG,
         plotly_version=PLOTLY_VERSION,
@@ -182,9 +169,24 @@ def preview_weight_plan():
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
             raise ValueError("Enter valid planning values")
-        start_date, start_weight, target_weight, duration_days, taper = _parse_planning_preview(
-            payload
-        )
+        weight_dates, weights = read_series(WEIGHT_CSV)
+        plan_dates, plan = read_series(PLAN_CSV)
+        if payload.get("initialize") is True:
+            start_date = _parse_planning_start_date(payload.get("start_date"))
+            start_weight = _default_planning_weight(
+                start_date,
+                weight_dates,
+                weights,
+                plan_dates,
+                plan,
+            )
+            target_weight = start_weight
+            duration_days = DEFAULT_PLAN_DURATION_DAYS
+            taper = 0.0
+        else:
+            start_date, start_weight, target_weight, duration_days, taper = _parse_planning_preview(
+                payload
+            )
         candidate_dates, candidate_plan = build_plan_interval(
             start_date,
             start_weight,
@@ -195,8 +197,6 @@ def preview_weight_plan():
     except ValueError as error:
         return jsonify(error=str(error)), 400
 
-    weight_dates, weights = read_series(WEIGHT_CSV)
-    plan_dates, plan = read_series(PLAN_CSV)
     figure = build_weight_figure(
         weight_dates,
         weights,
@@ -210,6 +210,10 @@ def preview_weight_plan():
         end_date=candidate_dates[-1].isoformat(),
         end_date_label=candidate_dates[-1].strftime("%d %b %Y"),
         weekly_change=(target_weight - start_weight) * 7 / duration_days,
+        start_weight=start_weight,
+        target_weight=target_weight,
+        duration_days=duration_days,
+        taper=taper,
     )
 
 
@@ -365,14 +369,7 @@ def _planning_slider_window(
 
 
 def _parse_planning_preview(payload: dict) -> tuple[date, float, float, int, float]:
-    raw_start_date = payload.get("start_date")
-    try:
-        if not isinstance(raw_start_date, str):
-            raise ValueError
-        start_date = date.fromisoformat(raw_start_date)
-    except ValueError:
-        raise ValueError("Choose a valid start date") from None
-
+    start_date = _parse_planning_start_date(payload.get("start_date"))
     start_weight = _planning_number(payload.get("start_weight"), "Starting weight")
     target_weight = _planning_number(payload.get("target_weight"), "Target weight")
     duration_days = payload.get("duration_days")
@@ -382,6 +379,15 @@ def _parse_planning_preview(payload: dict) -> tuple[date, float, float, int, flo
     return start_date, start_weight, target_weight, duration_days, taper
 
 
+def _parse_planning_start_date(raw_start_date: object) -> date:
+    try:
+        if not isinstance(raw_start_date, str):
+            raise ValueError
+        return date.fromisoformat(raw_start_date)
+    except ValueError:
+        raise ValueError("Choose a valid start date") from None
+
+
 def _planning_number(value: object, label: str) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"{label} must be a number")
@@ -389,6 +395,37 @@ def _planning_number(value: object, label: str) -> float:
         return float(value)
     except OverflowError:
         raise ValueError(f"{label} must be a number") from None
+
+
+def _build_weight_page_figures(
+    dates: list[date],
+    weights: list[float],
+    plan_dates: list[date],
+    plan: list[float],
+):
+    figures = (
+        build_weight_figure(dates, weights, plan_dates, plan),
+        build_difference_figure(dates, weights, plan_dates, plan),
+        build_rate_figure(dates, weights, plan_dates, plan),
+    )
+    all_dates = [*dates, *plan_dates]
+    if not all_dates:
+        return (*figures, [])
+
+    first_date = min(all_dates)
+    final_date = max(all_dates)
+    padding_days = max(1, round((final_date - first_date).days * 0.02))
+    full_range = [
+        date.fromordinal(
+            max(date.min.toordinal(), first_date.toordinal() - padding_days)
+        ).isoformat(),
+        date.fromordinal(
+            min(date.max.toordinal(), final_date.toordinal() + padding_days)
+        ).isoformat(),
+    ]
+    for figure in figures:
+        figure.update_xaxes(range=full_range)
+    return (*figures, full_range)
 
 
 def _weight_json_response(selected_date: date, message: str):
@@ -401,20 +438,21 @@ def _weight_json_response(selected_date: date, message: str):
             "date_label": dates[-1].strftime("%d %b %Y"),
             "weight": weights[-1],
         }
+    figure, difference_figure, rate_figure, full_x_range = _build_weight_page_figures(
+        dates,
+        weights,
+        plan_dates,
+        plan,
+    )
     return jsonify(
         message=message,
         selected_date=selected_date.isoformat(),
         entries={day.isoformat(): value for day, value in zip(dates, weights, strict=True)},
         latest=latest,
-        figure=json.loads(
-            cast(str, build_weight_figure(dates, weights, plan_dates, plan).to_json())
-        ),
-        difference_figure=json.loads(
-            cast(str, build_difference_figure(dates, weights, plan_dates, plan).to_json())
-        ),
-        rate_figure=json.loads(
-            cast(str, build_rate_figure(dates, weights, plan_dates, plan).to_json())
-        ),
+        figure=json.loads(cast(str, figure.to_json())),
+        difference_figure=json.loads(cast(str, difference_figure.to_json())),
+        rate_figure=json.loads(cast(str, rate_figure.to_json())),
+        full_x_range=full_x_range,
     )
 
 
