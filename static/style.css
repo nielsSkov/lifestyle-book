@@ -581,24 +581,6 @@ input {
   margin: 0;
 }
 
-.planning-date-confirm {
-  width: 100%;
-  min-height: 38px;
-  margin-top: 7px;
-  border: 1px solid #4e66a8;
-  border-radius: 9px;
-  color: #c9d6ff;
-  background: #17264a;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.planning-date-confirm[hidden] {
-  display: none;
-}
-
 .planning-date-input:focus,
 .planning-exact-input:focus-within {
   border-color: #8354e8;

@@ -111,7 +111,9 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"input.dataset.exact) return;" in response.data
     assert b"proposedDurationOverlaps(item" in response.data
     assert b"shiftRangeWindowAtEdge(card, name)" in response.data
-    assert b"data-confirm-date hidden>Use Selected Date" in response.data
+    assert b'addEventListener("blur"' in response.data
+    assert b"pendingDateChange" in response.data
+    assert b"Use Selected Date" not in response.data
     assert b"const payloads = complete.map(intervalPayload)" in response.data
     assert b"cancelPendingPreview();" in response.data
     assert b'id="planning-weight-plot"' in response.data
