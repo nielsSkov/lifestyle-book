@@ -111,8 +111,9 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"input.dataset.exact) return;" in response.data
     assert b"proposedDurationOverlaps(item" in response.data
     assert b"shiftRangeWindowAtEdge(card, name)" in response.data
-    assert b'addEventListener("blur"' in response.data
-    assert b"pickerOpenedAt" in response.data
+    assert b'data-today="2026-08-03"' in response.data
+    assert b"pickerOpenedAt" not in response.data
+    assert b"isIPad" not in response.data
     assert b"data-step-direction" in response.data
     assert b"stepExactValue(item" in response.data
     assert b"Use Selected Date" not in response.data

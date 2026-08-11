@@ -10,7 +10,7 @@
   </section>
 
   <div class="planning-workspace">
-    <section class="planning-controls-card" data-planner data-preview-url="{{ url_for('preview_weight_plan') }}" data-defaults-url="{{ url_for('weight_plan_defaults') }}">
+    <section class="planning-controls-card" data-planner data-preview-url="{{ url_for('preview_weight_plan') }}" data-defaults-url="{{ url_for('weight_plan_defaults') }}" data-today="{{ today.isoformat() }}">
       <div class="planning-list-heading">
         <h2>Plan Intervals</h2>
       </div>
@@ -120,7 +120,6 @@
     let previewController = null;
     let previewVersion = 0;
     let pendingRemoval = null;
-    const isIPad = navigator.maxTouchPoints > 1 && /iPad|Macintosh/.test(navigator.userAgent);
 
     function field(card, name) { return card.querySelector(`[data-field="${name}"]`); }
     function exact(card, name) { return card.querySelector(`[data-exact="${name}"]`); }
@@ -480,7 +479,6 @@
 
     function removeInterval(item) {
       item.defaultsVersion += 1;
-      window.clearTimeout(item.dateCommitTimer);
       intervals = intervals.filter((other) => other !== item);
       item.card.remove();
       reorderIntervals();
@@ -546,7 +544,7 @@
       }
       const fragment = template.content.cloneNode(true);
       const card = fragment.querySelector("[data-interval-card]");
-      const item = {id: nextId++, card, initialized: false, endDate: null, acceptedEndDate: null, defaultsVersion: 0, acceptedStart: "", acceptedDuration: null, pickerOpenedAt: 0, dateCommitTimer: null};
+      const item = {id: nextId++, card, initialized: false, endDate: null, acceptedEndDate: null, defaultsVersion: 0, acceptedStart: "", acceptedDuration: null};
       card.querySelector("[data-interval-title]").textContent = `Interval ${intervals.length + 1}`;
       for (const label of card.querySelectorAll("[data-label]")) {
         const name = label.dataset.label;
@@ -562,19 +560,6 @@
       });
       card.querySelector("[data-interval-toggle]").addEventListener("click", () => collapseOthers(item));
       card.querySelector("[data-remove-interval]").addEventListener("click", () => requestIntervalRemoval(item));
-      field(card, "start_date").addEventListener("pointerdown", () => {
-        if (isIPad) {
-          window.clearTimeout(item.dateCommitTimer);
-          item.pickerOpenedAt = performance.now();
-        }
-      });
-      field(card, "start_date").addEventListener("blur", (event) => {
-        if (!isIPad || event.currentTarget.value === item.acceptedStart) return;
-        const remainingDelay = Math.max(0, 300 - (performance.now() - item.pickerOpenedAt));
-        item.dateCommitTimer = window.setTimeout(() => {
-          if (field(card, "start_date").value !== item.acceptedStart) commitStartDate(item);
-        }, remainingDelay);
-      });
       card.addEventListener("input", (event) => {
         const input = event.target;
         const name = input.dataset.exact ?? input.dataset.range;
@@ -606,8 +591,6 @@
       card.addEventListener("change", (event) => {
         if (event.target.dataset.field === "start_date") {
           if (event.target.value === item.acceptedStart) return;
-          if (isIPad && performance.now() - item.pickerOpenedAt < 300) return;
-          window.clearTimeout(item.dateCommitTimer);
           commitStartDate(item);
           return;
         }
@@ -644,6 +627,10 @@
         field(card, "start_date").value = nextStart;
         item.acceptedStart = field(card, "start_date").value;
         initializeInterval(item, numberValue(exact(previous.card, "target_weight")));
+      } else {
+        field(card, "start_date").value = planner.dataset.today;
+        item.acceptedStart = planner.dataset.today;
+        initializeInterval(item);
       }
     }
 
