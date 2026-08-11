@@ -227,16 +227,15 @@ def save_weight():
         if raw_weight is None or not raw_weight.strip():
             if not delete_weight(WEIGHT_CSV, measurement_date):
                 raise ValueError("No measurement exists for this date")
-            next_date = min(measurement_date + timedelta(days=1), today)
             if _wants_json():
                 return _weight_json_response(
-                    next_date,
+                    measurement_date,
                     f"Deleted entry for {measurement_date:%d %b %Y}",
                 )
             return redirect(
                 url_for(
                     "weight",
-                    date=next_date.isoformat(),
+                    date=measurement_date.isoformat(),
                     deleted=measurement_date.strftime("%d %b %Y"),
                 )
             )
@@ -246,10 +245,9 @@ def save_weight():
         if _wants_json():
             return jsonify(error=str(error)), 400
         return redirect(url_for("weight", date=raw_date, error=str(error)))
-    next_date = min(measurement_date + timedelta(days=1), today)
     if _wants_json():
-        return _weight_json_response(next_date, f"Saved {weight} kg")
-    return redirect(url_for("weight", date=next_date.isoformat(), saved=format(weight, "f")))
+        return _weight_json_response(measurement_date, f"Saved {weight} kg")
+    return redirect(url_for("weight", date=measurement_date.isoformat(), saved=format(weight, "f")))
 
 
 @app.get("/sleep")

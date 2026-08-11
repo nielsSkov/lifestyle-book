@@ -579,14 +579,14 @@ def test_blank_sleep_times_delete_existing_night(client):
     assert read_sleep_records(app_module.SLEEP_CSV) == []
 
 
-def test_save_weight_inserts_historical_date_and_advances(client):
+def test_save_weight_inserts_historical_date_and_keeps_selected_date(client):
     response = client.post(
         "/weight",
         data={"date": "2026-07-31", "weight": "100.5"},
     )
 
     parameters = redirect_parameters(response)
-    assert parameters["date"] == ["2026-08-01"]
+    assert parameters["date"] == ["2026-07-31"]
     assert "saved" in parameters
     assert read_series(app_module.WEIGHT_CSV) == (
         [date(2026, 7, 31), date(2026, 8, 1), date(2026, 8, 2)],
@@ -617,6 +617,18 @@ def test_save_weight_json_updates_summary_and_figures_without_redirect(client, m
     assert response.json["full_x_range"] == ["2026-07-31", "2026-08-06"]
     for key in ("figure", "difference_figure", "rate_figure"):
         assert response.json[key]["layout"]["xaxis"]["range"] == response.json["full_x_range"]
+
+
+def test_save_historical_weight_json_keeps_selected_date(client):
+    response = client.post(
+        "/weight",
+        data={"date": "2026-07-31", "weight": "100.5"},
+        headers={"Accept": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert response.json["selected_date"] == "2026-07-31"
+    assert response.json["entries"]["2026-07-31"] == 100.5
 
 
 def test_invalid_weight_json_returns_error_without_redirect(client):
@@ -664,14 +676,14 @@ def test_invalid_weight_preserves_existing_data(client):
     assert app_module.WEIGHT_CSV.read_bytes() == original
 
 
-def test_blank_weight_deletes_existing_date_and_advances(client):
+def test_blank_weight_deletes_existing_date_and_keeps_selected_date(client):
     response = client.post(
         "/weight",
         data={"date": "2026-08-01", "weight": ""},
     )
 
     parameters = redirect_parameters(response)
-    assert parameters["date"] == ["2026-08-02"]
+    assert parameters["date"] == ["2026-08-01"]
     assert "deleted" in parameters
     assert read_series(app_module.WEIGHT_CSV) == ([date(2026, 8, 2)], [99.5])
 
