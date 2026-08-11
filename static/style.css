@@ -595,6 +595,7 @@ input {
   border: 1px solid #4b405d;
   border-radius: 10px;
   background: #0f0c16;
+  overflow: hidden;
 }
 
 .planning-exact-input input {
@@ -639,7 +640,7 @@ input {
   place-items: center;
   border: 0;
   color: #a99db9;
-  background: #21192e;
+  background: transparent;
   font-size: 0.55rem;
   line-height: 1;
   cursor: pointer;
@@ -1168,6 +1169,11 @@ input {
     border-color: #97615b;
     color: #efc1ba;
     background: #321c1b;
+  }
+
+  .planning-stepper button:hover {
+    color: #d8cfee;
+    background: #21192e;
   }
 
   .entry-card .date-step:hover:not(:disabled) {
