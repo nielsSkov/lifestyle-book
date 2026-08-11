@@ -52,7 +52,7 @@
         <div class="planning-field">
           <div class="planning-label-row">
             <label data-label="start_weight">Start Weight</label>
-            <div class="planning-exact-input"><input data-exact="start_weight" type="text" inputmode="decimal" data-min="{{ min_weight }}" data-max="{{ max_weight }}" data-step="0.1" value="{{ '%.1f'|format(start_weight) }}" aria-label="Exact start weight" required><span>kg</span></div>
+            <div class="planning-exact-input"><input data-exact="start_weight" type="text" inputmode="decimal" data-min="{{ min_weight }}" data-max="{{ max_weight }}" data-step="0.1" value="{{ '%.1f'|format(start_weight) }}" aria-label="Exact start weight" required><span>kg</span><div class="planning-stepper"><button type="button" data-step-direction="1" aria-label="Increase start weight">&#9650;</button><button type="button" data-step-direction="-1" aria-label="Decrease start weight">&#9660;</button></div></div>
           </div>
           <p class="planning-field-error" data-exact-error="start_weight" aria-live="polite"></p>
           <input data-range="start_weight" type="range" min="{{ weight_range_min }}" max="{{ weight_range_max }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-hard-min="{{ min_weight }}" data-hard-max="{{ max_weight }}" data-window-radius="10" aria-label="Start weight slider">
@@ -61,7 +61,7 @@
         <div class="planning-field">
           <div class="planning-label-row">
             <label data-label="target_weight">Target Weight</label>
-            <div class="planning-exact-input"><input data-exact="target_weight" type="text" inputmode="decimal" data-min="{{ min_weight }}" data-max="{{ max_weight }}" data-step="0.1" value="{{ '%.1f'|format(start_weight) }}" aria-label="Exact target weight" required><span>kg</span></div>
+            <div class="planning-exact-input"><input data-exact="target_weight" type="text" inputmode="decimal" data-min="{{ min_weight }}" data-max="{{ max_weight }}" data-step="0.1" value="{{ '%.1f'|format(start_weight) }}" aria-label="Exact target weight" required><span>kg</span><div class="planning-stepper"><button type="button" data-step-direction="1" aria-label="Increase target weight">&#9650;</button><button type="button" data-step-direction="-1" aria-label="Decrease target weight">&#9660;</button></div></div>
           </div>
           <p class="planning-field-error" data-exact-error="target_weight" aria-live="polite"></p>
           <input data-range="target_weight" type="range" min="{{ weight_range_min }}" max="{{ weight_range_max }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-hard-min="{{ min_weight }}" data-hard-max="{{ max_weight }}" data-window-radius="10" aria-label="Target weight slider">
@@ -70,7 +70,7 @@
         <div class="planning-field">
           <div class="planning-label-row">
             <label data-label="duration_days">Duration</label>
-            <div class="planning-exact-input"><input data-exact="duration_days" type="number" inputmode="numeric" min="1" max="{{ max_duration_days }}" step="1" value="{{ duration_days }}" aria-label="Exact duration" required><span>days</span></div>
+            <div class="planning-exact-input"><input data-exact="duration_days" type="number" inputmode="numeric" min="1" max="{{ max_duration_days }}" step="1" value="{{ duration_days }}" aria-label="Exact duration" required><span>days</span><div class="planning-stepper"><button type="button" data-step-direction="1" aria-label="Increase duration">&#9650;</button><button type="button" data-step-direction="-1" aria-label="Decrease duration">&#9660;</button></div></div>
           </div>
           <p class="planning-field-error" data-exact-error="duration_days" aria-live="polite"></p>
           <input data-range="duration_days" type="range" min="{{ duration_range_min }}" max="{{ duration_range_max }}" step="1" value="{{ duration_days }}" data-hard-min="1" data-hard-max="{{ max_duration_days }}" data-window-radius="15" aria-label="Duration slider">
@@ -79,7 +79,7 @@
         <div class="planning-field">
           <div class="planning-label-row">
             <label data-label="taper">Taper</label>
-            <div class="planning-exact-input taper-exact-input"><input data-exact="taper" type="text" inputmode="decimal" data-min="0" data-max="{{ max_taper }}" data-step="0.05" value="{{ taper }}" aria-label="Exact taper" required></div>
+            <div class="planning-exact-input taper-exact-input"><input data-exact="taper" type="text" inputmode="decimal" data-min="0" data-max="{{ max_taper }}" data-step="0.05" value="{{ taper }}" aria-label="Exact taper" required><div class="planning-stepper"><button type="button" data-step-direction="1" aria-label="Increase taper">&#9650;</button><button type="button" data-step-direction="-1" aria-label="Decrease taper">&#9660;</button></div></div>
           </div>
           <p class="planning-field-error" data-exact-error="taper" aria-live="polite"></p>
           <input data-range="taper" type="range" min="0" max="{{ max_taper }}" step="0.05" value="{{ taper }}" aria-label="Taper slider">
@@ -452,8 +452,35 @@
       }
     }
 
+    function stepExactValue(item, input, direction) {
+      const name = input.dataset.exact;
+      const minimum = Number(input.dataset.min ?? input.min);
+      const maximum = Number(input.dataset.max ?? input.max);
+      const step = Number(input.dataset.step ?? input.step);
+      const current = numberValue(input);
+      const base = Number.isFinite(current) ? current : minimum;
+      const decimals = (String(step).split(".")[1] ?? "").length;
+      const next = Number(
+        Math.min(maximum, Math.max(minimum, base + direction * step)).toFixed(decimals)
+      );
+      if (
+        name === "duration_days"
+        && item.acceptedDuration !== null
+        && proposedDurationOverlaps(item, next)
+      ) {
+        setExactError(input, "That duration would overlap another interval.");
+        return;
+      }
+      cancelPendingPreview();
+      item.endDate = null;
+      setValue(item.card, name, next);
+      setExactError(input);
+      if (item.initialized) schedulePreview();
+    }
+
     function removeInterval(item) {
       item.defaultsVersion += 1;
+      window.clearTimeout(item.dateCommitTimer);
       intervals = intervals.filter((other) => other !== item);
       item.card.remove();
       reorderIntervals();
@@ -474,7 +501,6 @@
     function commitStartDate(item) {
       const dateInput = field(item.card, "start_date");
       const proposedStart = dateInput.value;
-      item.pendingDateChange = false;
       if (proposedStart && proposedStartOverlaps(item, proposedStart)) {
         dateInput.value = item.acceptedStart;
         setDateError(item, "That date would overlap another interval.");
@@ -520,7 +546,7 @@
       }
       const fragment = template.content.cloneNode(true);
       const card = fragment.querySelector("[data-interval-card]");
-      const item = {id: nextId++, card, initialized: false, endDate: null, acceptedEndDate: null, defaultsVersion: 0, acceptedStart: "", acceptedDuration: null, pendingDateChange: false};
+      const item = {id: nextId++, card, initialized: false, endDate: null, acceptedEndDate: null, defaultsVersion: 0, acceptedStart: "", acceptedDuration: null, pickerOpenedAt: 0, dateCommitTimer: null};
       card.querySelector("[data-interval-title]").textContent = `Interval ${intervals.length + 1}`;
       for (const label of card.querySelectorAll("[data-label]")) {
         const name = label.dataset.label;
@@ -528,10 +554,26 @@
         input.id = `interval-${item.id}-${name}`;
         label.htmlFor = input.id;
       }
+      card.querySelectorAll("[data-step-direction]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const input = button.closest(".planning-exact-input").querySelector("[data-exact]");
+          stepExactValue(item, input, Number(button.dataset.stepDirection));
+        });
+      });
       card.querySelector("[data-interval-toggle]").addEventListener("click", () => collapseOthers(item));
       card.querySelector("[data-remove-interval]").addEventListener("click", () => requestIntervalRemoval(item));
-      field(card, "start_date").addEventListener("blur", () => {
-        if (item.pendingDateChange) commitStartDate(item);
+      field(card, "start_date").addEventListener("pointerdown", () => {
+        if (isIPad) {
+          window.clearTimeout(item.dateCommitTimer);
+          item.pickerOpenedAt = performance.now();
+        }
+      });
+      field(card, "start_date").addEventListener("blur", (event) => {
+        if (!isIPad || event.currentTarget.value === item.acceptedStart) return;
+        const remainingDelay = Math.max(0, 300 - (performance.now() - item.pickerOpenedAt));
+        item.dateCommitTimer = window.setTimeout(() => {
+          if (field(card, "start_date").value !== item.acceptedStart) commitStartDate(item);
+        }, remainingDelay);
       });
       card.addEventListener("input", (event) => {
         const input = event.target;
@@ -563,8 +605,10 @@
       });
       card.addEventListener("change", (event) => {
         if (event.target.dataset.field === "start_date") {
-          if (isIPad) item.pendingDateChange = true;
-          else commitStartDate(item);
+          if (event.target.value === item.acceptedStart) return;
+          if (isIPad && performance.now() - item.pickerOpenedAt < 300) return;
+          window.clearTimeout(item.dateCommitTimer);
+          commitStartDate(item);
           return;
         }
         const exactName = event.target.dataset.exact;

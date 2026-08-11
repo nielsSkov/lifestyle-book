@@ -589,7 +589,7 @@ input {
 
 .planning-exact-input {
   display: flex;
-  width: 132px;
+  width: 154px;
   min-height: 42px;
   align-items: center;
   border: 1px solid #4b405d;
@@ -604,6 +604,18 @@ input {
   text-align: right;
 }
 
+.planning-exact-input input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.planning-exact-input input[type="number"]::-webkit-inner-spin-button,
+.planning-exact-input input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 .planning-exact-input span {
   padding: 0 9px 0 5px;
   color: #a99db9;
@@ -611,8 +623,34 @@ input {
   font-weight: 700;
 }
 
+.planning-stepper {
+  display: grid;
+  width: 27px;
+  align-self: stretch;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  border-left: 1px solid #4b405d;
+}
+
+.planning-stepper button {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  color: #a99db9;
+  background: #21192e;
+  font-size: 0.55rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.planning-stepper button:first-child {
+  border-bottom: 1px solid #4b405d;
+}
+
 .taper-exact-input {
-  width: 82px;
+  width: 108px;
 }
 
 .taper-exact-input input {
