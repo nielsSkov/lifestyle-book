@@ -89,6 +89,9 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
 
     assert response.status_code == 200
     assert b"<h1>Weight Plan</h1>" in response.data
+    assert b"Back to Weight" not in response.data
+    assert b'href="/weight" aria-current="page"' not in response.data
+    assert response.data.count(b'aria-current="page"') == 0
     assert b"Add Interval</button>" in response.data
     assert b"<h2>Plan Intervals</h2>" in response.data
     assert b"data-interval-list" in response.data
@@ -116,6 +119,10 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"isIPad" not in response.data
     assert b"data-step-direction" in response.data
     assert b"stepExactValue(item" in response.data
+    assert b"data-interval-title" not in response.data
+    assert b"collapseOthers(isOpen ? null : item)" in response.data
+    assert b"Discard this candidate plan?" in response.data
+    assert b'addEventListener("beforeunload"' in response.data
     assert b"const complete = chronologicalIntervals().filter" in response.data
     assert b"if (item.pendingReorder) reorderIntervals(item)" in response.data
     assert b"Use Selected Date" not in response.data

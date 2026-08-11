@@ -6,7 +6,6 @@
       <h1>Weight Plan</h1>
       <p class="planning-copy">Build and compare a candidate plan against your recorded weight and active plan.</p>
     </div>
-    <a class="back-link" href="{{ url_for('weight') }}">Back to Weight</a>
   </section>
 
   <div class="planning-workspace">
@@ -37,11 +36,22 @@
     </form>
   </dialog>
 
+  <dialog class="planning-confirm-dialog" data-leave-dialog>
+    <form method="dialog">
+      <p class="eyebrow">Leave Weight Plan</p>
+      <h2>Discard this candidate plan?</h2>
+      <p>Your interval adjustments have not been saved and will be lost.</p>
+      <div class="planning-confirm-actions">
+        <button class="planning-confirm-cancel" type="submit" value="cancel">Keep Editing</button>
+        <button class="planning-confirm-remove" type="submit" value="discard">Discard and Leave</button>
+      </div>
+    </form>
+  </dialog>
+
   <template id="planning-interval-template">
     <section class="planning-interval-card" data-interval-card>
       <button class="interval-summary-button" type="button" data-interval-toggle aria-expanded="true">
-        <span data-interval-title>Interval</span>
-        <small data-interval-summary>Choose a start date</small>
+        <span data-interval-summary>Choose a start date</span>
       </button>
       <div class="interval-body" data-interval-body>
         <div class="planning-field planning-date-field">
@@ -100,6 +110,7 @@
     const status = document.querySelector("[data-planning-status]");
     const template = document.getElementById("planning-interval-template");
     const removeDialog = document.querySelector("[data-remove-dialog]");
+    const leaveDialog = document.querySelector("[data-leave-dialog]");
     const plotlyConfig = {{ plotly_config | tojson }};
     const baseFigure = {{ graph_json | safe }};
     const plotElement = document.getElementById("planning-weight-plot");
@@ -120,6 +131,8 @@
     let previewController = null;
     let previewVersion = 0;
     let pendingRemoval = null;
+    let pendingNavigation = null;
+    let allowNavigation = false;
 
     function field(card, name) { return card.querySelector(`[data-field="${name}"]`); }
     function exact(card, name) { return card.querySelector(`[data-exact="${name}"]`); }
@@ -243,6 +256,11 @@
       }
     }
 
+    function toggleInterval(item) {
+      const isOpen = !item.card.querySelector("[data-interval-body]").hidden;
+      collapseOthers(isOpen ? null : item);
+    }
+
     function chronologicalIntervals() {
       return [...intervals].sort((first, second) => {
         const firstDate = field(first.card, "start_date").value || "9999-12-31";
@@ -257,7 +275,6 @@
         if (intervalList.children[index] !== item.card) {
           intervalList.insertBefore(item.card, intervalList.children[index] ?? null);
         }
-        item.card.querySelector("[data-interval-title]").textContent = `Interval ${index + 1}`;
         item.pendingReorder = false;
       });
       if (active) collapseOthers(active);
@@ -489,7 +506,6 @@
       item.card.remove();
       reorderIntervals();
       emptyCopy.hidden = intervals.length > 0;
-      if (intervals.length) collapseOthers(intervals.at(-1));
       schedulePreview();
     }
 
@@ -532,6 +548,46 @@
       removeDialog.returnValue = "";
     });
 
+    leaveDialog.addEventListener("close", () => {
+      if (leaveDialog.returnValue === "discard" && pendingNavigation) {
+        allowNavigation = true;
+        window.location.assign(pendingNavigation);
+      }
+      pendingNavigation = null;
+      leaveDialog.returnValue = "";
+    });
+
+    document.addEventListener("click", (event) => {
+      const link = event.target.closest("a[href]");
+      if (
+        !link
+        || !intervals.length
+        || allowNavigation
+        || event.button !== 0
+        || event.metaKey
+        || event.ctrlKey
+        || event.shiftKey
+        || event.altKey
+      ) return;
+      event.preventDefault();
+      pendingNavigation = link.href;
+      if (typeof leaveDialog.showModal === "function") leaveDialog.showModal();
+      else if (window.confirm("Discard this candidate plan and leave?")) {
+        allowNavigation = true;
+        window.location.assign(pendingNavigation);
+      }
+    });
+
+    window.addEventListener("beforeunload", (event) => {
+      if (!intervals.length || allowNavigation) return;
+      event.preventDefault();
+      event.returnValue = "";
+    });
+
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) allowNavigation = false;
+    });
+
     function addInterval() {
       reorderIntervals();
       if (intervals.length >= 20) {
@@ -552,7 +608,6 @@
       const fragment = template.content.cloneNode(true);
       const card = fragment.querySelector("[data-interval-card]");
       const item = {id: nextId++, card, initialized: false, endDate: null, acceptedEndDate: null, defaultsVersion: 0, acceptedStart: "", acceptedDuration: null, pendingReorder: false};
-      card.querySelector("[data-interval-title]").textContent = `Interval ${intervals.length + 1}`;
       for (const label of card.querySelectorAll("[data-label]")) {
         const name = label.dataset.label;
         const input = field(card, name) ?? exact(card, name);
@@ -565,7 +620,7 @@
           stepExactValue(item, input, Number(button.dataset.stepDirection));
         });
       });
-      card.querySelector("[data-interval-toggle]").addEventListener("click", () => collapseOthers(item));
+      card.querySelector("[data-interval-toggle]").addEventListener("click", () => toggleInterval(item));
       card.querySelector("[data-remove-interval]").addEventListener("click", () => requestIntervalRemoval(item));
       field(card, "start_date").addEventListener("blur", () => {
         if (item.pendingReorder) reorderIntervals(item);

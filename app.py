@@ -145,7 +145,7 @@ def weight_plan():
     )
     return render_template(
         "weight_plan.html",
-        active_section="weight",
+        active_section="weight-plan",
         today=current_date(),
         start_weight=start_weight,
         duration_days=duration_days,
