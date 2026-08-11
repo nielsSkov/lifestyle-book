@@ -80,7 +80,7 @@
         <div class="planning-field">
           <div class="planning-label-row">
             <label data-label="duration_days">Duration</label>
-            <div class="planning-exact-input"><input data-exact="duration_days" type="number" inputmode="numeric" min="1" max="{{ max_duration_days }}" step="1" value="{{ duration_days }}" aria-label="Exact duration" required><span>days</span><div class="planning-stepper"><button type="button" data-step-direction="1" aria-label="Increase duration">&#9650;</button><button type="button" data-step-direction="-1" aria-label="Decrease duration">&#9660;</button></div></div>
+            <div class="planning-exact-input"><input data-exact="duration_days" type="text" inputmode="numeric" data-min="1" data-max="{{ max_duration_days }}" data-step="1" value="{{ duration_days }}" aria-label="Exact duration" required><span>days</span><div class="planning-stepper"><button type="button" data-step-direction="1" aria-label="Increase duration">&#9650;</button><button type="button" data-step-direction="-1" aria-label="Decrease duration">&#9660;</button></div></div>
           </div>
           <p class="planning-field-error" data-exact-error="duration_days" aria-live="polite"></p>
           <input data-range="duration_days" type="range" min="{{ duration_range_min }}" max="{{ duration_range_max }}" step="1" value="{{ duration_days }}" data-hard-min="1" data-hard-max="{{ max_duration_days }}" data-window-radius="15" aria-label="Duration slider">
@@ -133,10 +133,62 @@
     let pendingRemoval = null;
     let pendingNavigation = null;
     let allowNavigation = false;
+    const draftStorageKey = "lifestyle-book.weight-plan-draft.v1";
 
     function field(card, name) { return card.querySelector(`[data-field="${name}"]`); }
     function exact(card, name) { return card.querySelector(`[data-exact="${name}"]`); }
     function range(card, name) { return card.querySelector(`[data-range="${name}"]`); }
+
+    function saveDraft() {
+      try {
+        if (!intervals.length) {
+          sessionStorage.removeItem(draftStorageKey);
+          return;
+        }
+        const draft = chronologicalIntervals().map((item) => ({
+          start_date: field(item.card, "start_date").value,
+          start_weight: exact(item.card, "start_weight").value,
+          target_weight: exact(item.card, "target_weight").value,
+          duration_days: exact(item.card, "duration_days").value,
+          taper: exact(item.card, "taper").value,
+          initialized: item.initialized,
+          initial_weight: item.pendingInitialWeight,
+          open: !item.card.querySelector("[data-interval-body]").hidden,
+        }));
+        sessionStorage.setItem(draftStorageKey, JSON.stringify(draft));
+      } catch (_error) {
+        // Browser storage may be unavailable in private browsing modes.
+      }
+    }
+
+    function clearDraft() {
+      try {
+        sessionStorage.removeItem(draftStorageKey);
+      } catch (_error) {
+        // Navigation must still work when browser storage is unavailable.
+      }
+    }
+
+    function discardCandidate() {
+      clearDraft();
+      for (const item of intervals) item.defaultsVersion += 1;
+      cancelPendingPreview();
+      intervals = [];
+      intervalList.replaceChildren();
+      emptyCopy.hidden = false;
+      displayedFigure = baseFigure;
+      plotUpdates = plotUpdates.then(() => renderFigure(baseFigure)).catch(() => {});
+    }
+
+    function loadDraft() {
+      try {
+        const draft = JSON.parse(sessionStorage.getItem(draftStorageKey));
+        return Array.isArray(draft) ? draft.slice(0, 20) : [];
+      } catch (_error) {
+        discardCandidate();
+        return [];
+      }
+    }
 
     function numberValue(input) {
       return Number(input.value.replace(",", "."));
@@ -259,6 +311,7 @@
     function toggleInterval(item) {
       const isOpen = !item.card.querySelector("[data-interval-body]").hidden;
       collapseOthers(isOpen ? null : item);
+      saveDraft();
     }
 
     function chronologicalIntervals() {
@@ -286,14 +339,14 @@
       let duration = durationDays ?? numberValue(durationInput);
       if (
         (!Number.isInteger(duration)
-          || duration < Number(durationInput.min)
-          || duration > Number(durationInput.max))
+          || duration < Number(durationInput.dataset.min ?? durationInput.min)
+          || duration > Number(durationInput.dataset.max ?? durationInput.max))
         && item.acceptedDuration !== null
       ) duration = item.acceptedDuration;
       if (
         !Number.isInteger(duration)
-        || duration < Number(durationInput.min)
-        || duration > Number(durationInput.max)
+        || duration < Number(durationInput.dataset.min ?? durationInput.min)
+        || duration > Number(durationInput.dataset.max ?? durationInput.max)
       ) return null;
       const end = addDays(startDate, duration);
       return end ? {start: startDate, end} : null;
@@ -378,6 +431,7 @@
     }
 
     function schedulePreview() {
+      saveDraft();
       window.clearTimeout(previewTimer);
       previewController?.abort();
       previewVersion += 1;
@@ -433,9 +487,11 @@
       }
     }
 
-    async function initializeInterval(item, initialWeight = null) {
+    async function initializeInterval(item, initialWeight = null, persistPending = true) {
       const startDate = field(item.card, "start_date").value;
       if (!startDate) { item.initialized = false; schedulePreview(); return; }
+      item.pendingInitialWeight = initialWeight;
+      if (persistPending) saveDraft();
       const defaultsVersion = ++item.defaultsVersion;
       item.card.setAttribute("aria-busy", "true");
       for (const input of item.card.querySelectorAll("input:not([type=date])")) input.disabled = true;
@@ -452,6 +508,7 @@
         item.acceptedStart = startDate;
         item.acceptedDuration = defaults.duration_days;
         item.initialized = true;
+        item.pendingInitialWeight = null;
         schedulePreview();
       } catch (error) { if (defaultsVersion === item.defaultsVersion) setStatus(error.message, "error"); }
       finally { if (defaultsVersion === item.defaultsVersion) { item.card.setAttribute("aria-busy", "false"); for (const input of item.card.querySelectorAll("input")) input.disabled = false; } }
@@ -497,6 +554,7 @@
       item.endDate = null;
       setValue(item.card, name, next);
       setExactError(input);
+      saveDraft();
       if (item.initialized) schedulePreview();
     }
 
@@ -532,6 +590,7 @@
       item.acceptedStart = proposedStart;
       setDateError(item);
       item.pendingReorder = true;
+      saveDraft();
       if (!dateInput.value) {
         item.initialized = false;
         item.card.setAttribute("aria-busy", "false");
@@ -550,6 +609,7 @@
 
     leaveDialog.addEventListener("close", () => {
       if (leaveDialog.returnValue === "discard" && pendingNavigation) {
+        discardCandidate();
         allowNavigation = true;
         window.location.assign(pendingNavigation);
       }
@@ -573,6 +633,7 @@
       pendingNavigation = link.href;
       if (typeof leaveDialog.showModal === "function") leaveDialog.showModal();
       else if (window.confirm("Discard this candidate plan and leave?")) {
+        discardCandidate();
         allowNavigation = true;
         window.location.assign(pendingNavigation);
       }
@@ -585,29 +646,34 @@
     });
 
     window.addEventListener("pageshow", (event) => {
-      if (event.persisted) allowNavigation = false;
+      if (!event.persisted) return;
+      allowNavigation = false;
+      if (!intervals.length) {
+        displayedFigure = baseFigure;
+        plotUpdates = plotUpdates.then(() => renderFigure(baseFigure)).catch(() => {});
+      }
     });
 
-    function addInterval() {
-      reorderIntervals();
+    function addInterval(draft = null) {
+      if (!draft) reorderIntervals();
       if (intervals.length >= 20) {
         setStatus("A candidate plan can contain at most 20 intervals.", "error");
         return;
       }
       const previous = intervals.at(-1);
-      if (previous && (!previous.initialized || !previous.endDate)) {
+      if (!draft && previous && (!previous.initialized || !previous.endDate)) {
         collapseOthers(previous);
         setStatus("Complete the current interval before adding another.", "error");
         return;
       }
-      const nextStart = previous?.endDate ? addDays(previous.endDate, 1) : "";
-      if (previous && !nextStart) {
+      const nextStart = !draft && previous?.endDate ? addDays(previous.endDate, 1) : "";
+      if (!draft && previous && !nextStart) {
         setStatus("There is no supported date after the current interval.", "error");
         return;
       }
       const fragment = template.content.cloneNode(true);
       const card = fragment.querySelector("[data-interval-card]");
-      const item = {id: nextId++, card, initialized: false, endDate: null, acceptedEndDate: null, defaultsVersion: 0, acceptedStart: "", acceptedDuration: null, pendingReorder: false};
+      const item = {id: nextId++, card, initialized: false, endDate: null, acceptedEndDate: null, defaultsVersion: 0, acceptedStart: "", acceptedDuration: null, pendingInitialWeight: null, pendingReorder: false};
       for (const label of card.querySelectorAll("[data-label]")) {
         const name = label.dataset.label;
         const input = field(card, name) ?? exact(card, name);
@@ -628,7 +694,7 @@
       card.addEventListener("input", (event) => {
         const input = event.target;
         const name = input.dataset.exact ?? input.dataset.range;
-        if (!name || !item.initialized) return;
+        if (!name) return;
         cancelPendingPreview();
         item.endDate = null;
         const partner = input.dataset.exact ? range(card, name) : exact(card, name);
@@ -639,7 +705,10 @@
           partner.value = value;
           updateRangeAppearance(range(card, name));
         }
-        if (input.dataset.exact) return;
+        if (input.dataset.exact) {
+          saveDraft();
+          return;
+        }
         if (
           name === "duration_days"
           && item.acceptedDuration !== null
@@ -648,6 +717,7 @@
           setValue(card, "duration_days", item.acceptedDuration);
           setExactError(exact(card, "duration_days"), "That duration would overlap another interval.");
           item.endDate = item.acceptedEndDate;
+          saveDraft();
           return;
         }
         shiftRangeWindowAtEdge(card, name);
@@ -674,6 +744,7 @@
             setValue(card, "duration_days", item.acceptedDuration);
             setExactError(event.target, "That duration would overlap another interval.");
             item.endDate = item.acceptedEndDate;
+            saveDraft();
             return;
           }
           schedulePreview();
@@ -687,6 +758,37 @@
       intervalList.append(fragment);
       emptyCopy.hidden = true;
       setStatus("");
+      if (draft) {
+        const startDate = typeof draft.start_date === "string" ? draft.start_date : "";
+        field(card, "start_date").value = startDate;
+        item.acceptedStart = startDate;
+        for (const name of ["start_weight", "target_weight", "duration_days", "taper"]) {
+          const input = exact(card, name);
+          input.value = typeof draft[name] === "string" ? draft[name] : "";
+          const value = numberValue(input);
+          const minimum = Number(input.dataset.min ?? input.min);
+          const maximum = Number(input.dataset.max ?? input.max);
+          if (Number.isFinite(value) && value >= minimum && value <= maximum) {
+            setRangeWindow(card, name, value);
+          }
+          validateExactInput(input);
+        }
+        item.initialized = Boolean(startDate) && draft.initialized === true;
+        item.pendingInitialWeight = typeof draft.initial_weight === "number"
+          ? draft.initial_weight
+          : null;
+        const duration = numberValue(exact(card, "duration_days"));
+        item.acceptedDuration = item.initialized && Number.isInteger(duration) ? duration : null;
+        item.card.querySelector("[data-interval-body]").hidden = !draft.open;
+        item.card.querySelector("[data-interval-toggle]").setAttribute(
+          "aria-expanded",
+          String(Boolean(draft.open)),
+        );
+        if (startDate && !item.initialized) {
+          initializeInterval(item, item.pendingInitialWeight, false);
+        }
+        return item;
+      }
       collapseOthers(item);
       if (previous?.initialized && previous.endDate) {
         field(card, "start_date").value = nextStart;
@@ -697,8 +799,22 @@
         item.acceptedStart = planner.dataset.today;
         initializeInterval(item);
       }
+      saveDraft();
+      return item;
     }
 
-    document.querySelector("[data-add-interval]").addEventListener("click", addInterval);
+    const savedDraft = loadDraft();
+    let restoredOpenInterval = null;
+    for (const draft of savedDraft) {
+      const item = addInterval(draft);
+      if (item && draft.open) restoredOpenInterval = item;
+    }
+    if (intervals.length) {
+      reorderIntervals();
+      collapseOthers(restoredOpenInterval);
+      schedulePreview();
+    }
+
+    document.querySelector("[data-add-interval]").addEventListener("click", () => addInterval());
   </script>
 {% endblock %}

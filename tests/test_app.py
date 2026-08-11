@@ -111,7 +111,6 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b'value="182"' in response.data
     assert response.data.index(b"data-interval-list") < response.data.index(b"data-add-interval")
     assert b'class="planning-confirm-dialog" data-remove-dialog' in response.data
-    assert b"input.dataset.exact) return;" in response.data
     assert b"proposedDurationOverlaps(item" in response.data
     assert b"shiftRangeWindowAtEdge(card, name)" in response.data
     assert b'data-today="2026-08-03"' in response.data
@@ -123,6 +122,9 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"collapseOthers(isOpen ? null : item)" in response.data
     assert b"Discard this candidate plan?" in response.data
     assert b'addEventListener("beforeunload"' in response.data
+    assert b"sessionStorage.setItem(draftStorageKey" in response.data
+    assert b"const savedDraft = loadDraft()" in response.data
+    assert b"clearDraft();" in response.data
     assert b"const complete = chronologicalIntervals().filter" in response.data
     assert b"if (item.pendingReorder) reorderIntervals(item)" in response.data
     assert b"Use Selected Date" not in response.data
