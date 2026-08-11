@@ -36,18 +36,6 @@
     </form>
   </dialog>
 
-  <dialog class="planning-confirm-dialog" data-leave-dialog>
-    <form method="dialog">
-      <p class="eyebrow">Leave Weight Plan</p>
-      <h2>Discard this candidate plan?</h2>
-      <p>Your interval adjustments have not been saved and will be lost.</p>
-      <div class="planning-confirm-actions">
-        <button class="planning-confirm-cancel" type="submit" value="cancel">Keep Editing</button>
-        <button class="planning-confirm-remove" type="submit" value="discard">Discard and Leave</button>
-      </div>
-    </form>
-  </dialog>
-
   <template id="planning-interval-template">
     <section class="planning-interval-card" data-interval-card>
       <button class="interval-summary-button" type="button" data-interval-toggle aria-expanded="true">
@@ -110,7 +98,6 @@
     const status = document.querySelector("[data-planning-status]");
     const template = document.getElementById("planning-interval-template");
     const removeDialog = document.querySelector("[data-remove-dialog]");
-    const leaveDialog = document.querySelector("[data-leave-dialog]");
     const plotlyConfig = {{ plotly_config | tojson }};
     const baseFigure = {{ graph_json | safe }};
     const plotElement = document.getElementById("planning-weight-plot");
@@ -131,8 +118,6 @@
     let previewController = null;
     let previewVersion = 0;
     let pendingRemoval = null;
-    let pendingNavigation = null;
-    let allowNavigation = false;
     const draftStorageKey = "lifestyle-book.weight-plan-draft.v1";
 
     function field(card, name) { return card.querySelector(`[data-field="${name}"]`); }
@@ -605,53 +590,6 @@
       if (removeDialog.returnValue === "remove" && pendingRemoval) removeInterval(pendingRemoval);
       pendingRemoval = null;
       removeDialog.returnValue = "";
-    });
-
-    leaveDialog.addEventListener("close", () => {
-      if (leaveDialog.returnValue === "discard" && pendingNavigation) {
-        discardCandidate();
-        allowNavigation = true;
-        window.location.assign(pendingNavigation);
-      }
-      pendingNavigation = null;
-      leaveDialog.returnValue = "";
-    });
-
-    document.addEventListener("click", (event) => {
-      const link = event.target.closest("a[href]");
-      if (
-        !link
-        || !intervals.length
-        || allowNavigation
-        || event.button !== 0
-        || event.metaKey
-        || event.ctrlKey
-        || event.shiftKey
-        || event.altKey
-      ) return;
-      event.preventDefault();
-      pendingNavigation = link.href;
-      if (typeof leaveDialog.showModal === "function") leaveDialog.showModal();
-      else if (window.confirm("Discard this candidate plan and leave?")) {
-        discardCandidate();
-        allowNavigation = true;
-        window.location.assign(pendingNavigation);
-      }
-    });
-
-    window.addEventListener("beforeunload", (event) => {
-      if (!intervals.length || allowNavigation) return;
-      event.preventDefault();
-      event.returnValue = "";
-    });
-
-    window.addEventListener("pageshow", (event) => {
-      if (!event.persisted) return;
-      allowNavigation = false;
-      if (!intervals.length) {
-        displayedFigure = baseFigure;
-        plotUpdates = plotUpdates.then(() => renderFigure(baseFigure)).catch(() => {});
-      }
     });
 
     function addInterval(draft = null) {

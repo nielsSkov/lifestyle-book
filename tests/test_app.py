@@ -120,8 +120,8 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"stepExactValue(item" in response.data
     assert b"data-interval-title" not in response.data
     assert b"collapseOthers(isOpen ? null : item)" in response.data
-    assert b"Discard this candidate plan?" in response.data
-    assert b'addEventListener("beforeunload"' in response.data
+    assert b"Discard this candidate plan?" not in response.data
+    assert b'addEventListener("beforeunload"' not in response.data
     assert b"sessionStorage.setItem(draftStorageKey" in response.data
     assert b"const savedDraft = loadDraft()" in response.data
     assert b"clearDraft();" in response.data
