@@ -243,15 +243,22 @@
       }
     }
 
-    function reorderIntervals(active = null) {
-      intervals.sort((first, second) => {
+    function chronologicalIntervals() {
+      return [...intervals].sort((first, second) => {
         const firstDate = field(first.card, "start_date").value || "9999-12-31";
         const secondDate = field(second.card, "start_date").value || "9999-12-31";
         return firstDate.localeCompare(secondDate) || first.id - second.id;
       });
+    }
+
+    function reorderIntervals(active = null) {
+      intervals = chronologicalIntervals();
       intervals.forEach((item, index) => {
-        intervalList.append(item.card);
+        if (intervalList.children[index] !== item.card) {
+          intervalList.insertBefore(item.card, intervalList.children[index] ?? null);
+        }
         item.card.querySelector("[data-interval-title]").textContent = `Interval ${index + 1}`;
+        item.pendingReorder = false;
       });
       if (active) collapseOthers(active);
     }
@@ -301,7 +308,7 @@
 
     function validateIntervalOverlaps() {
       intervals.forEach((item) => setDateError(item));
-      const dated = intervals.filter((item) => intervalBounds(item));
+      const dated = chronologicalIntervals().filter((item) => intervalBounds(item));
       for (let index = 1; index < dated.length; index += 1) {
         const previous = intervalBounds(dated[index - 1]);
         const current = intervalBounds(dated[index]);
@@ -357,8 +364,7 @@
       window.clearTimeout(previewTimer);
       previewController?.abort();
       previewVersion += 1;
-      reorderIntervals();
-      const complete = intervals.filter((item) => item.initialized);
+      const complete = chronologicalIntervals().filter((item) => item.initialized);
       if (!complete.length) { setStatus(""); resetGraph(); return; }
       complete.forEach((item) => item.card.querySelectorAll("[data-exact]").forEach(validateExactInput));
       if (complete.some((item) => [...item.card.querySelectorAll("input")].some((input) => !input.checkValidity()))) {
@@ -509,7 +515,7 @@
       item.endDate = null;
       item.acceptedStart = proposedStart;
       setDateError(item);
-      reorderIntervals(item);
+      item.pendingReorder = true;
       if (!dateInput.value) {
         item.initialized = false;
         item.card.setAttribute("aria-busy", "false");
@@ -527,6 +533,7 @@
     });
 
     function addInterval() {
+      reorderIntervals();
       if (intervals.length >= 20) {
         setStatus("A candidate plan can contain at most 20 intervals.", "error");
         return;
@@ -544,7 +551,7 @@
       }
       const fragment = template.content.cloneNode(true);
       const card = fragment.querySelector("[data-interval-card]");
-      const item = {id: nextId++, card, initialized: false, endDate: null, acceptedEndDate: null, defaultsVersion: 0, acceptedStart: "", acceptedDuration: null};
+      const item = {id: nextId++, card, initialized: false, endDate: null, acceptedEndDate: null, defaultsVersion: 0, acceptedStart: "", acceptedDuration: null, pendingReorder: false};
       card.querySelector("[data-interval-title]").textContent = `Interval ${intervals.length + 1}`;
       for (const label of card.querySelectorAll("[data-label]")) {
         const name = label.dataset.label;
@@ -560,6 +567,9 @@
       });
       card.querySelector("[data-interval-toggle]").addEventListener("click", () => collapseOthers(item));
       card.querySelector("[data-remove-interval]").addEventListener("click", () => requestIntervalRemoval(item));
+      field(card, "start_date").addEventListener("blur", () => {
+        if (item.pendingReorder) reorderIntervals(item);
+      });
       card.addEventListener("input", (event) => {
         const input = event.target;
         const name = input.dataset.exact ?? input.dataset.range;
