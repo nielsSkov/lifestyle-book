@@ -20,6 +20,7 @@ ACHIEVEMENTS = (
     Achievement("swim", "Swim", "movement", "#61a9c4", "#34505d", "#377992", "swim"),
     Achievement("dance", "Dance", "movement", "#b77bc9", "#563d60", "#7e4695", "dance"),
     Achievement("bike", "Bike", "movement", "#d0a64f", "#62522d", "#927126", "bike"),
+    Achievement("yoga", "Yoga", "movement", "#9b8bd1", "#4a4268", "#6f5ca5", "yoga"),
     Achievement(
         "roller_skate",
         "Roller Skate",
