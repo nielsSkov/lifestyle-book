@@ -40,6 +40,7 @@ def test_sleep_figure_uses_night_buckets_and_fills_only_complete_nights():
         "2026-08-04",
     ]
     assert sleep_trace["customdata"][0] == ["1–2 Aug<br>2026", "23:00"]
+    assert sleep_trace["hovertemplate"] == "%{customdata[1]}<extra>%{fullData.name}</extra>"
     assert sleep_trace["y"] == [23.0, 22.5, None, 22.0]
     assert wake_trace["y"] == [31.0, 32.0, 31.0, 30.0]
     assert sleep_trace["connectgaps"] is False
@@ -50,6 +51,7 @@ def test_sleep_figure_uses_night_buckets_and_fills_only_complete_nights():
         "2026-07-31T12:00:00",
         "2026-08-04T12:00:00",
     ]
+    assert serialized["layout"]["xaxis"]["unifiedhovertitle"]["text"] == "%{customdata[0]}"
 
 
 def test_sleep_figure_supports_empty_data():
@@ -81,12 +83,14 @@ def test_sleep_duration_figure_uses_same_night_buckets_and_complete_records():
         ["4–5 Aug<br>2026", "8 h 15 min"],
     ]
     assert trace["marker"]["color"] == "#8354e8"
+    assert trace["hovertemplate"] == "%{customdata[1]}<extra>Sleep duration</extra>"
     assert serialized["layout"]["xaxis"]["type"] == "date"
     assert "tickformat" not in serialized["layout"]["xaxis"]
     assert serialized["layout"]["xaxis"]["range"] == [
         "2026-07-31T12:00:00",
         "2026-08-04T12:00:00",
     ]
+    assert serialized["layout"]["xaxis"]["unifiedhovertitle"]["text"] == "%{customdata[0]}"
     assert serialized["layout"]["yaxis"]["title"]["text"] == "Hours"
     assert serialized["layout"]["yaxis"]["dtick"] == 1
 

@@ -79,9 +79,7 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
                     connectgaps=False,
                     line={"color": colour, "width": 2.2},
                     marker={"color": colour, "size": 7},
-                    hovertemplate=(
-                        "%{customdata[0]}<br>%{customdata[1]}<extra>%{fullData.name}</extra>"
-                    ),
+                    hovertemplate="%{customdata[1]}<extra>%{fullData.name}</extra>",
                 )
             )
 
@@ -117,6 +115,7 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
         xaxis={
             "title": "Night",
             "type": "date",
+            "unifiedhovertitle": {"text": "%{customdata[0]}"},
             "tickangle": 0,
             "automargin": True,
             "gridcolor": "#383047",
@@ -166,7 +165,7 @@ def build_sleep_duration_figure(records: list[SleepRecord]) -> go.Figure:
                     )
                 ],
                 marker={"color": "#8354e8"},
-                hovertemplate=("%{customdata[0]}<br>%{customdata[1]}<extra>Sleep duration</extra>"),
+                hovertemplate="%{customdata[1]}<extra>Sleep duration</extra>",
                 showlegend=False,
             )
         )
@@ -192,6 +191,7 @@ def build_sleep_duration_figure(records: list[SleepRecord]) -> go.Figure:
         xaxis={
             "title": "Night",
             "type": "date",
+            "unifiedhovertitle": {"text": "%{customdata[0]}"},
             "tickangle": 0,
             "automargin": True,
             "gridcolor": "#383047",
