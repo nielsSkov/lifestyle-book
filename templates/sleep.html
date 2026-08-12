@@ -82,8 +82,57 @@
       ),
     ]);
 
+    function formatNightTicks(plot) {
+      const axis = plot._fullLayout?.xaxis;
+      const tickNodes = plot.querySelectorAll(".xaxislayer-above .xtick text");
+      if (!axis?.range) return;
+
+      const rangeDates = axis.range.map((value) => new Date(value));
+      const visibleDays = Math.abs(
+        Date.UTC(
+          rangeDates[1].getFullYear(),
+          rangeDates[1].getMonth(),
+          rangeDates[1].getDate(),
+        ) - Date.UTC(
+          rangeDates[0].getFullYear(),
+          rangeDates[0].getMonth(),
+          rangeDates[0].getDate(),
+        )
+      ) / 86400000;
+      tickNodes.forEach((node) => {
+        const nativeLabel = node.parentElement.__data__?.text;
+        const tickDate = new Date(node.parentElement.__data__?.x);
+        if (visibleDays <= 31 && Number.isFinite(tickDate.getTime()) && tickDate.getUTCHours() === 0) {
+          const nextDate = new Date(tickDate);
+          nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+          const month = new Intl.DateTimeFormat("en-GB", {month: "short", timeZone: "UTC"});
+          node.textContent = tickDate.getUTCMonth() === nextDate.getUTCMonth()
+            ? `${tickDate.getUTCDate()}–${nextDate.getUTCDate()} ${month.format(tickDate)}`
+            : `${tickDate.getUTCDate()} ${month.format(tickDate)}–${nextDate.getUTCDate()} ${month.format(nextDate)}`;
+          return;
+        }
+        if (typeof nativeLabel === "string") {
+          const oneLineLabel = nativeLabel.replace(/<br\s*\/?>/gi, " ");
+          node.textContent = oneLineLabel;
+        }
+      });
+    }
+
     plotsReady.then((linkedPlots) => {
-      let syncingXAxes = false;
+      const expectedRanges = new WeakMap();
+      const fullRange = sleepFigure.layout.xaxis.range;
+
+      function rangeNumber(value) {
+        const parsed = new Date(value).getTime();
+        return Number.isFinite(parsed) ? parsed : Number(value);
+      }
+
+      function rangesMatch(first, second) {
+        return Array.isArray(first)
+          && Array.isArray(second)
+          && Math.abs(rangeNumber(first[0]) - rangeNumber(second[0])) < 1
+          && Math.abs(rangeNumber(first[1]) - rangeNumber(second[1])) < 1;
+      }
 
       function readXRange(update) {
         if (Array.isArray(update["xaxis.range"])) return update["xaxis.range"];
@@ -93,20 +142,28 @@
       }
 
       for (const source of linkedPlots) {
+        formatNightTicks(source);
+        source.on("plotly_afterplot", () => formatNightTicks(source));
         source.on("plotly_relayout", (update) => {
-          if (syncingXAxes) return;
           const range = readXRange(update);
           if (!range && update["xaxis.autorange"] !== true) return;
+          const expected = expectedRanges.get(source) ?? [];
+          const expectedIndex = range
+            ? expected.findIndex((candidate) => rangesMatch(range, candidate))
+            : -1;
+          if (expectedIndex >= 0) {
+            expected.splice(expectedIndex, 1);
+            return;
+          }
 
-          syncingXAxes = true;
-          const linkedUpdate = range ? {"xaxis.range": range} : {"xaxis.autorange": true};
-          Promise.all(
-            linkedPlots
-              .filter((target) => target !== source)
-              .map((target) => Plotly.relayout(target, linkedUpdate)),
-          ).finally(() => {
-            syncingXAxes = false;
-          });
+          const linkedRange = range ?? fullRange;
+          for (const target of linkedPlots) {
+            if (target === source && range) continue;
+            const queue = expectedRanges.get(target) ?? [];
+            queue.push(linkedRange);
+            expectedRanges.set(target, queue);
+            Plotly.relayout(target, {"xaxis.range": linkedRange});
+          }
         });
       }
     });

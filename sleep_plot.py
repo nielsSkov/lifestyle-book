@@ -20,7 +20,7 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
             records[0].night_start_date,
             records[-1].night_start_date,
         )
-        night_keys = [_night_label(day) for day in night_dates]
+        night_labels = [_night_label(day) for day in night_dates]
         for day in night_dates:
             record = records_by_date.get(day)
             sleep_events.append(record.sleep_at if record else None)
@@ -37,22 +37,22 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
                 index = run[0]
                 figure.add_trace(
                     go.Bar(
-                        x=[night_keys[index]],
+                        x=[night_dates[index]],
                         y=[upper_values[index] - lower_values[index]],
                         base=[lower_values[index]],
-                        width=0.7,
+                        width=0.7 * 86_400_000,
                         marker={"color": "rgba(139, 92, 246, 0.18)"},
                         hoverinfo="skip",
                         showlegend=False,
                     )
                 )
             else:
-                fill_keys = [night_keys[index] for index in run]
+                fill_dates = [night_dates[index] for index in run]
                 fill_lower = [lower_values[index] for index in run]
                 fill_upper = [upper_values[index] for index in run]
                 figure.add_trace(
                     go.Scatter(
-                        x=[*fill_keys, *reversed(fill_keys)],
+                        x=[*fill_dates, *reversed(fill_dates)],
                         y=[*fill_lower, *reversed(fill_upper)],
                         fill="toself",
                         fillcolor="rgba(139, 92, 246, 0.18)",
@@ -68,15 +68,20 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
         ):
             figure.add_trace(
                 go.Scatter(
-                    x=night_keys,
+                    x=night_dates,
                     y=values,
-                    customdata=[_format_time(value) for value in events],
+                    customdata=[
+                        [night_label, _format_time(value)]
+                        for night_label, value in zip(night_labels, events, strict=True)
+                    ],
                     mode="lines+markers",
                     name=name,
                     connectgaps=False,
                     line={"color": colour, "width": 2.2},
                     marker={"color": colour, "size": 7},
-                    hovertemplate=("%{x}<br>%{customdata}<extra>%{fullData.name}</extra>"),
+                    hovertemplate=(
+                        "%{customdata[0]}<br>%{customdata[1]}<extra>%{fullData.name}</extra>"
+                    ),
                 )
             )
 
@@ -111,10 +116,8 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
         },
         xaxis={
             "title": "Night",
-            "type": "category",
-            "categoryorder": "array",
-            "categoryarray": [_night_label(day) for day in night_dates],
-            "tickangle": -35,
+            "type": "date",
+            "tickangle": 0,
             "automargin": True,
             "gridcolor": "#383047",
             "linecolor": "#524762",
@@ -129,6 +132,7 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
             "fixedrange": False,
         },
     )
+    _set_sleep_x_range(figure, night_dates)
     return figure
 
 
@@ -142,7 +146,7 @@ def build_sleep_duration_figure(records: list[SleepRecord]) -> go.Figure:
             records[0].night_start_date,
             records[-1].night_start_date,
         )
-        night_keys = [_night_label(day) for day in night_dates]
+        night_labels = [_night_label(day) for day in night_dates]
         durations = []
         duration_labels = []
         for day in night_dates:
@@ -153,11 +157,16 @@ def build_sleep_duration_figure(records: list[SleepRecord]) -> go.Figure:
 
         figure.add_trace(
             go.Bar(
-                x=night_keys,
+                x=night_dates,
                 y=durations,
-                customdata=duration_labels,
+                customdata=[
+                    [night_label, duration_label]
+                    for night_label, duration_label in zip(
+                        night_labels, duration_labels, strict=True
+                    )
+                ],
                 marker={"color": "#8354e8"},
-                hovertemplate="%{x}<br>%{customdata}<extra>Sleep duration</extra>",
+                hovertemplate=("%{customdata[0]}<br>%{customdata[1]}<extra>Sleep duration</extra>"),
                 showlegend=False,
             )
         )
@@ -182,10 +191,8 @@ def build_sleep_duration_figure(records: list[SleepRecord]) -> go.Figure:
         margin={"l": 64, "r": 24, "t": 84, "b": 64},
         xaxis={
             "title": "Night",
-            "type": "category",
-            "categoryorder": "array",
-            "categoryarray": [_night_label(day) for day in night_dates],
-            "tickangle": -35,
+            "type": "date",
+            "tickangle": 0,
             "automargin": True,
             "gridcolor": "#383047",
             "linecolor": "#524762",
@@ -199,11 +206,22 @@ def build_sleep_duration_figure(records: list[SleepRecord]) -> go.Figure:
             "fixedrange": False,
         },
     )
+    _set_sleep_x_range(figure, night_dates)
     return figure
 
 
 def _daily_dates(start: date, end: date) -> list[date]:
     return [start + timedelta(days=offset) for offset in range((end - start).days + 1)]
+
+
+def _set_sleep_x_range(figure: go.Figure, night_dates: list[date]) -> None:
+    if night_dates:
+        figure.update_xaxes(
+            range=[
+                datetime.combine(night_dates[0], time()) - timedelta(hours=12),
+                datetime.combine(night_dates[-1], time()) + timedelta(hours=12),
+            ]
+        )
 
 
 def _event_hour(value: datetime | None, night_start_date: date) -> float:

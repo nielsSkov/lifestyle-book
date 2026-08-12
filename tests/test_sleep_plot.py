@@ -2,6 +2,8 @@ import json
 from datetime import date, datetime
 from typing import cast
 
+import pytest
+
 from sleep_data import SleepRecord
 from sleep_plot import build_sleep_duration_figure, build_sleep_figure
 
@@ -28,20 +30,26 @@ def test_sleep_figure_uses_night_buckets_and_fills_only_complete_nights():
     first_fill, second_fill, sleep_trace, wake_trace = serialized["data"]
     assert first_fill["fill"] == "toself"
     assert second_fill["type"] == "bar"
+    assert second_fill["width"] == pytest.approx(60_480_000)
     assert second_fill["base"] == [22.0]
     assert second_fill["y"] == [8.0]
     assert sleep_trace["x"] == [
-        "1–2 Aug<br>2026",
-        "2–3 Aug<br>2026",
-        "3–4 Aug<br>2026",
-        "4–5 Aug<br>2026",
+        "2026-08-01",
+        "2026-08-02",
+        "2026-08-03",
+        "2026-08-04",
     ]
+    assert sleep_trace["customdata"][0] == ["1–2 Aug<br>2026", "23:00"]
     assert sleep_trace["y"] == [23.0, 22.5, None, 22.0]
     assert wake_trace["y"] == [31.0, 32.0, 31.0, 30.0]
     assert sleep_trace["connectgaps"] is False
     assert wake_trace["connectgaps"] is False
     assert [sleep_trace["name"], wake_trace["name"]] == ["Sleep time", "Wake time"]
     assert serialized["layout"]["yaxis"]["tickvals"] == list(range(18, 37))
+    assert serialized["layout"]["xaxis"]["range"] == [
+        "2026-07-31T12:00:00",
+        "2026-08-04T12:00:00",
+    ]
 
 
 def test_sleep_figure_supports_empty_data():
@@ -63,18 +71,22 @@ def test_sleep_duration_figure_uses_same_night_buckets_and_complete_records():
 
     serialized = json.loads(cast(str, figure.to_json()))
     trace = serialized["data"][0]
-    expected_nights = [
-        "1–2 Aug<br>2026",
-        "2–3 Aug<br>2026",
-        "3–4 Aug<br>2026",
-        "4–5 Aug<br>2026",
-    ]
     assert trace["type"] == "bar"
-    assert trace["x"] == expected_nights
+    assert trace["x"] == ["2026-08-01", "2026-08-02", "2026-08-03", "2026-08-04"]
     assert trace["y"] == [8.0, None, None, 8.25]
-    assert trace["customdata"] == ["8 h 00 min", "", "", "8 h 15 min"]
+    assert trace["customdata"] == [
+        ["1–2 Aug<br>2026", "8 h 00 min"],
+        ["2–3 Aug<br>2026", ""],
+        ["3–4 Aug<br>2026", ""],
+        ["4–5 Aug<br>2026", "8 h 15 min"],
+    ]
     assert trace["marker"]["color"] == "#8354e8"
-    assert serialized["layout"]["xaxis"]["categoryarray"] == expected_nights
+    assert serialized["layout"]["xaxis"]["type"] == "date"
+    assert "tickformat" not in serialized["layout"]["xaxis"]
+    assert serialized["layout"]["xaxis"]["range"] == [
+        "2026-07-31T12:00:00",
+        "2026-08-04T12:00:00",
+    ]
     assert serialized["layout"]["yaxis"]["title"]["text"] == "Hours"
     assert serialized["layout"]["yaxis"]["dtick"] == 1
 

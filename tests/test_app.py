@@ -495,6 +495,9 @@ def test_sleep_page_exposes_entry_controls_and_chart_region(client):
     assert b'max="2026-08-02"' in response.data
     assert b'id="sleep-plot"' in response.data
     assert b"data-sleep-form" in response.data
+    assert b"function formatNightTicks(plot)" in response.data
+    assert b"visibleDays <= 31" in response.data
+    assert b"plotly_afterplot" in response.data
 
 
 def test_sleep_page_rejects_explicit_night_that_has_not_started(client):
