@@ -115,7 +115,7 @@ def build_sleep_figure(records: list[SleepRecord]) -> go.Figure:
         xaxis={
             "title": "Night",
             "type": "date",
-            "unifiedhovertitle": {"text": "%{customdata[0]}"},
+            "unifiedhovertitle": {"text": "%{x|%d %b %Y}"},
             "tickangle": 0,
             "automargin": True,
             "gridcolor": "#383047",
@@ -191,7 +191,7 @@ def build_sleep_duration_figure(records: list[SleepRecord]) -> go.Figure:
         xaxis={
             "title": "Night",
             "type": "date",
-            "unifiedhovertitle": {"text": "%{customdata[0]}"},
+            "unifiedhovertitle": {"text": "%{x|%d %b %Y}"},
             "tickangle": 0,
             "automargin": True,
             "gridcolor": "#383047",

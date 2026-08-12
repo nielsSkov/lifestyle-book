@@ -496,6 +496,8 @@ def test_sleep_page_exposes_entry_controls_and_chart_region(client):
     assert b'id="sleep-plot"' in response.data
     assert b"data-sleep-form" in response.data
     assert b"function formatNightTicks(plot)" in response.data
+    assert b"function installNightHoverTitle(plot)" in response.data
+    assert b"text.legendtitletext" in response.data
     assert b"visibleDays <= 31" in response.data
     assert b"plotly_afterplot" in response.data
 

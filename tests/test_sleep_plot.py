@@ -51,7 +51,7 @@ def test_sleep_figure_uses_night_buckets_and_fills_only_complete_nights():
         "2026-07-31T12:00:00",
         "2026-08-04T12:00:00",
     ]
-    assert serialized["layout"]["xaxis"]["unifiedhovertitle"]["text"] == "%{customdata[0]}"
+    assert serialized["layout"]["xaxis"]["unifiedhovertitle"]["text"] == "%{x|%d %b %Y}"
 
 
 def test_sleep_figure_supports_empty_data():
@@ -90,7 +90,7 @@ def test_sleep_duration_figure_uses_same_night_buckets_and_complete_records():
         "2026-07-31T12:00:00",
         "2026-08-04T12:00:00",
     ]
-    assert serialized["layout"]["xaxis"]["unifiedhovertitle"]["text"] == "%{customdata[0]}"
+    assert serialized["layout"]["xaxis"]["unifiedhovertitle"]["text"] == "%{x|%d %b %Y}"
     assert serialized["layout"]["yaxis"]["title"]["text"] == "Hours"
     assert serialized["layout"]["yaxis"]["dtick"] == 1
 

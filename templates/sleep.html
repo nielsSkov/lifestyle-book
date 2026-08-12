@@ -118,6 +118,19 @@
       });
     }
 
+    function installNightHoverTitle(plot) {
+      plot.on("plotly_hover", (event) => {
+        const nightLabel = event.points
+          .find((point) => typeof point.customdata?.[0] === "string")
+          ?.customdata[0]
+          .replace(/<br\s*\/?>/gi, " ");
+        const title = plot.querySelector(".hoverlayer > g.legend text.legendtitletext");
+        if (!nightLabel || !title) return;
+        title.textContent = nightLabel;
+        title.setAttribute("data-unformatted", nightLabel);
+      });
+    }
+
     plotsReady.then((linkedPlots) => {
       const expectedRanges = new WeakMap();
       const fullRange = sleepFigure.layout.xaxis.range;
@@ -143,6 +156,7 @@
 
       for (const source of linkedPlots) {
         formatNightTicks(source);
+        installNightHoverTitle(source);
         source.on("plotly_afterplot", () => formatNightTicks(source));
         source.on("plotly_relayout", (update) => {
           const range = readXRange(update);
