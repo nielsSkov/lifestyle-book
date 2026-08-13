@@ -1128,6 +1128,52 @@ input {
   margin: 0;
 }
 
+.planning-plot-readout {
+  display: flex;
+  min-height: 54px;
+  margin: 0 16px 14px;
+  padding: 10px 14px;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #383047;
+  border-radius: 11px;
+  color: #91869e;
+  background: #110d19;
+  font-size: 0.8rem;
+}
+
+.planning-readout-date {
+  flex: 0 0 auto;
+  color: #e4dcf3;
+  font-size: 0.86rem;
+}
+
+.planning-readout-values {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 5px 16px;
+}
+
+.planning-readout-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #aaa0b7;
+}
+
+.planning-readout-value i {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--readout-color);
+}
+
+.planning-readout-value strong {
+  color: #f4f0fa;
+}
+
 #sleep-plot {
   height: min(78vh, 720px);
   min-height: 600px;
@@ -1274,6 +1320,13 @@ input {
   #planning-weight-plot {
     height: min(65vh, 480px);
     min-height: 400px;
+  }
+
+  .planning-plot-readout {
+    margin-inline: 8px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
 
   #sleep-plot {

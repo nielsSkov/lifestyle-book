@@ -136,6 +136,12 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"const payloads = complete.map(intervalPayload)" in response.data
     assert b"cancelPendingPreview();" in response.data
     assert b'id="planning-weight-plot"' in response.data
+    assert b'class="planning-plot-readout" data-plot-readout' in response.data
+    assert b'plot.on("plotly_hover", updatePlotReadout)' in response.data
+    assert b'plot.on("plotly_click", updatePlotReadout)' in response.data
+    assert b'hoverinfo: "none", hovertemplate: null' in response.data
+    assert b"plotPointDate(point.x)?.toISOString().slice(0, 10) === inspectedDay" in response.data
+    assert b"resetPlotReadout();" in response.data
     assert b'"name":"Candidate plan"' not in response.data
     assert b"Planning sandbox" not in response.data
     assert b"This sandbox" not in response.data
