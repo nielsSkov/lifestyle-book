@@ -113,6 +113,29 @@ def read_plan_backup(
     return contents
 
 
+def delete_plan_backup(
+    backup_directory: Path,
+    backup_name: str,
+    *,
+    expected_revision: str,
+) -> None:
+    if not BACKUP_PATTERN.fullmatch(backup_name):
+        raise ValueError("Choose a valid plan backup")
+    _prepare_backup_directory(backup_directory)
+    with plan_backup_lock(backup_directory):
+        source = backup_directory / backup_name
+        if source.is_symlink():
+            raise ValueError("Choose a valid plan backup")
+        try:
+            contents = source.read_bytes()
+        except FileNotFoundError:
+            raise ValueError("That plan backup is no longer available") from None
+        if _plan_revision(contents) != expected_revision:
+            raise ValueError("That plan backup changed. Reload the backup history and try again.")
+        source.unlink()
+        _sync_directory(backup_directory)
+
+
 def create_plan_backup(
     plan_path: Path,
     backup_directory: Path,

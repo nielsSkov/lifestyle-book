@@ -307,6 +307,26 @@ def test_weight_plan_backup_preview_works_with_invalid_active_plan(client):
     assert any(trace.get("name") == "Candidate plan" for trace in response.json["figure"]["data"])
 
 
+def test_weight_plan_backup_delete_removes_selected_backup(client):
+    directory = app_module.PLAN_BACKUP_DIRECTORY
+    directory.mkdir()
+    backup = directory / "plan-auto-20260813T100000000000Z.csv"
+    contents = b"date,weight_kg\n2026-07-01,90\n"
+    backup.write_bytes(contents)
+
+    response = client.post(
+        "/weight/plan/backup-delete",
+        json={
+            "backup": backup.name,
+            "backup_revision": hashlib.sha256(contents).hexdigest(),
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json == {"message": "Plan backup deleted"}
+    assert not backup.exists()
+
+
 def test_weight_plan_download_returns_active_csv_unchanged(client):
     original = app_module.PLAN_CSV.read_bytes()
 

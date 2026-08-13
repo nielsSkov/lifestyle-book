@@ -1,3 +1,4 @@
+import hashlib
 import stat
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -7,6 +8,7 @@ import pytest
 from plan_backup import (
     consolidate_plan_backups,
     create_plan_backup,
+    delete_plan_backup,
     list_plan_backups,
     protect_plan_update,
     restore_plan_backup,
@@ -308,3 +310,46 @@ def test_restore_rejects_changed_active_plan_before_creating_backup(tmp_path: Pa
         restore_plan_backup(plan, directory, source.name, expected_revision="stale")
 
     assert list(directory.glob("plan-auto-*.csv")) == [source]
+
+
+def test_delete_plan_backup_removes_checksum_bound_managed_file(tmp_path: Path):
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    backup = directory / "plan-auto-20260813T100000000000Z.csv"
+    backup.write_bytes(VALID_PLAN)
+
+    delete_plan_backup(
+        directory,
+        backup.name,
+        expected_revision=hashlib.sha256(VALID_PLAN).hexdigest(),
+    )
+
+    assert not backup.exists()
+
+
+def test_delete_plan_backup_rejects_stale_checksum(tmp_path: Path):
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    backup = directory / "plan-auto-20260813T100000000000Z.csv"
+    backup.write_bytes(VALID_PLAN)
+
+    with pytest.raises(ValueError, match="backup changed"):
+        delete_plan_backup(directory, backup.name, expected_revision="stale")
+
+    assert backup.exists()
+
+
+def test_delete_plan_backup_allows_deleting_damaged_backup(tmp_path: Path):
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    backup = directory / "plan-auto-20260813T100000000000Z.csv"
+    contents = b"damaged plan\n"
+    backup.write_bytes(contents)
+
+    delete_plan_backup(
+        directory,
+        backup.name,
+        expected_revision=hashlib.sha256(contents).hexdigest(),
+    )
+
+    assert not backup.exists()

@@ -32,6 +32,7 @@ from lifestyle_config import LifestyleSettings, load_lifestyle_settings, store_l
 from plan_apply import ParsedInterval, merge_plan_intervals, store_active_plan, store_uploaded_plan
 from plan_backup import (
     consolidate_plan_backups,
+    delete_plan_backup,
     list_plan_backups,
     protect_plan_update,
     read_plan_backup,
@@ -358,6 +359,27 @@ def preview_weight_plan_backup():
         backup_plan,
     )
     return jsonify(figure=json.loads(cast(str, figure.to_json())))
+
+
+@app.post("/weight/plan/backup-delete")
+def delete_weight_plan_backup():
+    payload = request.get_json(silent=True)
+    backup_name = payload.get("backup") if isinstance(payload, dict) else None
+    backup_revision = payload.get("backup_revision") if isinstance(payload, dict) else None
+    if not isinstance(backup_name, str) or not isinstance(backup_revision, str):
+        return jsonify(error="Choose a valid plan backup"), 400
+    try:
+        delete_plan_backup(
+            PLAN_BACKUP_DIRECTORY,
+            backup_name,
+            expected_revision=backup_revision,
+        )
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except OSError:
+        app.logger.exception("Could not delete weight plan backup")
+        return jsonify(error="Could not safely delete the plan backup"), 500
+    return jsonify(message="Plan backup deleted")
 
 
 @app.post("/weight/plan/upload-preview")

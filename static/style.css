@@ -564,6 +564,11 @@ input {
   font-size: 0.86rem;
 }
 
+.plan-backup-actions {
+  display: flex;
+  gap: 7px;
+}
+
 .plan-backup-row button {
   min-height: 38px;
   padding: 0 14px;
@@ -575,6 +580,12 @@ input {
   font-size: 0.78rem;
   font-weight: 800;
   cursor: pointer;
+}
+
+.plan-backup-row .delete-backup-button {
+  border-color: #754b48;
+  color: #d9aaa3;
+  background: #261717;
 }
 
 .plan-backups-empty {
@@ -1572,6 +1583,15 @@ input {
 
   .plan-import-summary {
     grid-template-columns: 1fr;
+  }
+
+  .plan-backup-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .plan-backup-actions button {
+    flex: 1;
   }
 
   .entry-card {

@@ -7,7 +7,7 @@ PLOTLY_CONFIG: dict[str, object] = {
     "displayModeBar": True,
     "modeBarButtons": [["zoom2d", "pan2d", "resetScale2d"]],
     "responsive": True,
-    "scrollZoom": True,
+    "scrollZoom": False,
     "showTips": False,
 }
 
