@@ -309,6 +309,21 @@ input {
   text-decoration: none;
 }
 
+.plan-download-link {
+  display: inline-flex;
+  min-height: 42px;
+  padding: 0 15px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #4b405d;
+  border-radius: 11px;
+  color: #c9b6f4;
+  background: #21192e;
+  font-weight: 750;
+  text-decoration: none;
+}
+
 .planning-link {
   width: 100%;
   min-height: 46px;

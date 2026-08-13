@@ -2,11 +2,22 @@ import json
 import math
 from datetime import date, datetime, timedelta
 from importlib.metadata import version
+from io import BytesIO
 from pathlib import Path
 from typing import cast
 from zoneinfo import ZoneInfo
 
-from flask import Flask, Response, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Flask,
+    Response,
+    abort,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 
 from achievement_catalog import ACHIEVEMENTS, configured_achievements
 from daily_data import (
@@ -161,6 +172,21 @@ def weight_plan():
         weight_range_max=weight_range_max,
         duration_range_min=duration_range_min,
         duration_range_max=duration_range_max,
+    )
+
+
+@app.get("/weight/plan/download")
+def download_weight_plan():
+    try:
+        contents = PLAN_CSV.read_bytes()
+    except FileNotFoundError:
+        abort(404, "No active weight plan is available")
+    return send_file(
+        BytesIO(contents),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="plan.csv",
+        max_age=0,
     )
 
 

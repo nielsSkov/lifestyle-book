@@ -147,6 +147,29 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"This sandbox" not in response.data
     assert b"Not saved" not in response.data
     assert b"Save Plan" not in response.data
+    assert b'href="/weight/plan/download" download>Download Active Plan</a>' in response.data
+
+
+def test_weight_plan_download_returns_active_csv_unchanged(client):
+    original = app_module.PLAN_CSV.read_bytes()
+
+    response = client.get("/weight/plan/download")
+
+    assert response.status_code == 200
+    assert response.data == original
+    assert response.mimetype == "text/csv"
+    assert response.headers["Content-Disposition"] == "attachment; filename=plan.csv"
+    assert response.headers["Cache-Control"] == "no-cache, max-age=0"
+    assert app_module.PLAN_CSV.read_bytes() == original
+
+
+def test_weight_plan_download_returns_not_found_without_active_plan(client):
+    app_module.PLAN_CSV.unlink()
+
+    response = client.get("/weight/plan/download")
+
+    assert response.status_code == 404
+    assert b"No active weight plan is available" in response.data
 
 
 def test_weight_plan_initialization_defaults_to_current_plan_when_measurement_is_old(client):
