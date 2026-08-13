@@ -97,7 +97,7 @@
         {% for backup in plan_backups %}
           <div class="plan-backup-row">
             <label>
-              <input type="radio" name="backup-preview" value="{{ backup.name }}" data-backup-preview data-backup-revision="{{ backup.revision }}" data-restore-label="{{ backup.created_label }}">
+              <input type="checkbox" value="{{ backup.name }}" data-backup-preview data-backup-revision="{{ backup.revision }}" data-restore-label="{{ backup.created_label }}">
               <span><strong>{{ backup.created_label }}</strong><small>{{ backup.size_label }}</small></span>
             </label>
             <div class="plan-backup-actions">
@@ -916,7 +916,17 @@
 
     document.querySelectorAll("[data-backup-preview]").forEach((input) => {
       input.addEventListener("change", async () => {
-        if (!input.checked) return;
+        if (!input.checked) {
+          backupPreviewController?.abort();
+          backupPreviewVersion += 1;
+          displayedFigure = baseFigure;
+          setBackupStatus("");
+          plotUpdates = plotUpdates.then(() => renderFigure(baseFigure)).catch(() => {});
+          return;
+        }
+        document.querySelectorAll("[data-backup-preview]").forEach((other) => {
+          if (other !== input) other.checked = false;
+        });
         cancelPendingPreview();
         input.checked = true;
         const version = backupPreviewVersion;
