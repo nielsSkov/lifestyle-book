@@ -165,7 +165,7 @@ def test_weight_plan_page_lists_automatic_backups(client):
     backup_directory = app_module.PLAN_BACKUP_DIRECTORY
     backup_directory.mkdir()
     backup = backup_directory / "plan-auto-20260813T105810451519Z.csv"
-    backup.write_bytes(app_module.PLAN_CSV.read_bytes())
+    backup.write_text("date,weight_kg\n2026-07-01,90\n", encoding="utf-8")
 
     response = client.get("/weight/plan")
 
@@ -189,6 +189,7 @@ def test_weight_plan_restore_replaces_plan_and_backs_up_current_version(client):
         json={
             "backup": source.name,
             "revision": hashlib.sha256(current).hexdigest(),
+            "backup_revision": hashlib.sha256(restored).hexdigest(),
         },
     )
 
@@ -207,6 +208,7 @@ def test_weight_plan_restore_rejects_unmanaged_name(client):
         json={
             "backup": "../plan.csv",
             "revision": hashlib.sha256(original).hexdigest(),
+            "backup_revision": hashlib.sha256(original).hexdigest(),
         },
     )
 
@@ -227,7 +229,9 @@ def test_weight_plan_page_exposes_restore_when_active_plan_is_invalid(client):
     assert response.status_code == 200
     assert b"The active plan cannot be read" in response.data
     assert backup.name.encode() in response.data
-    assert b'class="planning-workspace" hidden' in response.data
+    assert b'class="planning-controls-card"' in response.data
+    assert b'data-today="2026-08-03" hidden' in response.data
+    assert b'id="planning-weight-plot"' in response.data
 
 
 def test_weight_plan_restore_rejects_changed_active_plan(client):
@@ -241,13 +245,60 @@ def test_weight_plan_restore_rejects_changed_active_plan(client):
 
     response = client.post(
         "/weight/plan/restore",
-        json={"backup": source.name, "revision": revision},
+        json={
+            "backup": source.name,
+            "revision": revision,
+            "backup_revision": hashlib.sha256(original).hexdigest(),
+        },
     )
 
     assert response.status_code == 400
     assert response.json == {
         "error": "The active plan changed. Reload the backup history and try again."
     }
+
+
+def test_weight_plan_backup_preview_shows_selected_backup_as_candidate(client):
+    backup_directory = app_module.PLAN_BACKUP_DIRECTORY
+    backup_directory.mkdir()
+    source = backup_directory / "plan-auto-20260812T100000000000Z.csv"
+    contents = b"date,weight_kg\n2026-07-01,90\n2026-07-02,89\n"
+    source.write_bytes(contents)
+
+    response = client.post(
+        "/weight/plan/backup-preview",
+        json={
+            "backup": source.name,
+            "backup_revision": hashlib.sha256(contents).hexdigest(),
+        },
+    )
+
+    assert response.status_code == 200
+    candidate = next(
+        trace for trace in response.json["figure"]["data"] if trace.get("name") == "Candidate plan"
+    )
+    assert candidate["x"] == ["2026-07-01", "2026-07-02"]
+    assert candidate["y"] == [90.0, 89.0]
+
+
+def test_weight_plan_backup_preview_works_with_invalid_active_plan(client):
+    backup_directory = app_module.PLAN_BACKUP_DIRECTORY
+    backup_directory.mkdir()
+    source = backup_directory / "plan-auto-20260812T100000000000Z.csv"
+    contents = b"date,weight_kg\n2026-07-01,90\n"
+    source.write_bytes(contents)
+    app_module.PLAN_CSV.write_text("invalid,data\n", encoding="utf-8")
+
+    response = client.post(
+        "/weight/plan/backup-preview",
+        json={
+            "backup": source.name,
+            "backup_revision": hashlib.sha256(contents).hexdigest(),
+        },
+    )
+
+    assert response.status_code == 200
+    assert any(trace.get("name") == "Candidate plan" for trace in response.json["figure"]["data"])
 
 
 def test_weight_plan_download_returns_active_csv_unchanged(client):

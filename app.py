@@ -29,7 +29,13 @@ from daily_data import (
 from daily_plot import build_active_days_figure, build_daily_figure
 from lifestyle_config import LifestyleSettings, load_lifestyle_settings, store_lifestyle_settings
 from plan_apply import ParsedInterval, merge_plan_intervals, store_active_plan
-from plan_backup import list_plan_backups, protect_plan_update, restore_plan_backup
+from plan_backup import (
+    consolidate_plan_backups,
+    list_plan_backups,
+    protect_plan_update,
+    read_plan_backup,
+    restore_plan_backup,
+)
 from plan_model import MAX_PLAN_DURATION_DAYS, MAX_TAPER, build_plan_interval
 from plotly_support import PLOTLY_CONFIG, plotly_javascript
 from sleep_data import (
@@ -169,6 +175,7 @@ def weight_plan():
         plan_dates,
         plan,
     )
+    consolidate_plan_backups(PLAN_BACKUP_DIRECTORY, active_plan_path=PLAN_CSV)
     backups = [
         {
             "name": backup.name,
@@ -176,6 +183,7 @@ def weight_plan():
                 "%d %b %Y, %H:%M:%S %Z"
             ),
             "size_label": f"{backup.size / 1024:.1f} KB",
+            "revision": backup.revision,
         }
         for backup in list_plan_backups(PLAN_BACKUP_DIRECTORY)
     ]
@@ -280,7 +288,12 @@ def restore_weight_plan():
     payload = request.get_json(silent=True)
     backup_name = payload.get("backup") if isinstance(payload, dict) else None
     revision = payload.get("revision") if isinstance(payload, dict) else None
-    if not isinstance(backup_name, str) or not isinstance(revision, str):
+    backup_revision = payload.get("backup_revision") if isinstance(payload, dict) else None
+    if (
+        not isinstance(backup_name, str)
+        or not isinstance(revision, str)
+        or not isinstance(backup_revision, str)
+    ):
         return jsonify(error="Choose a valid plan backup"), 400
     try:
         current_backup = restore_plan_backup(
@@ -288,6 +301,7 @@ def restore_weight_plan():
             PLAN_BACKUP_DIRECTORY,
             backup_name,
             expected_revision=revision,
+            expected_backup_revision=backup_revision,
         )
     except ValueError as error:
         return jsonify(error=str(error)), 400
@@ -298,6 +312,41 @@ def restore_weight_plan():
         message="Plan backup restored",
         current_backup=current_backup.name if current_backup else None,
     )
+
+
+@app.post("/weight/plan/backup-preview")
+def preview_weight_plan_backup():
+    payload = request.get_json(silent=True)
+    backup_name = payload.get("backup") if isinstance(payload, dict) else None
+    backup_revision = payload.get("backup_revision") if isinstance(payload, dict) else None
+    if not isinstance(backup_name, str) or not isinstance(backup_revision, str):
+        return jsonify(error="Choose a valid plan backup"), 400
+    try:
+        contents = read_plan_backup(
+            PLAN_BACKUP_DIRECTORY,
+            backup_name,
+            expected_revision=backup_revision,
+        )
+        backup_dates, backup_plan = read_series_bytes(contents)
+        weight_dates, weights = read_series(WEIGHT_CSV)
+        try:
+            plan_dates, plan = read_series(PLAN_CSV)
+        except (KeyError, UnicodeError, ValueError):
+            plan_dates, plan = [], []
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except OSError:
+        app.logger.exception("Could not preview weight plan backup")
+        return jsonify(error="Could not preview the plan backup"), 500
+    figure = build_weight_figure(
+        weight_dates,
+        weights,
+        plan_dates,
+        plan,
+        backup_dates,
+        backup_plan,
+    )
+    return jsonify(figure=json.loads(cast(str, figure.to_json())))
 
 
 @app.post("/weight/plan/defaults")

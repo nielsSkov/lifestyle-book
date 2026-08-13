@@ -39,6 +39,7 @@ def build_weight_figure(
                 y=[weight for _day, weight in candidate_points],
                 mode="lines",
                 name="Candidate plan",
+                connectgaps=False,
                 line={"color": "#2563eb", "width": 3},
                 hovertemplate="%{x|%d %b %Y}<br>%{y:.1f} kg<extra>Candidate plan</extra>",
             )

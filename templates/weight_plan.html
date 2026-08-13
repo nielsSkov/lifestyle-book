@@ -10,8 +10,8 @@
   </section>
 
   {% if active_plan_error %}<p class="plan-recovery-warning" role="alert">{{ active_plan_error }}</p>{% endif %}
-  <div class="planning-workspace"{% if active_plan_error %} hidden{% endif %}>
-    <section class="planning-controls-card" data-planner data-preview-url="{{ url_for('preview_weight_plan') }}" data-apply-url="{{ url_for('apply_weight_plan') }}" data-defaults-url="{{ url_for('weight_plan_defaults') }}" data-today="{{ today.isoformat() }}">
+  <div class="planning-workspace">
+    <section class="planning-controls-card" data-planner data-preview-url="{{ url_for('preview_weight_plan') }}" data-apply-url="{{ url_for('apply_weight_plan') }}" data-defaults-url="{{ url_for('weight_plan_defaults') }}" data-today="{{ today.isoformat() }}"{% if active_plan_error %} hidden{% endif %}>
       <div class="planning-list-heading">
         <h2>Plan Intervals</h2>
       </div>
@@ -63,14 +63,18 @@
       <div class="plan-backup-list">
         {% for backup in plan_backups %}
           <div class="plan-backup-row">
-            <div><strong>{{ backup.created_label }}</strong><small>{{ backup.size_label }}</small></div>
-            <button type="button" data-restore-backup="{{ backup.name }}" data-restore-label="{{ backup.created_label }}">Restore</button>
+            <label>
+              <input type="radio" name="backup-preview" value="{{ backup.name }}" data-backup-preview data-backup-revision="{{ backup.revision }}" data-restore-label="{{ backup.created_label }}">
+              <span><strong>{{ backup.created_label }}</strong><small>{{ backup.size_label }}</small></span>
+            </label>
+            <button type="button" data-restore-backup="{{ backup.name }}" data-backup-revision="{{ backup.revision }}" data-restore-label="{{ backup.created_label }}">Restore</button>
           </div>
         {% endfor %}
       </div>
     {% else %}
       <p class="plan-backups-empty">A backup will appear here after the active plan is changed.</p>
     {% endif %}
+    <p class="planning-status plan-backup-status" data-backup-status aria-live="polite"></p>
   </section>
 
   <dialog class="planning-confirm-dialog" data-restore-dialog>
@@ -159,6 +163,7 @@
     const applyDialog = document.querySelector("[data-apply-dialog]");
     const applyButton = document.querySelector("[data-apply-plan]");
     const restoreDialog = document.querySelector("[data-restore-dialog]");
+    const backupStatus = document.querySelector("[data-backup-status]");
     const plotlyConfig = {{ plotly_config | tojson }};
     const baseFigure = {{ graph_json | safe }};
     const plotElement = document.getElementById("planning-weight-plot");
@@ -184,6 +189,9 @@
     let previewedRevision = null;
     let confirmedApplication = null;
     let pendingRestore = null;
+    let pendingRestoreRevision = null;
+    let backupPreviewController = null;
+    let backupPreviewVersion = 0;
     const draftStorageKey = "lifestyle-book.weight-plan-draft.v1";
 
     function field(card, name) { return card.querySelector(`[data-field="${name}"]`); }
@@ -498,11 +506,19 @@
       previewedPayloads = null;
       previewedRevision = null;
       applyButton.disabled = true;
+      backupPreviewController?.abort();
+      backupPreviewVersion += 1;
+      document.querySelectorAll("[data-backup-preview]").forEach((input) => input.checked = false);
     }
 
     function setStatus(message, state = "") {
       status.textContent = message;
       status.dataset.state = state;
+    }
+
+    function setBackupStatus(message, state = "") {
+      backupStatus.textContent = message;
+      backupStatus.dataset.state = state;
     }
 
     function markPreviewUnchanged(items) {
@@ -786,15 +802,18 @@
     async function restoreBackup() {
       if (!pendingRestore) return;
       const backup = pendingRestore;
+      const backupRevision = pendingRestoreRevision;
       pendingRestore = null;
+      pendingRestoreRevision = null;
       document.querySelectorAll("[data-restore-backup]").forEach((button) => button.disabled = true);
-      setStatus("Restoring plan backup...");
+      setBackupStatus("Restoring plan backup...");
       try {
         const response = await fetch("{{ url_for('restore_weight_plan') }}", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
             backup,
+            backup_revision: backupRevision,
             revision: document.querySelector("[data-active-plan-revision]").dataset.activePlanRevision,
           }),
         });
@@ -803,24 +822,67 @@
         clearDraft();
         window.location.reload();
       } catch (error) {
-        setStatus(error.message, "error");
+        setBackupStatus(error.message, "error");
         document.querySelectorAll("[data-restore-backup]").forEach((button) => button.disabled = false);
       }
     }
 
     restoreDialog.addEventListener("close", () => {
       if (restoreDialog.returnValue === "restore") restoreBackup();
-      else pendingRestore = null;
+      else {
+        pendingRestore = null;
+        pendingRestoreRevision = null;
+      }
       restoreDialog.returnValue = "";
     });
 
     document.querySelectorAll("[data-restore-backup]").forEach((button) => {
       button.addEventListener("click", () => {
         pendingRestore = button.dataset.restoreBackup;
+        pendingRestoreRevision = button.dataset.backupRevision;
         restoreDialog.querySelector("[data-restore-date]").textContent = button.dataset.restoreLabel;
         if (typeof restoreDialog.showModal === "function") restoreDialog.showModal();
         else if (window.confirm(`Restore the plan from ${button.dataset.restoreLabel}?`)) restoreBackup();
-        else pendingRestore = null;
+        else {
+          pendingRestore = null;
+          pendingRestoreRevision = null;
+        }
+      });
+    });
+
+    document.querySelectorAll("[data-backup-preview]").forEach((input) => {
+      input.addEventListener("change", async () => {
+        if (!input.checked) return;
+        cancelPendingPreview();
+        input.checked = true;
+        const version = backupPreviewVersion;
+        backupPreviewController = new AbortController();
+        setBackupStatus("Loading backup preview...");
+        try {
+          const response = await fetch("{{ url_for('preview_weight_plan_backup') }}", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+              backup: input.value,
+              backup_revision: input.dataset.backupRevision,
+            }),
+            signal: backupPreviewController.signal,
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error ?? "Could not preview the plan backup");
+          if (version !== backupPreviewVersion || !input.checked) return;
+          displayedFigure = result.figure;
+          setBackupStatus(`Previewing backup from ${input.dataset.restoreLabel}`);
+          plotUpdates = plotUpdates.then(() => version === backupPreviewVersion
+            ? renderFigure(result.figure)
+            : undefined).catch(() => {});
+        } catch (error) {
+          if (error.name === "AbortError" || version !== backupPreviewVersion) return;
+          input.checked = false;
+          displayedFigure = baseFigure;
+          setBackupStatus(error.message, "error");
+          plotUpdates = plotUpdates.then(() => renderFigure(baseFigure)).catch(() => {});
+        }
       });
     });
 

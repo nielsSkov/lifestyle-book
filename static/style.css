@@ -426,9 +426,30 @@ input {
   background: #110d19;
 }
 
-.plan-backup-row > div {
+.plan-backup-row label,
+.plan-backup-row label > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.plan-backup-row label {
+  flex: 1;
+  gap: 11px;
+  cursor: pointer;
+}
+
+.plan-backup-row label > span {
   display: grid;
   gap: 3px;
+}
+
+.plan-backup-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: #2563eb;
 }
 
 .plan-backup-row strong {

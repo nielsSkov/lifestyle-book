@@ -20,29 +20,97 @@ class PlanBackup:
     name: str
     created_at: datetime
     size: int
+    revision: str
 
 
 def list_plan_backups(backup_directory: Path) -> list[PlanBackup]:
     if not backup_directory.exists():
         return []
-    backups = []
+    backups_by_revision = {}
     for path in backup_directory.iterdir():
         match = BACKUP_PATTERN.fullmatch(path.name)
         if not match or path.is_symlink() or not path.is_file():
             continue
         try:
-            backups.append(
-                PlanBackup(
-                    name=path.name,
-                    created_at=datetime.strptime(match.group(1), "%Y%m%dT%H%M%S%fZ").replace(
-                        tzinfo=UTC
-                    ),
-                    size=path.stat().st_size,
-                )
+            contents = path.read_bytes()
+            backup = PlanBackup(
+                name=path.name,
+                created_at=datetime.strptime(match.group(1), "%Y%m%dT%H%M%S%fZ").replace(
+                    tzinfo=UTC
+                ),
+                size=len(contents),
+                revision=_plan_revision(contents),
             )
+            previous = backups_by_revision.get(backup.revision)
+            if previous is None or (backup.created_at, backup.name) > (
+                previous.created_at,
+                previous.name,
+            ):
+                backups_by_revision[backup.revision] = backup
         except (FileNotFoundError, ValueError):
             continue
-    return sorted(backups, key=lambda backup: (backup.created_at, backup.name), reverse=True)
+    return sorted(
+        backups_by_revision.values(),
+        key=lambda backup: (backup.created_at, backup.name),
+        reverse=True,
+    )
+
+
+def consolidate_plan_backups(
+    backup_directory: Path, *, active_plan_path: Path | None = None
+) -> None:
+    if not backup_directory.exists():
+        return
+    _prepare_backup_directory(backup_directory)
+    with plan_backup_lock(backup_directory):
+        try:
+            active_revision = (
+                _plan_revision(active_plan_path.read_bytes())
+                if active_plan_path is not None
+                else None
+            )
+        except FileNotFoundError:
+            active_revision = _plan_revision(b"")
+        newest_by_revision = {}
+        for path in backup_directory.iterdir():
+            if not BACKUP_PATTERN.fullmatch(path.name) or path.is_symlink() or not path.is_file():
+                continue
+            try:
+                revision = _plan_revision(path.read_bytes())
+            except FileNotFoundError:
+                continue
+            if revision == active_revision:
+                path.unlink(missing_ok=True)
+                continue
+            previous = newest_by_revision.get(revision)
+            if previous is None or path.name > previous.name:
+                if previous is not None:
+                    previous.unlink(missing_ok=True)
+                newest_by_revision[revision] = path
+            else:
+                path.unlink(missing_ok=True)
+        _sync_directory(backup_directory)
+
+
+def read_plan_backup(
+    backup_directory: Path,
+    backup_name: str,
+    *,
+    expected_revision: str | None = None,
+) -> bytes:
+    if not BACKUP_PATTERN.fullmatch(backup_name):
+        raise ValueError("Choose a valid plan backup")
+    source = backup_directory / backup_name
+    if source.is_symlink():
+        raise ValueError("Choose a valid plan backup")
+    try:
+        contents = source.read_bytes()
+    except FileNotFoundError:
+        raise ValueError("That plan backup is no longer available") from None
+    validate_csv(source, allow_gaps=True)
+    if expected_revision is not None and _plan_revision(contents) != expected_revision:
+        raise ValueError("That plan backup changed. Reload the backup history and try again.")
+    return contents
 
 
 def create_plan_backup(
@@ -101,19 +169,17 @@ def restore_plan_backup(
     *,
     retention: int = DEFAULT_PLAN_BACKUP_RETENTION,
     expected_revision: str | None = None,
+    expected_backup_revision: str | None = None,
 ) -> Path | None:
     if not BACKUP_PATTERN.fullmatch(backup_name):
         raise ValueError("Choose a valid plan backup")
     _prepare_backup_directory(backup_directory)
     with plan_backup_lock(backup_directory):
-        source = backup_directory / backup_name
-        if source.is_symlink():
-            raise ValueError("Choose a valid plan backup")
-        try:
-            restored_contents = source.read_bytes()
-        except FileNotFoundError:
-            raise ValueError("That plan backup is no longer available") from None
-        validate_csv(source, allow_gaps=True)
+        restored_contents = read_plan_backup(
+            backup_directory,
+            backup_name,
+            expected_revision=expected_backup_revision,
+        )
         try:
             current_contents = plan_path.read_bytes()
         except FileNotFoundError:
@@ -129,10 +195,15 @@ def restore_plan_backup(
             else None
         )
         _replace_plan_bytes(plan_path, restored_contents)
-        preserved = {source}
-        if current_backup is not None:
-            preserved.add(current_backup)
-        _prune_plan_backups(backup_directory, retention, preserve=preserved)
+        try:
+            _remove_backups_with_revision(backup_directory, _plan_revision(restored_contents))
+            preserved = set()
+            if current_backup is not None:
+                preserved.add(current_backup)
+            _prune_plan_backups(backup_directory, retention, preserve=preserved)
+        except OSError:
+            # The active plan is already durably restored; consolidation can retry on page load.
+            pass
         return current_backup
 
 
@@ -189,6 +260,11 @@ def _write_backup_bytes(
         _sync_directory(backup_directory)
     finally:
         temporary.unlink(missing_ok=True)
+    revision = _plan_revision(contents)
+    for duplicate in _backup_paths_with_revision(backup_directory, revision):
+        if duplicate != destination:
+            duplicate.unlink()
+    _sync_directory(backup_directory)
     return destination
 
 
@@ -218,6 +294,25 @@ def _prune_plan_backups(directory: Path, retention: int, *, preserve: set[Path])
     excess = max(0, len(backups) - retention)
     for _timestamp, _sequence, obsolete in removable[:excess]:
         obsolete.unlink()
+    _sync_directory(directory)
+
+
+def _backup_paths_with_revision(directory: Path, revision: str) -> list[Path]:
+    matches = []
+    for path in directory.iterdir():
+        if not BACKUP_PATTERN.fullmatch(path.name) or path.is_symlink() or not path.is_file():
+            continue
+        try:
+            if _plan_revision(path.read_bytes()) == revision:
+                matches.append(path)
+        except FileNotFoundError:
+            continue
+    return matches
+
+
+def _remove_backups_with_revision(directory: Path, revision: str) -> None:
+    for path in _backup_paths_with_revision(directory, revision):
+        path.unlink()
     _sync_directory(directory)
 
 

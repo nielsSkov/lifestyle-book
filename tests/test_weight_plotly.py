@@ -53,6 +53,7 @@ def test_build_weight_figure_adds_blue_candidate_plan():
     assert active_trace["name"] == "Plan"
     assert candidate_trace["name"] == "Candidate plan"
     assert candidate_trace["line"]["color"] == "#2563eb"
+    assert candidate_trace["connectgaps"] is False
     assert candidate_trace["y"] == [100.0, 99.0]
 
 

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from plan_backup import (
+    consolidate_plan_backups,
     create_plan_backup,
     list_plan_backups,
     protect_plan_update,
@@ -88,11 +89,7 @@ def test_create_plan_backup_retains_only_newest_managed_backups(tmp_path: Path):
         for path in backup_directory.glob("plan-auto-*.csv")
         if path.name != "plan-auto-notes.csv"
     )
-    assert [backup.name for backup in backups] == [
-        "plan-auto-20260802T000000000000Z.csv",
-        "plan-auto-20260803T000000000000Z.csv",
-        "plan-auto-20260804T000000000000Z.csv",
-    ]
+    assert [backup.name for backup in backups] == ["plan-auto-20260804T000000000000Z.csv"]
     assert unrelated.read_text(encoding="utf-8") == "keep me"
     assert similar.read_text(encoding="utf-8") == "keep me too"
 
@@ -185,6 +182,55 @@ def test_list_plan_backups_returns_newest_managed_files_only(tmp_path: Path):
     assert backups[0].size == newer.stat().st_size
 
 
+def test_list_plan_backups_collapses_duplicate_content_to_latest_file(tmp_path: Path):
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    older = directory / "plan-auto-20260812T100000000000Z.csv"
+    newer = directory / "plan-auto-20260813T100000000000Z.csv"
+    older.write_bytes(VALID_PLAN)
+    newer.write_bytes(VALID_PLAN)
+
+    backups = list_plan_backups(directory)
+
+    assert [backup.name for backup in backups] == [newer.name]
+
+
+def test_consolidate_plan_backups_removes_older_duplicate_files(tmp_path: Path):
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    older = directory / "plan-auto-20260812T100000000000Z.csv"
+    newer = directory / "plan-auto-20260813T100000000000Z.csv"
+    distinct = directory / "plan-auto-20260814T100000000000Z.csv"
+    older.write_bytes(VALID_PLAN)
+    newer.write_bytes(VALID_PLAN)
+    distinct.write_bytes(b"date,weight_kg\n2026-08-01,90\n")
+
+    consolidate_plan_backups(directory)
+
+    assert not older.exists()
+    assert newer.exists()
+    assert distinct.exists()
+
+
+def test_consolidate_plan_backups_removes_active_plan_copy(tmp_path: Path):
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    active_copy = directory / "plan-auto-20260813T100000000000Z.csv"
+    alternative = directory / "plan-auto-20260814T100000000000Z.csv"
+    active_copy.write_bytes(VALID_PLAN)
+    alternative.write_bytes(b"date,weight_kg\n2026-08-01,90\n")
+    active_plan = tmp_path / "plan.csv"
+    active_plan.write_bytes(VALID_PLAN)
+
+    consolidate_plan_backups(
+        directory,
+        active_plan_path=active_plan,
+    )
+
+    assert not active_copy.exists()
+    assert alternative.exists()
+
+
 def test_restore_plan_backup_saves_current_plan_and_restores_exact_bytes(tmp_path: Path):
     plan = tmp_path / "plan.csv"
     current = b"date,weight_kg\n2026-08-01,90\n"
@@ -200,6 +246,7 @@ def test_restore_plan_backup_saves_current_plan_and_restores_exact_bytes(tmp_pat
     assert current_backup is not None
     assert current_backup.read_bytes() == current
     assert stat.S_IMODE(plan.stat().st_mode) == 0o600
+    assert not source.exists()
 
 
 def test_restore_plan_backup_rejects_unmanaged_or_missing_name(tmp_path: Path):
@@ -242,9 +289,11 @@ def test_restore_at_retention_limit_preserves_selected_source(tmp_path: Path):
 
     restore_plan_backup(plan, directory, sources[0].name, retention=3)
 
-    assert sources[0].exists()
+    assert not sources[0].exists()
     assert plan.read_bytes() == VALID_PLAN
-    assert len(list(directory.glob("plan-auto-*.csv"))) == 3
+    remaining = list(directory.glob("plan-auto-*.csv"))
+    assert len(remaining) == 1
+    assert remaining[0].read_bytes() == b"date,weight_kg\n2026-08-01,90\n"
 
 
 def test_restore_rejects_changed_active_plan_before_creating_backup(tmp_path: Path):
