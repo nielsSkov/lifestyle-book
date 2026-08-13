@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 from collections.abc import Iterator
@@ -36,12 +37,10 @@ def protect_plan_update(
     *,
     created_at: datetime | None = None,
     retention: int = DEFAULT_PLAN_BACKUP_RETENTION,
+    expected_revision: str | None = None,
 ) -> Iterator[Path | None]:
     if retention < 1:
         raise ValueError("Plan backup retention must be at least 1")
-    if not plan_path.exists():
-        yield None
-        return
     _prepare_backup_directory(backup_directory)
     with plan_backup_lock(backup_directory):
         timestamp = created_at or datetime.now(UTC)
@@ -50,8 +49,14 @@ def protect_plan_update(
         try:
             contents = plan_path.read_bytes()
         except FileNotFoundError:
+            if expected_revision not in (None, _plan_revision(b"")):
+                raise ValueError(
+                    "The active plan changed after this preview. Review it again."
+                ) from None
             yield None
             return
+        if expected_revision is not None and _plan_revision(contents) != expected_revision:
+            raise ValueError("The active plan changed after this preview. Review it again.")
 
         stem = f"{BACKUP_PREFIX}{timestamp.astimezone(UTC).strftime('%Y%m%dT%H%M%S%fZ')}"
         destination = _unused_backup_path(backup_directory, stem)
@@ -123,3 +128,7 @@ def _sync_directory(directory: Path) -> None:
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
+
+
+def _plan_revision(contents: bytes) -> str:
+    return hashlib.sha256(contents).hexdigest()

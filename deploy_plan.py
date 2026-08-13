@@ -4,6 +4,7 @@ import shlex
 import subprocess
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 from server_sync import file_checksum, load_server_config, remote_checksum
 from weight_data import validate_csv
@@ -14,10 +15,12 @@ PROJECT_DIR = Path(__file__).parent
 def deploy(plan_path, config_path):
     row_count = validate_csv(plan_path, allow_gaps=True)
     target, directory = load_server_config(config_path)
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    operation_id = uuid4().hex
     remote_plan = f"{directory}/plan.csv"
-    remote_upload = f"{directory}/.plan.csv.upload"
-    remote_backup = f"{directory}/backups/plan-{timestamp}.csv"
+    remote_upload = f"{directory}/.plan-{operation_id}.csv.upload"
+    remote_backup = f"{directory}/backups/plan-{timestamp}-{operation_id}.csv"
+    remote_lock = f"{directory}/backups/.plan-backup.lock"
 
     subprocess.run(["scp", str(plan_path), f"{target}:{remote_upload}"], check=True)
 
@@ -28,12 +31,16 @@ def deploy(plan_path, config_path):
             "plan": remote_plan,
             "upload": remote_upload,
             "backup": remote_backup,
+            "lock": remote_lock,
         }.items()
     }
-    remote_command = (
-        f"mkdir -p {quoted['directory']}/backups && "
+    locked_command = (
         f"if [ -f {quoted['plan']} ]; then cp -p {quoted['plan']} {quoted['backup']}; fi && "
         f"chmod 600 {quoted['upload']} && mv {quoted['upload']} {quoted['plan']}"
+    )
+    remote_command = (
+        f"mkdir -p {quoted['directory']}/backups && "
+        f"flock {quoted['lock']} sh -c {shlex.quote(locked_command)}"
     )
     subprocess.run(["ssh", target, remote_command], check=True)
 

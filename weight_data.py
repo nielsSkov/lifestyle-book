@@ -1,4 +1,5 @@
 import csv
+import io
 import math
 import os
 from collections.abc import Sequence
@@ -39,10 +40,13 @@ def parse_measurement_date(raw_value: str | None, today: date) -> date:
 def read_series(path: Path) -> tuple[list[date], list[float]]:
     if not path.exists():
         return [], []
+    return read_series_bytes(path.read_bytes())
 
+
+def read_series_bytes(contents: bytes) -> tuple[list[date], list[float]]:
     dates = []
     weights = []
-    with path.open(newline="", encoding="utf-8") as csv_file:
+    with io.TextIOWrapper(io.BytesIO(contents), encoding="utf-8-sig", newline="") as csv_file:
         for row in csv.DictReader(csv_file):
             dates.append(date.fromisoformat(row["date"]))
             weights.append(float(row["weight_kg"]))

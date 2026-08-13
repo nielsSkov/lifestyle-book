@@ -10,13 +10,14 @@
   </section>
 
   <div class="planning-workspace">
-    <section class="planning-controls-card" data-planner data-preview-url="{{ url_for('preview_weight_plan') }}" data-defaults-url="{{ url_for('weight_plan_defaults') }}" data-today="{{ today.isoformat() }}">
+    <section class="planning-controls-card" data-planner data-preview-url="{{ url_for('preview_weight_plan') }}" data-apply-url="{{ url_for('apply_weight_plan') }}" data-defaults-url="{{ url_for('weight_plan_defaults') }}" data-today="{{ today.isoformat() }}">
       <div class="planning-list-heading">
         <h2>Plan Intervals</h2>
       </div>
       <p class="planning-empty-copy" data-empty-copy>Add an interval to begin shaping a candidate plan.</p>
       <div class="planning-interval-list" data-interval-list></div>
       <button class="add-interval-button" type="button" data-add-interval><span aria-hidden="true">+</span> Add Interval</button>
+      <button class="apply-plan-button" type="button" data-apply-plan disabled>Apply Candidate Changes</button>
       <p class="planning-status" data-planning-status aria-live="polite"></p>
     </section>
 
@@ -33,6 +34,18 @@
       <div class="planning-confirm-actions">
         <button class="planning-confirm-cancel" type="submit" value="cancel">Keep Interval</button>
         <button class="planning-confirm-remove" type="submit" value="remove">Remove Interval</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="planning-confirm-dialog" data-apply-dialog>
+    <form method="dialog">
+      <p class="eyebrow">Apply candidate</p>
+      <h2>Update the active plan?</h2>
+      <p>Only dates covered by these intervals will change. The current active plan will be backed up first.</p>
+      <div class="planning-confirm-actions">
+        <button class="planning-confirm-cancel" type="submit" value="cancel">Keep Editing</button>
+        <button class="apply-confirm-button" type="submit" value="apply">Apply Changes</button>
       </div>
     </form>
   </dialog>
@@ -108,6 +121,8 @@
     const status = document.querySelector("[data-planning-status]");
     const template = document.getElementById("planning-interval-template");
     const removeDialog = document.querySelector("[data-remove-dialog]");
+    const applyDialog = document.querySelector("[data-apply-dialog]");
+    const applyButton = document.querySelector("[data-apply-plan]");
     const plotlyConfig = {{ plotly_config | tojson }};
     const baseFigure = {{ graph_json | safe }};
     const plotElement = document.getElementById("planning-weight-plot");
@@ -129,6 +144,9 @@
     let previewController = null;
     let previewVersion = 0;
     let pendingRemoval = null;
+    let previewedPayloads = null;
+    let previewedRevision = null;
+    let confirmedApplication = null;
     const draftStorageKey = "lifestyle-book.weight-plan-draft.v1";
 
     function field(card, name) { return card.querySelector(`[data-field="${name}"]`); }
@@ -175,6 +193,9 @@
       intervalList.replaceChildren();
       emptyCopy.hidden = false;
       displayedFigure = baseFigure;
+      previewedPayloads = null;
+      previewedRevision = null;
+      applyButton.disabled = true;
       plotUpdates = plotUpdates.then(() => renderFigure(baseFigure)).catch(() => {});
     }
 
@@ -437,6 +458,9 @@
       window.clearTimeout(previewTimer);
       previewController?.abort();
       previewVersion += 1;
+      previewedPayloads = null;
+      previewedRevision = null;
+      applyButton.disabled = true;
     }
 
     function setStatus(message, state = "") {
@@ -454,6 +478,9 @@
     }
 
     function schedulePreview() {
+      previewedPayloads = null;
+      previewedRevision = null;
+      applyButton.disabled = true;
       saveDraft();
       window.clearTimeout(previewTimer);
       previewController?.abort();
@@ -486,6 +513,9 @@
         if (!response.ok) throw new Error(result.error ?? "Could not build the preview");
         if (version !== previewVersion) return;
         displayedFigure = result.figure;
+        previewedPayloads = payloads;
+        previewedRevision = result.revision;
+        applyButton.disabled = false;
         setStatus("");
         result.intervals.forEach((summary, index) => {
           const item = complete[index];
@@ -671,12 +701,58 @@
       removeDialog.returnValue = "";
     });
 
+    async function applyCandidate() {
+      if (!confirmedApplication) return;
+      const {payloads, revision} = confirmedApplication;
+      confirmedApplication = null;
+      applyButton.disabled = true;
+      for (const input of planner.querySelectorAll("button, input")) input.disabled = true;
+      setStatus("Applying candidate changes...");
+      try {
+        const response = await fetch(planner.dataset.applyUrl, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({intervals: payloads, revision}),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Could not apply the plan");
+        clearDraft();
+        window.location.reload();
+      } catch (error) {
+        setStatus(error.message, "error");
+        for (const input of planner.querySelectorAll("button, input")) input.disabled = false;
+        intervals.forEach(applyEraseMode);
+        previewedPayloads = null;
+        previewedRevision = null;
+        applyButton.disabled = true;
+        schedulePreview();
+      }
+    }
+
+    applyDialog.addEventListener("close", () => {
+      if (applyDialog.returnValue === "apply") applyCandidate();
+      else confirmedApplication = null;
+      applyDialog.returnValue = "";
+    });
+
+    applyButton.addEventListener("click", () => {
+      if (!previewedPayloads) return;
+      confirmedApplication = {
+        payloads: previewedPayloads.map((payload) => ({...payload})),
+        revision: previewedRevision,
+      };
+      if (typeof applyDialog.showModal === "function") applyDialog.showModal();
+      else if (window.confirm("Apply these candidate changes to the active plan?")) applyCandidate();
+      else confirmedApplication = null;
+    });
+
     function addInterval(draft = null) {
       if (!draft) reorderIntervals();
       if (intervals.length >= 20) {
         setStatus("A candidate plan can contain at most 20 intervals.", "error");
         return;
       }
+      cancelPendingPreview();
       const previous = intervals.at(-1);
       if (!draft && previous && (!previous.initialized || !previous.endDate)) {
         collapseOthers(previous);

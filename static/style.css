@@ -410,6 +410,32 @@ input {
   cursor: pointer;
 }
 
+.apply-plan-button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 10px;
+  border: 1px solid #2563eb;
+  border-radius: 12px;
+  color: #eef4ff;
+  background: #1d4ed8;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.apply-plan-button:disabled {
+  border-color: #3d3548;
+  color: #756c82;
+  background: #211b2a;
+  cursor: not-allowed;
+}
+
+.apply-confirm-button {
+  border-color: #356de0 !important;
+  color: #f4f7ff;
+  background: #1d4ed8;
+}
+
 .planning-interval-list {
   display: grid;
   gap: 12px;

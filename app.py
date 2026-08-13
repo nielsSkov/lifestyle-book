@@ -1,3 +1,4 @@
+import hashlib
 import json
 import math
 from datetime import date, datetime, timedelta
@@ -27,6 +28,8 @@ from daily_data import (
 )
 from daily_plot import build_active_days_figure, build_daily_figure
 from lifestyle_config import LifestyleSettings, load_lifestyle_settings, store_lifestyle_settings
+from plan_apply import ParsedInterval, merge_plan_intervals, store_active_plan
+from plan_backup import protect_plan_update
 from plan_model import MAX_PLAN_DURATION_DAYS, MAX_TAPER, build_plan_interval
 from plotly_support import PLOTLY_CONFIG, plotly_javascript
 from sleep_data import (
@@ -45,6 +48,7 @@ from weight_data import (
     parse_measurement_date,
     parse_weight,
     read_series,
+    read_series_bytes,
     store_weight,
 )
 from weight_plotly import build_difference_figure, build_rate_figure, build_weight_figure
@@ -52,6 +56,7 @@ from weight_plotly import build_difference_figure, build_rate_figure, build_weig
 BASE_DIR = Path(__file__).parent
 WEIGHT_CSV = BASE_DIR / "weight.csv"
 PLAN_CSV = BASE_DIR / "plan.csv"
+PLAN_BACKUP_DIRECTORY = BASE_DIR / "backups"
 SLEEP_CSV = BASE_DIR / "data" / "sleep.csv"
 DAILY_CSV = BASE_DIR / "data" / "daily.csv"
 LIFESTYLE_CONFIG = BASE_DIR / "lifestyle.local.json"
@@ -193,18 +198,15 @@ def download_weight_plan():
 @app.post("/weight/plan/preview")
 def preview_weight_plan():
     try:
-        payload = request.get_json(silent=True)
-        if not isinstance(payload, dict):
-            raise ValueError("Enter valid planning values")
-        raw_intervals = payload.get("intervals")
-        if not isinstance(raw_intervals, list) or not raw_intervals:
-            raise ValueError("Add at least one complete interval")
-        if len(raw_intervals) > 20:
-            raise ValueError("Add no more than 20 intervals")
+        parsed_intervals = _parse_candidate_request(request.get_json(silent=True))
         weight_dates, weights = read_series(WEIGHT_CSV)
-        plan_dates, plan = read_series(PLAN_CSV)
+        try:
+            plan_contents = PLAN_CSV.read_bytes()
+        except FileNotFoundError:
+            plan_contents = b""
+        plan_dates, plan = read_series_bytes(plan_contents) if plan_contents else ([], [])
         candidate_dates, candidate_plan, erase_intervals, summaries = _build_candidate_intervals(
-            raw_intervals
+            parsed_intervals
         )
     except ValueError as error:
         return jsonify(error=str(error)), 400
@@ -221,6 +223,32 @@ def preview_weight_plan():
     return jsonify(
         figure=json.loads(cast(str, figure.to_json())),
         intervals=summaries,
+        revision=hashlib.sha256(plan_contents).hexdigest(),
+    )
+
+
+@app.post("/weight/plan/apply")
+def apply_weight_plan():
+    try:
+        payload = request.get_json(silent=True)
+        parsed_intervals = _parse_candidate_request(payload)
+        revision = payload.get("revision") if isinstance(payload, dict) else None
+        if not isinstance(revision, str):
+            raise ValueError("Preview the candidate before applying it")
+        with protect_plan_update(
+            PLAN_CSV, PLAN_BACKUP_DIRECTORY, expected_revision=revision
+        ) as backup:
+            plan_dates, plan = read_series(PLAN_CSV)
+            merged_dates, merged_plan = merge_plan_intervals(plan_dates, plan, parsed_intervals)
+            store_active_plan(PLAN_CSV, merged_dates, merged_plan)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except OSError:
+        app.logger.exception("Could not apply weight plan")
+        return jsonify(error="Could not safely apply the plan"), 500
+    return jsonify(
+        message="Candidate changes applied",
+        backup=backup.name if backup else None,
     )
 
 
@@ -439,22 +467,35 @@ def _parse_candidate_interval(
     return start_date, end_date, None, None, True
 
 
+def _parse_candidate_request(payload: object) -> list[ParsedInterval]:
+    if not isinstance(payload, dict):
+        raise ValueError("Enter valid planning values")
+    raw_intervals = payload.get("intervals")
+    if not isinstance(raw_intervals, list) or not raw_intervals:
+        raise ValueError("Add at least one complete interval")
+    if len(raw_intervals) > 20:
+        raise ValueError("Add no more than 20 intervals")
+    parsed = sorted(
+        (_parse_candidate_interval(interval) for interval in raw_intervals),
+        key=lambda interval: interval[0],
+    )
+    previous_end = None
+    for start_date, end_date, *_rest in parsed:
+        if previous_end is not None and start_date <= previous_end:
+            raise ValueError("Planning intervals cannot overlap")
+        previous_end = end_date
+    return parsed
+
+
 def _build_candidate_intervals(
-    raw_intervals: list[object],
+    parsed_intervals: list[ParsedInterval],
 ) -> tuple[list[date], list[float], list[tuple[date, date]], list[dict[str, object]]]:
     candidate_dates: list[date] = []
     candidate_weights: list[float] = []
     erase_intervals: list[tuple[date, date]] = []
     summaries: list[dict[str, object]] = []
-    parsed_intervals = [_parse_candidate_interval(interval) for interval in raw_intervals]
-
-    previous_end: date | None = None
     previous_weight_end: date | None = None
-    for start_date, end_date, interval_dates, interval_weights, erase in sorted(
-        parsed_intervals, key=lambda interval: interval[0]
-    ):
-        if previous_end is not None and start_date <= previous_end:
-            raise ValueError("Planning intervals cannot overlap")
+    for start_date, end_date, interval_dates, interval_weights, erase in parsed_intervals:
         weekly_change = None
         if erase:
             if previous_weight_end is not None:
@@ -485,7 +526,6 @@ def _build_candidate_intervals(
                 "erase": erase,
             }
         )
-        previous_end = end_date
     return candidate_dates, candidate_weights, erase_intervals, summaries
 
 

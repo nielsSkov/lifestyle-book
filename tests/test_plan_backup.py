@@ -96,7 +96,7 @@ def test_create_plan_backup_returns_none_without_active_plan(tmp_path: Path):
     backup = create_plan_backup(tmp_path / "plan.csv", tmp_path / "backups")
 
     assert backup is None
-    assert not (tmp_path / "backups").exists()
+    assert not list((tmp_path / "backups").glob("plan-auto-*.csv"))
 
 
 def test_create_plan_backup_rejects_invalid_source_without_leaving_files(tmp_path: Path):

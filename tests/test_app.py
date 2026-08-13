@@ -1,3 +1,5 @@
+import hashlib
+import math
 from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -25,6 +27,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     )
     monkeypatch.setattr(app_module, "WEIGHT_CSV", weight_csv)
     monkeypatch.setattr(app_module, "PLAN_CSV", plan_csv)
+    monkeypatch.setattr(app_module, "PLAN_BACKUP_DIRECTORY", tmp_path / "backups")
     monkeypatch.setattr(app_module, "SLEEP_CSV", tmp_path / "data" / "sleep.csv")
     monkeypatch.setattr(app_module, "DAILY_CSV", tmp_path / "data" / "daily.csv")
     monkeypatch.setattr(app_module, "LIFESTYLE_CONFIG", tmp_path / "lifestyle.local.json")
@@ -148,6 +151,13 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"Not saved" not in response.data
     assert b"Save Plan" not in response.data
     assert b'href="/weight/plan/download" download>Download Active Plan</a>' in response.data
+    assert b"data-apply-plan disabled>Apply Candidate Changes</button>" in response.data
+    assert b'data-apply-url="/weight/plan/apply"' in response.data
+    assert b'class="planning-confirm-dialog" data-apply-dialog' in response.data
+    assert b"Only dates covered by these intervals will change" in response.data
+    assert b"previewedPayloads = payloads" in response.data
+    assert b"clearDraft();" in response.data
+    assert b"window.location.reload();" in response.data
 
 
 def test_weight_plan_download_returns_active_csv_unchanged(client):
@@ -243,6 +253,99 @@ def test_weight_plan_preview_updates_candidate_without_writing_plan(client):
     )
     assert candidate_trace["y"] == [float(weight) for weight in range(100, 89, -1)]
     assert app_module.PLAN_CSV.read_bytes() == original_plan
+
+
+def test_weight_plan_apply_backs_up_and_changes_only_covered_dates(client):
+    original = app_module.PLAN_CSV.read_bytes()
+
+    response = client.post(
+        "/weight/plan/apply",
+        json={
+            "revision": hashlib.sha256(original).hexdigest(),
+            "intervals": [
+                {
+                    "start_date": "2026-08-02",
+                    "start_weight": 99,
+                    "target_weight": 98,
+                    "duration_days": 1,
+                    "taper": 0,
+                },
+                {"start_date": "2026-08-04", "duration_days": 1, "erase": True},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json["message"] == "Candidate changes applied"
+    backup = app_module.PLAN_BACKUP_DIRECTORY / response.json["backup"]
+    assert backup.read_bytes() == original
+    dates, weights = read_series(app_module.PLAN_CSV)
+    assert dates == [date(2026, 8, day) for day in range(1, 6)]
+    assert weights[:3] == [100.0, 99.0, 98.0]
+    assert math.isnan(weights[3])
+    assert math.isnan(weights[4])
+
+
+def test_weight_plan_apply_can_clear_entire_active_plan(client):
+    original = app_module.PLAN_CSV.read_bytes()
+    response = client.post(
+        "/weight/plan/apply",
+        json={
+            "revision": hashlib.sha256(original).hexdigest(),
+            "intervals": [{"start_date": "2026-08-01", "duration_days": 2, "erase": True}],
+        },
+    )
+
+    assert response.status_code == 200
+    dates, weights = read_series(app_module.PLAN_CSV)
+    assert dates == [date(2026, 8, day) for day in range(1, 4)]
+    assert all(math.isnan(weight) for weight in weights)
+    assert len(list(app_module.PLAN_BACKUP_DIRECTORY.glob("plan-auto-*.csv"))) == 1
+
+
+def test_weight_plan_apply_rejects_invalid_candidate_without_backup(client):
+    original = app_module.PLAN_CSV.read_bytes()
+
+    response = client.post(
+        "/weight/plan/apply",
+        json={
+            "revision": hashlib.sha256(original).hexdigest(),
+            "intervals": [{"start_date": "2026-08-01", "duration_days": 0, "erase": True}],
+        },
+    )
+
+    assert response.status_code == 400
+    assert app_module.PLAN_CSV.read_bytes() == original
+    assert not app_module.PLAN_BACKUP_DIRECTORY.exists()
+
+
+def test_weight_plan_apply_rejects_changed_active_plan(client):
+    original = app_module.PLAN_CSV.read_bytes()
+    revision = hashlib.sha256(original).hexdigest()
+    app_module.PLAN_CSV.write_text("date,weight_kg\n2026-08-01,90\n", encoding="utf-8")
+
+    response = client.post(
+        "/weight/plan/apply",
+        json={
+            "revision": revision,
+            "intervals": [
+                {
+                    "start_date": "2026-08-01",
+                    "start_weight": 100,
+                    "target_weight": 99,
+                    "duration_days": 1,
+                    "taper": 0,
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json == {
+        "error": "The active plan changed after this preview. Review it again."
+    }
+    assert app_module.PLAN_CSV.read_text(encoding="utf-8").endswith("2026-08-01,90\n")
+    assert not list(app_module.PLAN_BACKUP_DIRECTORY.glob("plan-auto-*.csv"))
 
 
 def test_weight_plan_preview_builds_independent_intervals_with_a_gap(client):
