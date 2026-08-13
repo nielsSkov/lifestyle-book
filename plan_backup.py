@@ -3,6 +3,7 @@ import os
 import re
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from fcntl import LOCK_EX, LOCK_UN, flock
 from pathlib import Path
@@ -12,6 +13,36 @@ from weight_data import validate_csv
 DEFAULT_PLAN_BACKUP_RETENTION = 30
 BACKUP_PREFIX = "plan-auto-"
 BACKUP_PATTERN = re.compile(r"^plan-auto-(\d{8}T\d{12}Z)(?:-(\d+))?\.csv$")
+
+
+@dataclass(frozen=True)
+class PlanBackup:
+    name: str
+    created_at: datetime
+    size: int
+
+
+def list_plan_backups(backup_directory: Path) -> list[PlanBackup]:
+    if not backup_directory.exists():
+        return []
+    backups = []
+    for path in backup_directory.iterdir():
+        match = BACKUP_PATTERN.fullmatch(path.name)
+        if not match or path.is_symlink() or not path.is_file():
+            continue
+        try:
+            backups.append(
+                PlanBackup(
+                    name=path.name,
+                    created_at=datetime.strptime(match.group(1), "%Y%m%dT%H%M%S%fZ").replace(
+                        tzinfo=UTC
+                    ),
+                    size=path.stat().st_size,
+                )
+            )
+        except (FileNotFoundError, ValueError):
+            continue
+    return sorted(backups, key=lambda backup: (backup.created_at, backup.name), reverse=True)
 
 
 def create_plan_backup(
@@ -58,23 +89,51 @@ def protect_plan_update(
         if expected_revision is not None and _plan_revision(contents) != expected_revision:
             raise ValueError("The active plan changed after this preview. Review it again.")
 
-        stem = f"{BACKUP_PREFIX}{timestamp.astimezone(UTC).strftime('%Y%m%dT%H%M%S%fZ')}"
-        destination = _unused_backup_path(backup_directory, stem)
-        temporary = destination.with_suffix(".tmp")
-        try:
-            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(descriptor, "wb") as backup_file:
-                backup_file.write(contents)
-                backup_file.flush()
-                os.fsync(backup_file.fileno())
-            validate_csv(temporary, allow_gaps=True)
-            os.replace(temporary, destination)
-            _sync_directory(backup_directory)
-        finally:
-            temporary.unlink(missing_ok=True)
-
-        _prune_plan_backups(backup_directory, retention, preserve=destination)
+        destination = _write_backup_bytes(backup_directory, contents, timestamp, validate=True)
+        _prune_plan_backups(backup_directory, retention, preserve={destination})
         yield destination
+
+
+def restore_plan_backup(
+    plan_path: Path,
+    backup_directory: Path,
+    backup_name: str,
+    *,
+    retention: int = DEFAULT_PLAN_BACKUP_RETENTION,
+    expected_revision: str | None = None,
+) -> Path | None:
+    if not BACKUP_PATTERN.fullmatch(backup_name):
+        raise ValueError("Choose a valid plan backup")
+    _prepare_backup_directory(backup_directory)
+    with plan_backup_lock(backup_directory):
+        source = backup_directory / backup_name
+        if source.is_symlink():
+            raise ValueError("Choose a valid plan backup")
+        try:
+            restored_contents = source.read_bytes()
+        except FileNotFoundError:
+            raise ValueError("That plan backup is no longer available") from None
+        validate_csv(source, allow_gaps=True)
+        try:
+            current_contents = plan_path.read_bytes()
+        except FileNotFoundError:
+            current_contents = None
+        current_revision = _plan_revision(current_contents or b"")
+        if expected_revision is not None and current_revision != expected_revision:
+            raise ValueError("The active plan changed. Reload the backup history and try again.")
+        current_backup = (
+            _write_backup_bytes(
+                backup_directory, current_contents, datetime.now(UTC), validate=False
+            )
+            if current_contents is not None
+            else None
+        )
+        _replace_plan_bytes(plan_path, restored_contents)
+        preserved = {source}
+        if current_backup is not None:
+            preserved.add(current_backup)
+        _prune_plan_backups(backup_directory, retention, preserve=preserved)
+        return current_backup
 
 
 @contextmanager
@@ -108,14 +167,54 @@ def _unused_backup_path(directory: Path, stem: str) -> Path:
     return destination
 
 
-def _prune_plan_backups(directory: Path, retention: int, *, preserve: Path) -> None:
+def _write_backup_bytes(
+    backup_directory: Path,
+    contents: bytes,
+    timestamp: datetime,
+    *,
+    validate: bool,
+) -> Path:
+    stem = f"{BACKUP_PREFIX}{timestamp.strftime('%Y%m%dT%H%M%S%fZ')}"
+    destination = _unused_backup_path(backup_directory, stem)
+    temporary = destination.with_suffix(".tmp")
+    try:
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "wb") as backup_file:
+            backup_file.write(contents)
+            backup_file.flush()
+            os.fsync(backup_file.fileno())
+        if validate:
+            validate_csv(temporary, allow_gaps=True)
+        os.replace(temporary, destination)
+        _sync_directory(backup_directory)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return destination
+
+
+def _replace_plan_bytes(plan_path: Path, contents: bytes) -> None:
+    temporary = plan_path.with_suffix(".restore.tmp")
+    try:
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "wb") as plan_file:
+            plan_file.write(contents)
+            plan_file.flush()
+            os.fsync(plan_file.fileno())
+        validate_csv(temporary, allow_gaps=True)
+        os.replace(temporary, plan_path)
+        _sync_directory(plan_path.parent)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _prune_plan_backups(directory: Path, retention: int, *, preserve: set[Path]) -> None:
     backups = []
     for path in directory.iterdir():
         match = BACKUP_PATTERN.fullmatch(path.name)
-        if match and path.is_file():
+        if match and not path.is_symlink() and path.is_file():
             backups.append((match.group(1), int(match.group(2) or 1), path))
     backups.sort(key=lambda backup: (backup[2].stat().st_mtime_ns, backup[0], backup[1]))
-    removable = [backup for backup in backups if backup[2] != preserve]
+    removable = [backup for backup in backups if backup[2] not in preserve]
     excess = max(0, len(backups) - retention)
     for _timestamp, _sequence, obsolete in removable[:excess]:
         obsolete.unlink()

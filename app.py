@@ -29,7 +29,7 @@ from daily_data import (
 from daily_plot import build_active_days_figure, build_daily_figure
 from lifestyle_config import LifestyleSettings, load_lifestyle_settings, store_lifestyle_settings
 from plan_apply import ParsedInterval, merge_plan_intervals, store_active_plan
-from plan_backup import protect_plan_update
+from plan_backup import list_plan_backups, protect_plan_update, restore_plan_backup
 from plan_model import MAX_PLAN_DURATION_DAYS, MAX_TAPER, build_plan_interval
 from plotly_support import PLOTLY_CONFIG, plotly_javascript
 from sleep_data import (
@@ -137,7 +137,17 @@ def weight():
 @app.get("/weight/plan")
 def weight_plan():
     weight_dates, weights = read_series(WEIGHT_CSV)
-    plan_dates, plan = read_series(PLAN_CSV)
+    try:
+        plan_contents = PLAN_CSV.read_bytes()
+    except FileNotFoundError:
+        plan_contents = b""
+    active_plan_revision = hashlib.sha256(plan_contents).hexdigest()
+    active_plan_error = None
+    try:
+        plan_dates, plan = read_series_bytes(plan_contents) if plan_contents else ([], [])
+    except (KeyError, UnicodeError, ValueError):
+        plan_dates, plan = [], []
+        active_plan_error = "The active plan cannot be read. Restore a backup below."
     start_weight = 100.0
     duration_days = DEFAULT_PLAN_DURATION_DAYS
     taper = 0.0
@@ -159,6 +169,16 @@ def weight_plan():
         plan_dates,
         plan,
     )
+    backups = [
+        {
+            "name": backup.name,
+            "created_label": backup.created_at.astimezone(COPENHAGEN).strftime(
+                "%d %b %Y, %H:%M:%S %Z"
+            ),
+            "size_label": f"{backup.size / 1024:.1f} KB",
+        }
+        for backup in list_plan_backups(PLAN_BACKUP_DIRECTORY)
+    ]
     return render_template(
         "weight_plan.html",
         active_section="weight-plan",
@@ -177,6 +197,9 @@ def weight_plan():
         weight_range_max=weight_range_max,
         duration_range_min=duration_range_min,
         duration_range_max=duration_range_max,
+        plan_backups=backups,
+        active_plan_revision=active_plan_revision,
+        active_plan_error=active_plan_error,
     )
 
 
@@ -249,6 +272,31 @@ def apply_weight_plan():
     return jsonify(
         message="Candidate changes applied",
         backup=backup.name if backup else None,
+    )
+
+
+@app.post("/weight/plan/restore")
+def restore_weight_plan():
+    payload = request.get_json(silent=True)
+    backup_name = payload.get("backup") if isinstance(payload, dict) else None
+    revision = payload.get("revision") if isinstance(payload, dict) else None
+    if not isinstance(backup_name, str) or not isinstance(revision, str):
+        return jsonify(error="Choose a valid plan backup"), 400
+    try:
+        current_backup = restore_plan_backup(
+            PLAN_CSV,
+            PLAN_BACKUP_DIRECTORY,
+            backup_name,
+            expected_revision=revision,
+        )
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except OSError:
+        app.logger.exception("Could not restore weight plan backup")
+        return jsonify(error="Could not safely restore the plan backup"), 500
+    return jsonify(
+        message="Plan backup restored",
+        current_backup=current_backup.name if current_backup else None,
     )
 
 

@@ -364,6 +364,97 @@ input {
   gap: 20px;
 }
 
+.plan-backups-card {
+  margin-top: 20px;
+  padding: 22px;
+  border: 1px solid #30283e;
+  border-radius: 18px;
+  background: #15111f;
+}
+
+.plan-recovery-warning {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border: 1px solid #8a554f;
+  border-radius: 12px;
+  color: #f0c2ba;
+  background: #321c1b;
+  line-height: 1.45;
+}
+
+.plan-backups-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.plan-backups-heading .eyebrow {
+  margin-bottom: 4px;
+}
+
+.plan-backups-heading h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.plan-backups-heading > span,
+.plan-backup-row small {
+  color: #81768e;
+  font-size: 0.76rem;
+}
+
+.plan-backup-list {
+  display: grid;
+  max-height: 420px;
+  margin-top: 16px;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.plan-backup-row {
+  display: flex;
+  min-height: 58px;
+  padding: 9px 10px 9px 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid #383047;
+  border-radius: 11px;
+  background: #110d19;
+}
+
+.plan-backup-row > div {
+  display: grid;
+  gap: 3px;
+}
+
+.plan-backup-row strong {
+  color: #d8cfee;
+  font-size: 0.86rem;
+}
+
+.plan-backup-row button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #4b405d;
+  border-radius: 9px;
+  color: #c9b6f4;
+  background: #2a203a;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.plan-backups-empty {
+  margin: 16px 0 0;
+  color: #91869e;
+  font-size: 0.86rem;
+}
+
 .planning-controls-card {
   min-width: 0;
   padding: 22px;

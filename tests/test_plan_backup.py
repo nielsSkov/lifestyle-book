@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from plan_backup import create_plan_backup, protect_plan_update
+from plan_backup import (
+    create_plan_backup,
+    list_plan_backups,
+    protect_plan_update,
+    restore_plan_backup,
+)
 
 VALID_PLAN = b"date,weight_kg\n2026-08-01,100\n2026-08-02,NaN\n"
 
@@ -162,3 +167,95 @@ def test_retention_preserves_new_backup_with_older_timestamp(tmp_path: Path):
     assert latest is not None
     assert latest.exists()
     assert [path.name for path in backup_directory.glob("plan-auto-*.csv")] == [latest.name]
+
+
+def test_list_plan_backups_returns_newest_managed_files_only(tmp_path: Path):
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    older = directory / "plan-auto-20260812T100000000000Z.csv"
+    newer = directory / "plan-auto-20260813T100000000000Z.csv"
+    older.write_bytes(VALID_PLAN)
+    newer.write_bytes(VALID_PLAN + b"2026-08-03,99\n")
+    (directory / "plan-manual.csv").write_bytes(VALID_PLAN)
+
+    backups = list_plan_backups(directory)
+
+    assert [backup.name for backup in backups] == [newer.name, older.name]
+    assert backups[0].created_at == datetime(2026, 8, 13, 10, tzinfo=UTC)
+    assert backups[0].size == newer.stat().st_size
+
+
+def test_restore_plan_backup_saves_current_plan_and_restores_exact_bytes(tmp_path: Path):
+    plan = tmp_path / "plan.csv"
+    current = b"date,weight_kg\n2026-08-01,90\n"
+    plan.write_bytes(current)
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    source = directory / "plan-auto-20260812T100000000000Z.csv"
+    source.write_bytes(VALID_PLAN)
+
+    current_backup = restore_plan_backup(plan, directory, source.name)
+
+    assert plan.read_bytes() == VALID_PLAN
+    assert current_backup is not None
+    assert current_backup.read_bytes() == current
+    assert stat.S_IMODE(plan.stat().st_mode) == 0o600
+
+
+def test_restore_plan_backup_rejects_unmanaged_or_missing_name(tmp_path: Path):
+    plan = tmp_path / "plan.csv"
+    plan.write_bytes(VALID_PLAN)
+    directory = tmp_path / "backups"
+
+    with pytest.raises(ValueError, match="valid plan backup"):
+        restore_plan_backup(plan, directory, "../plan.csv")
+    with pytest.raises(ValueError, match="no longer available"):
+        restore_plan_backup(plan, directory, "plan-auto-20260812T100000000000Z.csv")
+
+
+def test_restore_plan_backup_allows_recovery_from_invalid_current_plan(tmp_path: Path):
+    plan = tmp_path / "plan.csv"
+    damaged = b"damaged current plan\n"
+    plan.write_bytes(damaged)
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    source = directory / "plan-auto-20260812T100000000000Z.csv"
+    source.write_bytes(VALID_PLAN)
+
+    damaged_backup = restore_plan_backup(plan, directory, source.name)
+
+    assert plan.read_bytes() == VALID_PLAN
+    assert damaged_backup is not None
+    assert damaged_backup.read_bytes() == damaged
+
+
+def test_restore_at_retention_limit_preserves_selected_source(tmp_path: Path):
+    plan = tmp_path / "plan.csv"
+    plan.write_bytes(b"date,weight_kg\n2026-08-01,90\n")
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    sources = []
+    for day in range(1, 4):
+        source = directory / f"plan-auto-2026080{day}T100000000000Z.csv"
+        source.write_bytes(VALID_PLAN)
+        sources.append(source)
+
+    restore_plan_backup(plan, directory, sources[0].name, retention=3)
+
+    assert sources[0].exists()
+    assert plan.read_bytes() == VALID_PLAN
+    assert len(list(directory.glob("plan-auto-*.csv"))) == 3
+
+
+def test_restore_rejects_changed_active_plan_before_creating_backup(tmp_path: Path):
+    plan = tmp_path / "plan.csv"
+    plan.write_bytes(b"date,weight_kg\n2026-08-01,90\n")
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    source = directory / "plan-auto-20260812T100000000000Z.csv"
+    source.write_bytes(VALID_PLAN)
+
+    with pytest.raises(ValueError, match="active plan changed"):
+        restore_plan_backup(plan, directory, source.name, expected_revision="stale")
+
+    assert list(directory.glob("plan-auto-*.csv")) == [source]

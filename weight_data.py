@@ -47,7 +47,10 @@ def read_series_bytes(contents: bytes) -> tuple[list[date], list[float]]:
     dates = []
     weights = []
     with io.TextIOWrapper(io.BytesIO(contents), encoding="utf-8-sig", newline="") as csv_file:
-        for row in csv.DictReader(csv_file):
+        reader = csv.DictReader(csv_file)
+        if reader.fieldnames != CSV_HEADER:
+            raise ValueError("Expected header: date,weight_kg")
+        for row in reader:
             dates.append(date.fromisoformat(row["date"]))
             weights.append(float(row["weight_kg"]))
     return dates, weights

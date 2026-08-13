@@ -9,7 +9,8 @@
     <a class="plan-download-link" href="{{ url_for('download_weight_plan') }}" download>Download Active Plan</a>
   </section>
 
-  <div class="planning-workspace">
+  {% if active_plan_error %}<p class="plan-recovery-warning" role="alert">{{ active_plan_error }}</p>{% endif %}
+  <div class="planning-workspace"{% if active_plan_error %} hidden{% endif %}>
     <section class="planning-controls-card" data-planner data-preview-url="{{ url_for('preview_weight_plan') }}" data-apply-url="{{ url_for('apply_weight_plan') }}" data-defaults-url="{{ url_for('weight_plan_defaults') }}" data-today="{{ today.isoformat() }}">
       <div class="planning-list-heading">
         <h2>Plan Intervals</h2>
@@ -42,10 +43,44 @@
     <form method="dialog">
       <p class="eyebrow">Apply candidate</p>
       <h2>Update the active plan?</h2>
-      <p>Only dates covered by these intervals will change. The current active plan will be backed up first.</p>
+      <p>Only dates covered by these intervals will change. The current active plan will be backed up.</p>
       <div class="planning-confirm-actions">
         <button class="planning-confirm-cancel" type="submit" value="cancel">Keep Editing</button>
         <button class="apply-confirm-button" type="submit" value="apply">Apply Changes</button>
+      </div>
+    </form>
+  </dialog>
+
+  <section class="plan-backups-card" data-active-plan-revision="{{ active_plan_revision }}">
+    <div class="plan-backups-heading">
+      <div>
+        <p class="eyebrow">Recovery</p>
+        <h2>Plan Backups</h2>
+      </div>
+      <span>{{ plan_backups|length }} of 30</span>
+    </div>
+    {% if plan_backups %}
+      <div class="plan-backup-list">
+        {% for backup in plan_backups %}
+          <div class="plan-backup-row">
+            <div><strong>{{ backup.created_label }}</strong><small>{{ backup.size_label }}</small></div>
+            <button type="button" data-restore-backup="{{ backup.name }}" data-restore-label="{{ backup.created_label }}">Restore</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="plan-backups-empty">A backup will appear here after the active plan is changed.</p>
+    {% endif %}
+  </section>
+
+  <dialog class="planning-confirm-dialog" data-restore-dialog>
+    <form method="dialog">
+      <p class="eyebrow">Restore backup</p>
+      <h2>Replace the active plan?</h2>
+      <p>Restore the plan from <strong data-restore-date></strong>? The current active plan will be backed up and any candidate intervals will be discarded.</p>
+      <div class="planning-confirm-actions">
+        <button class="planning-confirm-cancel" type="submit" value="cancel">Cancel</button>
+        <button class="apply-confirm-button" type="submit" value="restore">Restore Plan</button>
       </div>
     </form>
   </dialog>
@@ -123,6 +158,7 @@
     const removeDialog = document.querySelector("[data-remove-dialog]");
     const applyDialog = document.querySelector("[data-apply-dialog]");
     const applyButton = document.querySelector("[data-apply-plan]");
+    const restoreDialog = document.querySelector("[data-restore-dialog]");
     const plotlyConfig = {{ plotly_config | tojson }};
     const baseFigure = {{ graph_json | safe }};
     const plotElement = document.getElementById("planning-weight-plot");
@@ -147,6 +183,7 @@
     let previewedPayloads = null;
     let previewedRevision = null;
     let confirmedApplication = null;
+    let pendingRestore = null;
     const draftStorageKey = "lifestyle-book.weight-plan-draft.v1";
 
     function field(card, name) { return card.querySelector(`[data-field="${name}"]`); }
@@ -744,6 +781,47 @@
       if (typeof applyDialog.showModal === "function") applyDialog.showModal();
       else if (window.confirm("Apply these candidate changes to the active plan?")) applyCandidate();
       else confirmedApplication = null;
+    });
+
+    async function restoreBackup() {
+      if (!pendingRestore) return;
+      const backup = pendingRestore;
+      pendingRestore = null;
+      document.querySelectorAll("[data-restore-backup]").forEach((button) => button.disabled = true);
+      setStatus("Restoring plan backup...");
+      try {
+        const response = await fetch("{{ url_for('restore_weight_plan') }}", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            backup,
+            revision: document.querySelector("[data-active-plan-revision]").dataset.activePlanRevision,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Could not restore the plan backup");
+        clearDraft();
+        window.location.reload();
+      } catch (error) {
+        setStatus(error.message, "error");
+        document.querySelectorAll("[data-restore-backup]").forEach((button) => button.disabled = false);
+      }
+    }
+
+    restoreDialog.addEventListener("close", () => {
+      if (restoreDialog.returnValue === "restore") restoreBackup();
+      else pendingRestore = null;
+      restoreDialog.returnValue = "";
+    });
+
+    document.querySelectorAll("[data-restore-backup]").forEach((button) => {
+      button.addEventListener("click", () => {
+        pendingRestore = button.dataset.restoreBackup;
+        restoreDialog.querySelector("[data-restore-date]").textContent = button.dataset.restoreLabel;
+        if (typeof restoreDialog.showModal === "function") restoreDialog.showModal();
+        else if (window.confirm(`Restore the plan from ${button.dataset.restoreLabel}?`)) restoreBackup();
+        else pendingRestore = null;
+      });
     });
 
     function addInterval(draft = null) {
