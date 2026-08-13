@@ -47,6 +47,11 @@
           <input class="planning-date-input" data-field="start_date" type="date" lang="en-GB" required>
           <p class="planning-field-error" data-date-error aria-live="polite"></p>
         </div>
+        <div class="planning-field planning-date-field">
+          <label data-label="end_date">End Date</label>
+          <input class="planning-date-input" data-field="end_date" type="date" lang="en-GB" required>
+          <p class="planning-field-error" data-end-date-error aria-live="polite"></p>
+        </div>
         <div class="planning-field">
           <div class="planning-label-row">
             <label data-label="start_weight">Start Weight</label>
@@ -132,6 +137,7 @@
         }
         const draft = chronologicalIntervals().map((item) => ({
           start_date: field(item.card, "start_date").value,
+          end_date: field(item.card, "end_date").value,
           start_weight: exact(item.card, "start_weight").value,
           target_weight: exact(item.card, "target_weight").value,
           duration_days: exact(item.card, "duration_days").value,
@@ -361,8 +367,13 @@
       item.card.querySelector("[data-date-error]").textContent = message;
     }
 
+    function setEndDateError(item, message = "") {
+      item.card.querySelector("[data-end-date-error]").textContent = message;
+    }
+
     function validateIntervalOverlaps() {
       intervals.forEach((item) => setDateError(item));
+      intervals.forEach((item) => setEndDateError(item));
       const dated = chronologicalIntervals().filter((item) => intervalBounds(item));
       for (let index = 1; index < dated.length; index += 1) {
         const previous = intervalBounds(dated[index - 1]);
@@ -454,6 +465,8 @@
           item.endDate = summary.end_date;
           item.acceptedEndDate = summary.end_date;
           item.acceptedDuration = payloads[index].duration_days;
+          field(item.card, "end_date").value = summary.end_date;
+          field(item.card, "end_date").min = addDays(payloads[index].start_date, 1);
           item.card.querySelector("[data-plan-end]").textContent = summary.end_date_label;
           item.card.querySelector("[data-plan-rate]").textContent = `${summary.weekly_change >= 0 ? "+" : ""}${summary.weekly_change.toFixed(2)} kg/week`;
           item.card.querySelector("[data-interval-summary]").textContent = `${summary.start_date_label} – ${summary.end_date_label}`;
@@ -489,6 +502,7 @@
         setValue(item.card, "start_weight", startWeight);
         setValue(item.card, "target_weight", startWeight);
         setValue(item.card, "duration_days", defaults.duration_days);
+        synchronizeEndFromDuration(item);
         setValue(item.card, "taper", defaults.taper);
         item.acceptedStart = startDate;
         item.acceptedDuration = defaults.duration_days;
@@ -504,6 +518,40 @@
       value.setUTCDate(value.getUTCDate() + days);
       if (!Number.isFinite(value.getTime()) || value.getUTCFullYear() > 9999) return "";
       return value.toISOString().slice(0, 10);
+    }
+
+    function daysBetween(startDate, endDate) {
+      const start = new Date(`${startDate}T12:00:00Z`);
+      const end = new Date(`${endDate}T12:00:00Z`);
+      return Math.round((end - start) / 86400000);
+    }
+
+    function synchronizeEndFromDuration(item) {
+      const startDate = field(item.card, "start_date").value;
+      const duration = numberValue(exact(item.card, "duration_days"));
+      const endInput = field(item.card, "end_date");
+      if (!startDate) {
+        endInput.value = "";
+        endInput.removeAttribute("min");
+        return false;
+      }
+      if (!Number.isInteger(duration) || duration < 1) return false;
+      const endDate = addDays(startDate, duration);
+      if (!endDate) return false;
+      endInput.min = addDays(startDate, 1);
+      endInput.value = endDate;
+      setEndDateError(item);
+      return true;
+    }
+
+    function proposedEndOverlaps(item, endDate) {
+      const startDate = field(item.card, "start_date").value;
+      if (!startDate || !endDate) return false;
+      return intervals.some((other) => {
+        if (other === item) return false;
+        const bounds = intervalBounds(other);
+        return bounds && startDate <= bounds.end && endDate >= bounds.start;
+      });
     }
 
     function shiftRangeWindowAtEdge(card, name) {
@@ -538,6 +586,7 @@
       cancelPendingPreview();
       item.endDate = null;
       setValue(item.card, name, next);
+      if (name === "duration_days") synchronizeEndFromDuration(item);
       setExactError(input);
       saveDraft();
       if (item.initialized) schedulePreview();
@@ -574,6 +623,7 @@
       item.endDate = null;
       item.acceptedStart = proposedStart;
       setDateError(item);
+      synchronizeEndFromDuration(item);
       item.pendingReorder = true;
       saveDraft();
       if (!dateInput.value) {
@@ -626,6 +676,11 @@
       });
       card.querySelector("[data-interval-toggle]").addEventListener("click", () => toggleInterval(item));
       card.querySelector("[data-remove-interval]").addEventListener("click", () => requestIntervalRemoval(item));
+      field(card, "end_date").addEventListener("input", () => {
+        cancelPendingPreview();
+        item.defaultsVersion += 1;
+        item.endDate = null;
+      });
       field(card, "start_date").addEventListener("blur", () => {
         if (item.pendingReorder) reorderIntervals(item);
       });
@@ -642,6 +697,7 @@
           if (input.dataset.exact && (value < Number(partner.min) || value > Number(partner.max))) setRangeWindow(card, name, value);
           partner.value = value;
           updateRangeAppearance(range(card, name));
+          if (name === "duration_days") synchronizeEndFromDuration(item);
         }
         if (input.dataset.exact) {
           saveDraft();
@@ -653,6 +709,7 @@
           && proposedDurationOverlaps(item, numberValue(input))
         ) {
           setValue(card, "duration_days", item.acceptedDuration);
+          synchronizeEndFromDuration(item);
           setExactError(exact(card, "duration_days"), "That duration would overlap another interval.");
           item.endDate = item.acceptedEndDate;
           saveDraft();
@@ -665,6 +722,37 @@
         if (event.target.dataset.field === "start_date") {
           if (event.target.value === item.acceptedStart) return;
           commitStartDate(item);
+          return;
+        }
+        if (event.target.dataset.field === "end_date") {
+          cancelPendingPreview();
+          item.defaultsVersion += 1;
+          const startDate = field(card, "start_date").value;
+          const proposedEnd = event.target.value;
+          const duration = daysBetween(startDate, proposedEnd);
+          const durationInput = exact(card, "duration_days");
+          const maximumDuration = Number(durationInput.dataset.max ?? durationInput.max);
+          if (!startDate || !proposedEnd || duration < 1 || duration > maximumDuration) {
+            synchronizeEndFromDuration(item);
+            setEndDateError(
+              item,
+              duration > maximumDuration
+                ? `End date must be within ${maximumDuration} days of the start date.`
+                : "End date must be after the start date.",
+            );
+            saveDraft();
+            return;
+          }
+          if (proposedEndOverlaps(item, proposedEnd)) {
+            synchronizeEndFromDuration(item);
+            setEndDateError(item, "That end date would overlap another interval.");
+            saveDraft();
+            return;
+          }
+          setEndDateError(item);
+          setValue(card, "duration_days", duration);
+          item.endDate = null;
+          schedulePreview();
           return;
         }
         const exactName = event.target.dataset.exact;
@@ -680,6 +768,7 @@
             && proposedDurationOverlaps(item, numberValue(event.target))
           ) {
             setValue(card, "duration_days", item.acceptedDuration);
+            synchronizeEndFromDuration(item);
             setExactError(event.target, "That duration would overlap another interval.");
             item.endDate = item.acceptedEndDate;
             saveDraft();
@@ -711,6 +800,11 @@
           }
           validateExactInput(input);
         }
+        const restoredEndDate = typeof draft.end_date === "string" ? draft.end_date : "";
+        field(card, "end_date").min = startDate ? addDays(startDate, 1) : "";
+        field(card, "end_date").value = restoredEndDate;
+        if (!restoredEndDate) synchronizeEndFromDuration(item);
+        item.acceptedEndDate = field(card, "end_date").value || null;
         item.initialized = Boolean(startDate) && draft.initialized === true;
         item.pendingInitialWeight = typeof draft.initial_weight === "number"
           ? draft.initial_weight
@@ -731,10 +825,12 @@
       if (previous?.initialized && previous.endDate) {
         field(card, "start_date").value = nextStart;
         item.acceptedStart = field(card, "start_date").value;
+        synchronizeEndFromDuration(item);
         initializeInterval(item, numberValue(exact(previous.card, "target_weight")));
       } else {
         field(card, "start_date").value = planner.dataset.today;
         item.acceptedStart = planner.dataset.today;
+        synchronizeEndFromDuration(item);
         initializeInterval(item);
       }
       saveDraft();

@@ -96,6 +96,7 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"<h2>Plan Intervals</h2>" in response.data
     assert b"data-interval-list" in response.data
     assert b'data-field="start_date" type="date" lang="en-GB" required' in response.data
+    assert b'data-field="end_date" type="date" lang="en-GB" required' in response.data
     assert b"startDateInput.focus()" not in response.data
     assert b'data-range="taper"' in response.data
     assert b'value="0.0"' in response.data
@@ -118,6 +119,8 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"isIPad" not in response.data
     assert b"data-step-direction" in response.data
     assert b"stepExactValue(item" in response.data
+    assert b"synchronizeEndFromDuration(item)" in response.data
+    assert b"const duration = daysBetween(startDate, proposedEnd)" in response.data
     assert b"data-interval-title" not in response.data
     assert b"collapseOthers(isOpen ? null : item)" in response.data
     assert b"Discard this candidate plan?" not in response.data
