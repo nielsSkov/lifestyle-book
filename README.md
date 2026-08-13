@@ -138,6 +138,13 @@ Never use `git clean` in the deployment checkout: `weight.csv` and `plan.csv` ar
 
 ## Plan workflow
 
+Open `/weight/plan` in the application to build a candidate from dated weight or erase
+intervals. The editor previews changes against the active plan before applying them. Applying
+changes creates an automatic backup first. The same page can download the active CSV, preview
+and restore backups, and validate, preview, and import a complete plan CSV.
+
+The command-line synchronization tools remain available for server maintenance.
+
 Create the ignored local server configuration:
 
 ```sh
@@ -161,29 +168,7 @@ uv run fetch_weight.py
 
 The fetch command downloads to a temporary file, validates the CSV, compares its checksum with the server, and only then atomically replaces local `weight.csv`.
 
-Create the paired notebook from the tracked Jupytext source:
-
-```sh
-uv run jupytext --sync planning/plan.py
-```
-
-Open `planning/plan.ipynb` and edit the control points to build a daily candidate; equal-weight points create plateaus. The notebook shows one continuous plan made from historical plan data followed by the new candidate.
-
-Control-point values can also be functions of elapsed days. Each function runs from its control-point date until the next entry; numeric entries continue to use linear interpolation, and equal numeric entries create plateaus. `planning/planning_helpers.py` also provides the notebook's loading, merging, and plotting helpers.
-
-Use `None` as a control-point value to place an explicit gap in the plan. Saved plans represent gaps as `NaN`; plan deployment and the online graph support them, while recorded measurements still require finite weights.
-
-When the candidate is ready, save it explicitly from a separate notebook cell:
-
-```python
-planning.save_plan(plan_dates, plan_weights)
-```
-
-This validates and atomically replaces the ignored local `plan.csv`; normal notebook execution does not save automatically.
-
-The generated notebook is ignored, while `planning/plan.py` is the tracked source. Saving requires running the separate save cell, and deployment remains a separate command.
-
-After separately saving a validated candidate as `plan.csv`, deploy it with:
+To deploy a separately prepared and validated local `plan.csv`, use:
 
 ```sh
 ./deploy_plan.py
