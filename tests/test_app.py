@@ -97,6 +97,8 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"data-interval-list" in response.data
     assert b'data-field="start_date" type="date" lang="en-GB" required' in response.data
     assert b'data-field="end_date" type="date" lang="en-GB" required' in response.data
+    assert b'data-field="erase" type="checkbox"' in response.data
+    assert b"Erase active plan" in response.data
     assert b"startDateInput.focus()" not in response.data
     assert b'data-range="taper"' in response.data
     assert b'value="0.0"' in response.data
@@ -250,6 +252,82 @@ def test_weight_plan_preview_builds_independent_intervals_with_a_gap(client):
         "2026-08-16",
     ]
     assert candidate_trace["y"] == [100.0, 99.0, 98.0, None, 95.0, 94.0]
+
+
+def test_weight_plan_preview_marks_erase_intervals_without_weight_values(client):
+    response = client.post(
+        "/weight/plan/preview",
+        json={
+            "intervals": [
+                {
+                    "start_date": "2026-08-10",
+                    "duration_days": 2,
+                    "erase": True,
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json["intervals"] == [
+        {
+            "start_date_label": "10 Aug 2026",
+            "end_date": "2026-08-12",
+            "end_date_label": "12 Aug 2026",
+            "weekly_change": None,
+            "erase": True,
+        }
+    ]
+    figure = response.json["figure"]
+    assert not any(trace.get("name") == "Candidate plan" for trace in figure["data"])
+    assert figure["layout"]["shapes"][0]["x0"] == "2026-08-10"
+    assert figure["layout"]["shapes"][0]["x1"] == "2026-08-13"
+    assert any(
+        annotation.get("text") == "Erase active plan"
+        for annotation in figure["layout"]["annotations"]
+    )
+
+
+def test_weight_plan_preview_disconnects_weight_intervals_across_erase(client):
+    response = client.post(
+        "/weight/plan/preview",
+        json={
+            "intervals": [
+                {
+                    "start_date": "2026-08-10",
+                    "start_weight": 100,
+                    "target_weight": 99,
+                    "duration_days": 1,
+                    "taper": 0,
+                },
+                {"start_date": "2026-08-12", "duration_days": 1, "erase": True},
+                {
+                    "start_date": "2026-08-14",
+                    "start_weight": 97,
+                    "target_weight": 96,
+                    "duration_days": 1,
+                    "taper": 0,
+                },
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    candidate_trace = next(
+        trace for trace in response.json["figure"]["data"] if trace.get("name") == "Candidate plan"
+    )
+    assert candidate_trace["y"] == [100.0, 99.0, None, 97.0, 96.0]
+
+
+def test_weight_plan_preview_supports_erase_through_latest_date(client):
+    response = client.post(
+        "/weight/plan/preview",
+        json={"intervals": [{"start_date": "9999-12-30", "duration_days": 1, "erase": True}]},
+    )
+
+    assert response.status_code == 200
+    assert response.json["intervals"][0]["end_date"] == "9999-12-31"
+    assert response.json["figure"]["layout"]["shapes"][0]["x1"].startswith("9999-12-31")
 
 
 def test_weight_plan_preview_sorts_intervals_and_connects_adjacent_segments(client):

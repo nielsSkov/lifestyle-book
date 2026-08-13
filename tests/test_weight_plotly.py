@@ -56,6 +56,23 @@ def test_build_weight_figure_adds_blue_candidate_plan():
     assert candidate_trace["y"] == [100.0, 99.0]
 
 
+def test_build_weight_figure_marks_inclusive_erase_interval():
+    figure = build_weight_figure(
+        [],
+        [],
+        [date(2026, 8, 1)],
+        [100.0],
+        erase_intervals=[(date(2026, 8, 10), date(2026, 8, 12))],
+    )
+
+    serialized = json.loads(cast(str, figure.to_json()))
+    shape = serialized["layout"]["shapes"][0]
+    assert shape["x0"] == "2026-08-10"
+    assert shape["x1"] == "2026-08-13"
+    assert shape["fillcolor"] == "rgba(180, 83, 60, 0.2)"
+    assert serialized["layout"]["annotations"][0]["text"] == "Erase active plan"
+
+
 def test_build_difference_figure_shows_plan_difference():
     dates = [date(2026, 1, day) for day in range(1, 4)]
     weights = [101.0, 99.0, 100.0]

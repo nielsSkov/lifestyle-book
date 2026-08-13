@@ -177,7 +177,9 @@ def preview_weight_plan():
             raise ValueError("Add no more than 20 intervals")
         weight_dates, weights = read_series(WEIGHT_CSV)
         plan_dates, plan = read_series(PLAN_CSV)
-        candidate_dates, candidate_plan, summaries = _build_candidate_intervals(raw_intervals)
+        candidate_dates, candidate_plan, erase_intervals, summaries = _build_candidate_intervals(
+            raw_intervals
+        )
     except ValueError as error:
         return jsonify(error=str(error)), 400
 
@@ -188,6 +190,7 @@ def preview_weight_plan():
         plan,
         candidate_dates,
         candidate_plan,
+        erase_intervals,
     )
     return jsonify(
         figure=json.loads(cast(str, figure.to_json())),
@@ -378,47 +381,86 @@ def _parse_planning_start_date(raw_start_date: object) -> date:
         raise ValueError("Choose a valid start date") from None
 
 
+def _parse_candidate_interval(
+    raw_interval: object,
+) -> tuple[date, date, list[date] | None, list[float] | None, bool]:
+    if not isinstance(raw_interval, dict):
+        raise ValueError("Enter valid interval values")
+    erase = raw_interval.get("erase", False)
+    if not isinstance(erase, bool):
+        raise ValueError("Erase must be true or false")
+    if not erase:
+        start_date, start_weight, target_weight, duration_days, taper = _parse_planning_preview(
+            raw_interval
+        )
+        interval_dates, interval_weights = build_plan_interval(
+            start_date, start_weight, target_weight, duration_days, taper
+        )
+        return start_date, interval_dates[-1], interval_dates, interval_weights, False
+
+    start_date = _parse_planning_start_date(raw_interval.get("start_date"))
+    duration_days = raw_interval.get("duration_days")
+    if (
+        isinstance(duration_days, bool)
+        or not isinstance(duration_days, int)
+        or not 1 <= duration_days <= MAX_PLAN_DURATION_DAYS
+    ):
+        raise ValueError(f"Duration must be between 1 and {MAX_PLAN_DURATION_DAYS} days")
+    try:
+        end_date = start_date + timedelta(days=duration_days)
+    except OverflowError:
+        raise ValueError("Interval end date is outside the supported date range") from None
+    return start_date, end_date, None, None, True
+
+
 def _build_candidate_intervals(
     raw_intervals: list[object],
-) -> tuple[list[date], list[float], list[dict[str, object]]]:
+) -> tuple[list[date], list[float], list[tuple[date, date]], list[dict[str, object]]]:
     candidate_dates: list[date] = []
     candidate_weights: list[float] = []
+    erase_intervals: list[tuple[date, date]] = []
     summaries: list[dict[str, object]] = []
-    parsed_intervals = []
-    for raw_interval in raw_intervals:
-        if not isinstance(raw_interval, dict):
-            raise ValueError("Enter valid interval values")
-        parsed_intervals.append(_parse_planning_preview(raw_interval))
+    parsed_intervals = [_parse_candidate_interval(interval) for interval in raw_intervals]
 
     previous_end: date | None = None
-    for start_date, start_weight, target_weight, duration_days, taper in sorted(
+    previous_weight_end: date | None = None
+    for start_date, end_date, interval_dates, interval_weights, erase in sorted(
         parsed_intervals, key=lambda interval: interval[0]
     ):
-        interval_dates, interval_weights = build_plan_interval(
-            start_date,
-            start_weight,
-            target_weight,
-            duration_days,
-            taper,
-        )
-        end_date = interval_dates[-1]
         if previous_end is not None and start_date <= previous_end:
             raise ValueError("Planning intervals cannot overlap")
-        if previous_end is not None and start_date > previous_end + timedelta(days=1):
-            candidate_dates.append(previous_end + timedelta(days=1))
-            candidate_weights.append(math.nan)
-        candidate_dates.extend(interval_dates)
-        candidate_weights.extend(interval_weights)
+        weekly_change = None
+        if erase:
+            if previous_weight_end is not None:
+                candidate_dates.append(start_date)
+                candidate_weights.append(math.nan)
+            erase_intervals.append((start_date, end_date))
+            previous_weight_end = None
+        else:
+            assert interval_dates is not None
+            assert interval_weights is not None
+            if previous_weight_end is not None and start_date > previous_weight_end + timedelta(
+                days=1
+            ):
+                candidate_dates.append(previous_weight_end + timedelta(days=1))
+                candidate_weights.append(math.nan)
+            candidate_dates.extend(interval_dates)
+            candidate_weights.extend(interval_weights)
+            previous_weight_end = end_date
+            weekly_change = (
+                (interval_weights[-1] - interval_weights[0]) * 7 / (len(interval_dates) - 1)
+            )
         summaries.append(
             {
                 "start_date_label": start_date.strftime("%d %b %Y"),
                 "end_date": end_date.isoformat(),
                 "end_date_label": end_date.strftime("%d %b %Y"),
-                "weekly_change": (target_weight - start_weight) * 7 / duration_days,
+                "weekly_change": weekly_change,
+                "erase": erase,
             }
         )
         previous_end = end_date
-    return candidate_dates, candidate_weights, summaries
+    return candidate_dates, candidate_weights, erase_intervals, summaries
 
 
 def _planning_number(value: object, label: str) -> float:

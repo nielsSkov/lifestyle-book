@@ -528,6 +528,32 @@ input {
   overflow: hidden;
 }
 
+.planning-erase-option {
+  display: flex;
+  margin: -5px 2px 24px;
+  align-items: center;
+  gap: 10px;
+  color: #d8cfee;
+  font-size: 0.86rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.planning-erase-option input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #d97757;
+}
+
+.planning-interval-card.is-erase-interval {
+  border-color: #754b48;
+}
+
+.planning-interval-card.is-erase-interval .interval-summary-button {
+  background: #2a191c;
+}
+
 .planning-label-row {
   display: flex;
   min-height: 42px;

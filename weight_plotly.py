@@ -1,6 +1,6 @@
 import math
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from plotly import graph_objects as go
 
@@ -12,6 +12,7 @@ def build_weight_figure(
     plan: Sequence[float],
     candidate_dates: Sequence[date] = (),
     candidate_plan: Sequence[float] = (),
+    erase_intervals: Sequence[tuple[date, date]] = (),
 ) -> go.Figure:
     weight_points = list(zip(weight_dates, weights, strict=True))
     plan_points = list(zip(plan_dates, plan, strict=True))
@@ -75,6 +76,31 @@ def build_weight_figure(
             xshift=8,
             yshift=8,
             font={"color": "#a78bfa", "size": 13},
+        )
+
+    for start_date, end_date in erase_intervals:
+        try:
+            erased_through = end_date + timedelta(days=1)
+        except OverflowError:
+            erased_through = datetime.max
+        figure.add_vrect(
+            x0=start_date,
+            x1=erased_through,
+            fillcolor="rgba(180, 83, 60, 0.2)",
+            line={"color": "#d97757", "dash": "dot", "width": 1.5},
+            layer="above",
+        )
+        figure.add_annotation(
+            x=start_date + (end_date - start_date) / 2,
+            y=1,
+            yref="paper",
+            text="Erase active plan",
+            showarrow=False,
+            yanchor="top",
+            yshift=-6,
+            font={"color": "#f0a38d", "size": 12},
+            bgcolor="rgba(21, 17, 31, 0.82)",
+            borderpad=3,
         )
 
     figure.update_layout(

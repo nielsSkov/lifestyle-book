@@ -52,7 +52,11 @@
           <input class="planning-date-input" data-field="end_date" type="date" lang="en-GB" required>
           <p class="planning-field-error" data-end-date-error aria-live="polite"></p>
         </div>
-        <div class="planning-field">
+        <label class="planning-erase-option">
+          <input data-field="erase" type="checkbox">
+          <span>Erase active plan</span>
+        </label>
+        <div class="planning-field" data-weight-control>
           <div class="planning-label-row">
             <label data-label="start_weight">Start Weight</label>
             <div class="planning-exact-input"><input data-exact="start_weight" type="text" inputmode="decimal" data-min="{{ min_weight }}" data-max="{{ max_weight }}" data-step="0.1" value="{{ '%.1f'|format(start_weight) }}" aria-label="Exact start weight" required><span>kg</span><div class="planning-stepper"><button type="button" data-step-direction="1" aria-label="Increase start weight">&#9650;</button><button type="button" data-step-direction="-1" aria-label="Decrease start weight">&#9660;</button></div></div>
@@ -61,7 +65,7 @@
           <input data-range="start_weight" type="range" min="{{ weight_range_min }}" max="{{ weight_range_max }}" step="0.1" value="{{ '%.1f'|format(start_weight) }}" data-hard-min="{{ min_weight }}" data-hard-max="{{ max_weight }}" data-window-radius="10" aria-label="Start weight slider">
           <div class="taper-scale" data-scale="start_weight" data-unit=" kg" aria-hidden="true"><span data-range-min>{{ '%.1f'|format(weight_range_min) }} kg</span><span data-range-max>{{ '%.1f'|format(weight_range_max) }} kg</span></div>
         </div>
-        <div class="planning-field">
+        <div class="planning-field" data-weight-control>
           <div class="planning-label-row">
             <label data-label="target_weight">Target Weight</label>
             <div class="planning-exact-input"><input data-exact="target_weight" type="text" inputmode="decimal" data-min="{{ min_weight }}" data-max="{{ max_weight }}" data-step="0.1" value="{{ '%.1f'|format(start_weight) }}" aria-label="Exact target weight" required><span>kg</span><div class="planning-stepper"><button type="button" data-step-direction="1" aria-label="Increase target weight">&#9650;</button><button type="button" data-step-direction="-1" aria-label="Decrease target weight">&#9660;</button></div></div>
@@ -79,7 +83,7 @@
           <input data-range="duration_days" type="range" min="{{ duration_range_min }}" max="{{ duration_range_max }}" step="1" value="{{ duration_days }}" data-hard-min="1" data-hard-max="{{ max_duration_days }}" data-window-radius="15" aria-label="Duration slider">
           <div class="taper-scale" data-scale="duration_days" data-unit=" days" aria-hidden="true"><span data-range-min>{{ duration_range_min }} days</span><span data-range-max>{{ duration_range_max }} days</span></div>
         </div>
-        <div class="planning-field">
+        <div class="planning-field" data-weight-control>
           <div class="planning-label-row">
             <label data-label="taper">Taper</label>
             <div class="planning-exact-input taper-exact-input"><input data-exact="taper" type="text" inputmode="decimal" data-min="0" data-max="{{ max_taper }}" data-step="0.05" value="{{ taper }}" aria-label="Exact taper" required><div class="planning-stepper"><button type="button" data-step-direction="1" aria-label="Increase taper">&#9650;</button><button type="button" data-step-direction="-1" aria-label="Decrease taper">&#9660;</button></div></div>
@@ -138,6 +142,7 @@
         const draft = chronologicalIntervals().map((item) => ({
           start_date: field(item.card, "start_date").value,
           end_date: field(item.card, "end_date").value,
+          erase: field(item.card, "erase").checked,
           start_weight: exact(item.card, "start_weight").value,
           target_weight: exact(item.card, "target_weight").value,
           duration_days: exact(item.card, "duration_days").value,
@@ -387,13 +392,27 @@
     }
 
     function intervalPayload(item) {
-      return {
+      const payload = {
         start_date: field(item.card, "start_date").value,
-        start_weight: numberValue(exact(item.card, "start_weight")),
-        target_weight: numberValue(exact(item.card, "target_weight")),
         duration_days: numberValue(exact(item.card, "duration_days")),
-        taper: numberValue(exact(item.card, "taper")),
+        erase: field(item.card, "erase").checked,
       };
+      if (!payload.erase) {
+        payload.start_weight = numberValue(exact(item.card, "start_weight"));
+        payload.target_weight = numberValue(exact(item.card, "target_weight"));
+        payload.taper = numberValue(exact(item.card, "taper"));
+      }
+      return payload;
+    }
+
+    function applyEraseMode(item) {
+      const erase = field(item.card, "erase").checked;
+      item.card.classList.toggle("is-erase-interval", erase);
+      for (const control of item.card.querySelectorAll("[data-weight-control]")) {
+        control.hidden = erase;
+        for (const input of control.querySelectorAll("input")) input.disabled = erase;
+      }
+      item.card.querySelector("[data-plan-rate]").closest("div").hidden = erase;
     }
 
     function resetGraph() {
@@ -433,7 +452,7 @@
       previewVersion += 1;
       const complete = chronologicalIntervals().filter((item) => item.initialized);
       if (!complete.length) { setStatus(""); resetGraph(); return; }
-      complete.forEach((item) => item.card.querySelectorAll("[data-exact]").forEach(validateExactInput));
+      complete.forEach((item) => item.card.querySelectorAll("[data-exact]:not(:disabled)").forEach(validateExactInput));
       if (complete.some((item) => [...item.card.querySelectorAll("input")].some((input) => !input.checkValidity()))) {
         markPreviewUnchanged(complete);
         setStatus("Preview unchanged. Correct the highlighted value.", "error");
@@ -468,8 +487,10 @@
           field(item.card, "end_date").value = summary.end_date;
           field(item.card, "end_date").min = addDays(payloads[index].start_date, 1);
           item.card.querySelector("[data-plan-end]").textContent = summary.end_date_label;
-          item.card.querySelector("[data-plan-rate]").textContent = `${summary.weekly_change >= 0 ? "+" : ""}${summary.weekly_change.toFixed(2)} kg/week`;
-          item.card.querySelector("[data-interval-summary]").textContent = `${summary.start_date_label} – ${summary.end_date_label}`;
+          item.card.querySelector("[data-plan-rate]").textContent = summary.erase
+            ? "—"
+            : `${summary.weekly_change >= 0 ? "+" : ""}${summary.weekly_change.toFixed(2)} kg/week`;
+          item.card.querySelector("[data-interval-summary]").textContent = `${summary.start_date_label} – ${summary.end_date_label}${summary.erase ? " · Erase" : ""}`;
         });
         plotUpdates = plotUpdates.then(() => version === previewVersion ? renderFigure(result.figure) : undefined).catch(() => {});
       } catch (error) {
@@ -510,7 +531,7 @@
         item.pendingInitialWeight = null;
         schedulePreview();
       } catch (error) { if (defaultsVersion === item.defaultsVersion) setStatus(error.message, "error"); }
-      finally { if (defaultsVersion === item.defaultsVersion) { item.card.setAttribute("aria-busy", "false"); for (const input of item.card.querySelectorAll("input")) input.disabled = false; } }
+      finally { if (defaultsVersion === item.defaultsVersion) { item.card.setAttribute("aria-busy", "false"); for (const input of item.card.querySelectorAll("input")) input.disabled = false; applyEraseMode(item); } }
     }
 
     function addDays(rawDate, days) {
@@ -676,6 +697,11 @@
       });
       card.querySelector("[data-interval-toggle]").addEventListener("click", () => toggleInterval(item));
       card.querySelector("[data-remove-interval]").addEventListener("click", () => requestIntervalRemoval(item));
+      field(card, "erase").addEventListener("change", () => {
+        cancelPendingPreview();
+        applyEraseMode(item);
+        schedulePreview();
+      });
       field(card, "end_date").addEventListener("input", () => {
         cancelPendingPreview();
         item.defaultsVersion += 1;
@@ -788,6 +814,8 @@
       if (draft) {
         const startDate = typeof draft.start_date === "string" ? draft.start_date : "";
         field(card, "start_date").value = startDate;
+        field(card, "erase").checked = draft.erase === true;
+        applyEraseMode(item);
         item.acceptedStart = startDate;
         for (const name of ["start_weight", "target_weight", "duration_days", "taper"]) {
           const input = exact(card, name);
