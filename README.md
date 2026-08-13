@@ -79,6 +79,13 @@ uv run flask --app app run --port 8000
 
 Open <http://127.0.0.1:8000>.
 
+## License
+
+Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). Noncommercial use,
+modification, and redistribution are permitted under its terms. Commercial use requires
+separate permission from Niels Skov. Donations supporting the original project are welcome.
+See [COPYRIGHT.md](COPYRIGHT.md) for ownership, earlier-version, and third-party details.
+
 ## Server deployment
 
 The supported production model is a Git checkout containing ignored, server-local CSV files. The application has no authentication and should only be reachable through a trusted private network or VPN.
