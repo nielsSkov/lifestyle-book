@@ -70,6 +70,7 @@ def test_build_weight_figure_marks_inclusive_erase_interval():
     assert shape["x0"] == "2026-08-10"
     assert shape["x1"] == "2026-08-13"
     assert shape["fillcolor"] == "rgba(180, 83, 60, 0.2)"
+    assert shape["line"]["width"] == 0
     assert serialized["layout"]["annotations"][0]["text"] == "Erase active plan"
 
 

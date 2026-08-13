@@ -87,7 +87,7 @@ def build_weight_figure(
             x0=start_date,
             x1=erased_through,
             fillcolor="rgba(180, 83, 60, 0.2)",
-            line={"color": "#d97757", "dash": "dot", "width": 1.5},
+            line={"width": 0},
             layer="above",
         )
         figure.add_annotation(
