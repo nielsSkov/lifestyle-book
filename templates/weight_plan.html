@@ -101,8 +101,8 @@
               <span><strong>{{ backup.created_label }}</strong><small>{{ backup.size_label }}</small></span>
             </label>
             <div class="plan-backup-actions">
-              <button type="button" data-restore-backup="{{ backup.name }}" data-backup-revision="{{ backup.revision }}" data-restore-label="{{ backup.created_label }}">Restore</button>
               <button class="delete-backup-button" type="button" data-delete-backup="{{ backup.name }}" data-backup-revision="{{ backup.revision }}" data-restore-label="{{ backup.created_label }}">Delete</button>
+              <button type="button" data-restore-backup="{{ backup.name }}" data-backup-revision="{{ backup.revision }}" data-restore-label="{{ backup.created_label }}">Restore</button>
             </div>
           </div>
         {% endfor %}

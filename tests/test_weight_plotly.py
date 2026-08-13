@@ -88,6 +88,9 @@ def test_build_difference_figure_shows_plan_difference():
     assert above_plan_trace["x"] == ["2026-01-01", "2026-01-02", "2026-01-03"]
     assert above_plan_trace["y"] == [1.0, None, None]
     assert below_plan_trace["y"] == [None, -1.0, 0.0]
+    assert serialized["layout"]["margin"]["b"] == 48
+    assert serialized["layout"]["xaxis"]["title"]["text"] == "Date"
+    assert "standoff" not in serialized["layout"]["xaxis"]["title"]
 
 
 def test_build_difference_figure_interpolates_between_measurements_only():

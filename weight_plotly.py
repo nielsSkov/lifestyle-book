@@ -299,7 +299,7 @@ def _style_insight_figure(figure: go.Figure, title: str, uirevision: str, yaxis_
             "font": {"color": "#f4f0fa"},
         },
         uirevision=uirevision,
-        margin={"l": 64, "r": 24, "t": 84, "b": 80},
+        margin={"l": 64, "r": 24, "t": 84, "b": 48},
         legend={
             "orientation": "h",
             "x": 0,
@@ -309,7 +309,7 @@ def _style_insight_figure(figure: go.Figure, title: str, uirevision: str, yaxis_
         },
     )
     figure.update_xaxes(
-        title={"text": "Date", "standoff": 28},
+        title="Date",
         gridcolor="#383047",
         linecolor="#524762",
         fixedrange=False,

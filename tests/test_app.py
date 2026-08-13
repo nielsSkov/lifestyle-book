@@ -180,6 +180,9 @@ def test_weight_plan_page_lists_automatic_backups(client):
     assert b"13 Aug 2026, 12:58:10 CEST" in response.data
     assert backup.name.encode() in response.data
     assert b"1 of 30" in response.data
+    assert response.data.index(b'data-delete-backup="') < response.data.index(
+        b'data-restore-backup="'
+    )
 
 
 def test_weight_plan_restore_replaces_plan_and_backs_up_current_version(client):
