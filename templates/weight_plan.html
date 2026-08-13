@@ -21,9 +21,6 @@
 
     <section class="graph-card planning-preview-card">
       <div id="planning-weight-plot" role="region" aria-label="Interactive active and candidate weight plan chart"></div>
-      <div class="planning-plot-readout" data-plot-readout aria-live="polite">
-        <span>Hover or tap the graph to inspect a date.</span>
-      </div>
     </section>
   </div>
 
@@ -113,21 +110,14 @@
     const plotlyConfig = {{ plotly_config | tojson }};
     const baseFigure = {{ graph_json | safe }};
     const plotElement = document.getElementById("planning-weight-plot");
-    const plotReadout = document.querySelector("[data-plot-readout]");
     const compactPlot = window.matchMedia("(max-width: 600px)");
-
-    function plotDataWithoutFloatingLabels(data) {
-      return data.map((trace) => trace.hoverinfo === "skip"
-        ? trace
-        : {...trace, hoverinfo: "none", hovertemplate: null});
-    }
-
     const plotReady = Plotly.newPlot(
       plotElement,
-      plotDataWithoutFloatingLabels(baseFigure.data),
+      PlotlyReadout.dataWithoutFloatingLabels(baseFigure.data),
       responsiveLayout(baseFigure.layout),
       plotlyConfig,
     );
+    plotReady.then((plot) => PlotlyReadout.install(plot, {format: "weight"}));
     let plotUpdates = plotReady;
     let displayedFigure = baseFigure;
     let preservedView = {};
@@ -279,40 +269,7 @@
       return start !== undefined && end !== undefined ? [start, end] : null;
     }
 
-    function plotPointDate(value) {
-      const parsed = value instanceof Date ? value : new Date(`${value}T12:00:00Z`);
-      return Number.isFinite(parsed.getTime()) ? parsed : null;
-    }
-
-    function resetPlotReadout() {
-      plotReadout.innerHTML = "<span>Hover or tap the graph to inspect a date.</span>";
-    }
-
-    function updatePlotReadout(event) {
-      const available = event.points.filter((point) => Number.isFinite(Number(point.y)));
-      if (!available.length) return;
-      const rawDate = plotPointDate(available[0].x);
-      if (!rawDate) return;
-      const inspectedDay = rawDate.toISOString().slice(0, 10);
-      const points = available.filter(
-        (point) => plotPointDate(point.x)?.toISOString().slice(0, 10) === inspectedDay,
-      );
-      const dateLabel = new Intl.DateTimeFormat("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        timeZone: "UTC",
-      }).format(rawDate);
-      const rows = points.map((point) => {
-        const color = point.fullData.line?.color ?? point.fullData.marker?.color ?? "#a99db9";
-        return `<span class="planning-readout-value"><i style="--readout-color: ${color}"></i>${point.fullData.name}: <strong>${Number(point.y).toFixed(1)} kg</strong></span>`;
-      });
-      plotReadout.innerHTML = `<strong class="planning-readout-date">${dateLabel}</strong><span class="planning-readout-values">${rows.join("")}</span>`;
-    }
-
     plotReady.then((plot) => {
-      plot.on("plotly_hover", updatePlotReadout);
-      plot.on("plotly_click", updatePlotReadout);
       plot.on("plotly_relayout", (update) => {
         if (applyingFigure) return;
         for (const axis of ["xaxis", "yaxis"]) {
@@ -329,10 +286,10 @@
         layout[axis] = {...layout[axis], range, autorange: false};
       }
       applyingFigure = true;
-      resetPlotReadout();
+      PlotlyReadout.reset(plotElement);
       return Plotly.react(
         plotElement,
-        plotDataWithoutFloatingLabels(figure.data),
+        PlotlyReadout.dataWithoutFloatingLabels(figure.data),
         layout,
         plotlyConfig,
       )

@@ -74,9 +74,9 @@
     let fullXRange = {{ full_x_range | tojson }};
     const plotlyConfig = {{ plotly_config | tojson }};
     const plotsReady = Promise.all([
-      Plotly.newPlot("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig),
-      Plotly.newPlot("difference-plot", differenceFigure.data, differenceFigure.layout, plotlyConfig),
-      Plotly.newPlot("rate-plot", rateFigure.data, rateFigure.layout, plotlyConfig),
+      PlotlyReadout.newPlot("weight-plot", weightFigure, plotlyConfig, {format: "weight"}),
+      PlotlyReadout.newPlot("difference-plot", differenceFigure, plotlyConfig, {format: "difference"}),
+      PlotlyReadout.newPlot("rate-plot", rateFigure, plotlyConfig, {format: "rate"}),
     ]);
 
     plotsReady.then((linkedPlots) => {
@@ -142,9 +142,9 @@
         fullXRange = result.full_x_range;
         await plotsReady;
         await Promise.all([
-          Plotly.react("weight-plot", weightFigure.data, weightFigure.layout, plotlyConfig),
-          Plotly.react("difference-plot", differenceFigure.data, differenceFigure.layout, plotlyConfig),
-          Plotly.react("rate-plot", rateFigure.data, rateFigure.layout, plotlyConfig),
+          PlotlyReadout.react("weight-plot", weightFigure, plotlyConfig, {format: "weight"}),
+          PlotlyReadout.react("difference-plot", differenceFigure, plotlyConfig, {format: "difference"}),
+          PlotlyReadout.react("rate-plot", rateFigure, plotlyConfig, {format: "rate"}),
         ]);
 
         if (result.latest) {

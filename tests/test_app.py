@@ -63,6 +63,10 @@ def test_weight_page_exposes_entry_controls_and_chart_regions(client):
     assert b'id="weight-plot"' in response.data
     assert b'id="difference-plot"' in response.data
     assert b'id="rate-plot"' in response.data
+    assert b'src="/static/plotly-readout.js"' in response.data
+    assert b'PlotlyReadout.newPlot("weight-plot"' in response.data
+    assert b'{format: "difference"}' in response.data
+    assert b'{format: "rate"}' in response.data
     assert b"data-weight-form" in response.data
     assert b'href="/weight/plan">Edit Plan</a>' in response.data
     assert response.data.count(b'"range":["2026-07-31","2026-08-04"]') >= 3
@@ -136,12 +140,8 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"const payloads = complete.map(intervalPayload)" in response.data
     assert b"cancelPendingPreview();" in response.data
     assert b'id="planning-weight-plot"' in response.data
-    assert b'class="planning-plot-readout" data-plot-readout' in response.data
-    assert b'plot.on("plotly_hover", updatePlotReadout)' in response.data
-    assert b'plot.on("plotly_click", updatePlotReadout)' in response.data
-    assert b'hoverinfo: "none", hovertemplate: null' in response.data
-    assert b"plotPointDate(point.x)?.toISOString().slice(0, 10) === inspectedDay" in response.data
-    assert b"resetPlotReadout();" in response.data
+    assert b'PlotlyReadout.install(plot, {format: "weight"})' in response.data
+    assert b"PlotlyReadout.reset(plotElement);" in response.data
     assert b'"name":"Candidate plan"' not in response.data
     assert b"Planning sandbox" not in response.data
     assert b"This sandbox" not in response.data
@@ -485,6 +485,7 @@ def test_daily_route_sets_active_navigation_and_exposes_achievements(client):
     assert b'value="roller_skate"' not in response.data
     assert b'id="active-days-plot"' in response.data
     assert b'id="daily-plot"' in response.data
+    assert response.data.count(b'{format: "achievement"}') >= 2
     assert b"Save Day" not in response.data
 
 
@@ -586,8 +587,8 @@ def test_sleep_page_exposes_entry_controls_and_chart_region(client):
     assert b'id="sleep-plot"' in response.data
     assert b"data-sleep-form" in response.data
     assert b"function formatNightTicks(plot)" in response.data
-    assert b"function installNightHoverTitle(plot)" in response.data
-    assert b"text.legendtitletext" in response.data
+    assert b'{format: "sleep", night: true}' in response.data
+    assert b'{format: "duration", night: true}' in response.data
     assert b"visibleDays <= 31" in response.data
     assert b"plotly_afterplot" in response.data
 

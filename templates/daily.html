@@ -142,8 +142,8 @@
     }
 
     const plotsReady = Promise.all([
-      Plotly.newPlot(activeDaysPlot, activeDaysFigure.data, activeDaysFigure.layout, plotlyConfig),
-      Plotly.newPlot(dailyPlot, dailyFigure.data, dailyFigure.layout, plotlyConfig),
+      PlotlyReadout.newPlot(activeDaysPlot, activeDaysFigure, plotlyConfig, {format: "achievement"}),
+      PlotlyReadout.newPlot(dailyPlot, dailyFigure, plotlyConfig, {format: "achievement"}),
     ]);
 
     plotsReady.then((linkedPlots) => {
@@ -199,8 +199,8 @@
           dailyFigure = result.daily_figure;
           const linkedPlots = await plotsReady;
           await Promise.all([
-            Plotly.react(activeDaysPlot, activeDaysFigure.data, activeDaysFigure.layout, plotlyConfig),
-            Plotly.react(dailyPlot, dailyFigure.data, dailyFigure.layout, plotlyConfig),
+            PlotlyReadout.react(activeDaysPlot, activeDaysFigure, plotlyConfig, {format: "achievement"}),
+            PlotlyReadout.react(dailyPlot, dailyFigure, plotlyConfig, {format: "achievement"}),
           ]);
           for (const plot of linkedPlots) {
             currentTileGaps.delete(plot);

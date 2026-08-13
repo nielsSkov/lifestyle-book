@@ -73,12 +73,17 @@
     let sleepDurationFigure = {{ duration_graph_json | safe }};
     const plotlyConfig = {{ plotly_config | tojson }};
     const plotsReady = Promise.all([
-      Plotly.newPlot("sleep-plot", sleepFigure.data, sleepFigure.layout, plotlyConfig),
-      Plotly.newPlot(
-        "sleep-duration-plot",
-        sleepDurationFigure.data,
-        sleepDurationFigure.layout,
+      PlotlyReadout.newPlot(
+        "sleep-plot",
+        sleepFigure,
         plotlyConfig,
+        {format: "sleep", night: true},
+      ),
+      PlotlyReadout.newPlot(
+        "sleep-duration-plot",
+        sleepDurationFigure,
+        plotlyConfig,
+        {format: "duration", night: true},
       ),
     ]);
 
@@ -118,19 +123,6 @@
       });
     }
 
-    function installNightHoverTitle(plot) {
-      plot.on("plotly_hover", (event) => {
-        const nightLabel = event.points
-          .find((point) => typeof point.customdata?.[0] === "string")
-          ?.customdata[0]
-          .replace(/<br\s*\/?>/gi, " ");
-        const title = plot.querySelector(".hoverlayer > g.legend text.legendtitletext");
-        if (!nightLabel || !title) return;
-        title.textContent = nightLabel;
-        title.setAttribute("data-unformatted", nightLabel);
-      });
-    }
-
     plotsReady.then((linkedPlots) => {
       const expectedRanges = new WeakMap();
       const fullRange = sleepFigure.layout.xaxis.range;
@@ -156,7 +148,6 @@
 
       for (const source of linkedPlots) {
         formatNightTicks(source);
-        installNightHoverTitle(source);
         source.on("plotly_afterplot", () => formatNightTicks(source));
         source.on("plotly_relayout", (update) => {
           const range = readXRange(update);
@@ -201,12 +192,17 @@
         sleepDurationFigure = result.duration_figure;
         await plotsReady;
         await Promise.all([
-          Plotly.react("sleep-plot", sleepFigure.data, sleepFigure.layout, plotlyConfig),
-          Plotly.react(
-            "sleep-duration-plot",
-            sleepDurationFigure.data,
-            sleepDurationFigure.layout,
+          PlotlyReadout.react(
+            "sleep-plot",
+            sleepFigure,
             plotlyConfig,
+            {format: "sleep", night: true},
+          ),
+          PlotlyReadout.react(
+            "sleep-duration-plot",
+            sleepDurationFigure,
+            plotlyConfig,
+            {format: "duration", night: true},
           ),
         ]);
         const entry = sleepEntries[result.selected_date];

@@ -1128,10 +1128,10 @@ input {
   margin: 0;
 }
 
-.planning-plot-readout {
+.plot-readout {
   display: flex;
   min-height: 54px;
-  margin: 0 16px 14px;
+  margin: 24px 16px 14px;
   padding: 10px 14px;
   align-items: center;
   gap: 16px;
@@ -1142,27 +1142,31 @@ input {
   font-size: 0.8rem;
 }
 
-.planning-readout-date {
+.plot-readout:empty {
+  display: none;
+}
+
+.plot-readout-date {
   flex: 0 0 auto;
   color: #e4dcf3;
   font-size: 0.86rem;
 }
 
-.planning-readout-values {
+.plot-readout-values {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
   gap: 5px 16px;
 }
 
-.planning-readout-value {
+.plot-readout-value {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: #aaa0b7;
 }
 
-.planning-readout-value i {
+.plot-readout-value i {
   width: 8px;
   height: 8px;
   flex: 0 0 auto;
@@ -1170,7 +1174,7 @@ input {
   background: var(--readout-color);
 }
 
-.planning-readout-value strong {
+.plot-readout-value strong {
   color: #f4f0fa;
 }
 
@@ -1322,7 +1326,7 @@ input {
     min-height: 400px;
   }
 
-  .planning-plot-readout {
+  .plot-readout {
     margin-inline: 8px;
     align-items: flex-start;
     flex-direction: column;
