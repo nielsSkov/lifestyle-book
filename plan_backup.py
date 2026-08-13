@@ -137,6 +137,7 @@ def protect_plan_update(
     created_at: datetime | None = None,
     retention: int = DEFAULT_PLAN_BACKUP_RETENTION,
     expected_revision: str | None = None,
+    validate_backup: bool = True,
 ) -> Iterator[Path | None]:
     if retention < 1:
         raise ValueError("Plan backup retention must be at least 1")
@@ -157,7 +158,9 @@ def protect_plan_update(
         if expected_revision is not None and _plan_revision(contents) != expected_revision:
             raise ValueError("The active plan changed after this preview. Review it again.")
 
-        destination = _write_backup_bytes(backup_directory, contents, timestamp, validate=True)
+        destination = _write_backup_bytes(
+            backup_directory, contents, timestamp, validate=validate_backup
+        )
         _prune_plan_backups(backup_directory, retention, preserve={destination})
         yield destination
 

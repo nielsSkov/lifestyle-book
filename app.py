@@ -19,6 +19,7 @@ from flask import (
     send_file,
     url_for,
 )
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from achievement_catalog import ACHIEVEMENTS, configured_achievements
 from daily_data import (
@@ -28,7 +29,7 @@ from daily_data import (
 )
 from daily_plot import build_active_days_figure, build_daily_figure
 from lifestyle_config import LifestyleSettings, load_lifestyle_settings, store_lifestyle_settings
-from plan_apply import ParsedInterval, merge_plan_intervals, store_active_plan
+from plan_apply import ParsedInterval, merge_plan_intervals, store_active_plan, store_uploaded_plan
 from plan_backup import (
     consolidate_plan_backups,
     list_plan_backups,
@@ -56,6 +57,7 @@ from weight_data import (
     read_series,
     read_series_bytes,
     store_weight,
+    validate_csv_bytes,
 )
 from weight_plotly import build_difference_figure, build_rate_figure, build_weight_figure
 
@@ -69,8 +71,10 @@ LIFESTYLE_CONFIG = BASE_DIR / "lifestyle.local.json"
 COPENHAGEN = ZoneInfo("Europe/Copenhagen")
 PLOTLY_VERSION = version("plotly")
 DEFAULT_PLAN_DURATION_DAYS = 182
+MAX_PLAN_UPLOAD_BYTES = 2 * 1024 * 1024
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = MAX_PLAN_UPLOAD_BYTES + 64 * 1024
 app.config["LIFESTYLE_SETTINGS"] = load_lifestyle_settings(LIFESTYLE_CONFIG)
 
 
@@ -84,6 +88,13 @@ def lifestyle_settings() -> LifestyleSettings:
 @app.context_processor
 def site_identity() -> dict[str, str]:
     return {"record_subtitle": lifestyle_settings().record_subtitle}
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def upload_too_large(_error):
+    if request.path.startswith("/weight/plan/upload-"):
+        return jsonify(error="Plan CSV must be 2 MB or smaller"), 413
+    return Response("Request too large", status=413)
 
 
 def current_date() -> date:
@@ -349,6 +360,65 @@ def preview_weight_plan_backup():
     return jsonify(figure=json.loads(cast(str, figure.to_json())))
 
 
+@app.post("/weight/plan/upload-preview")
+def preview_uploaded_weight_plan():
+    try:
+        contents, filename = _uploaded_plan()
+        row_count = validate_csv_bytes(contents, allow_gaps=True)
+        upload_dates, upload_plan = read_series_bytes(contents)
+        weight_dates, weights = read_series(WEIGHT_CSV)
+        plan_dates, plan, active_contents = _read_active_plan_for_preview()
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    figure = build_weight_figure(
+        weight_dates,
+        weights,
+        plan_dates,
+        plan,
+        upload_dates,
+        upload_plan,
+    )
+    return jsonify(
+        figure=json.loads(cast(str, figure.to_json())),
+        filename=filename,
+        row_count=row_count,
+        start_date=upload_dates[0].strftime("%d %b %Y"),
+        end_date=upload_dates[-1].strftime("%d %b %Y"),
+        gap_count=sum(math.isnan(weight) for weight in upload_plan),
+        upload_revision=hashlib.sha256(contents).hexdigest(),
+        active_revision=hashlib.sha256(active_contents).hexdigest(),
+    )
+
+
+@app.post("/weight/plan/upload-apply")
+def apply_uploaded_weight_plan():
+    try:
+        contents, _filename = _uploaded_plan()
+        upload_revision = request.form.get("upload_revision")
+        active_revision = request.form.get("active_revision")
+        if not upload_revision or hashlib.sha256(contents).hexdigest() != upload_revision:
+            raise ValueError("The selected file changed. Preview it again before importing.")
+        if not active_revision:
+            raise ValueError("Preview the uploaded plan before importing it")
+        validate_csv_bytes(contents, allow_gaps=True)
+        with protect_plan_update(
+            PLAN_CSV,
+            PLAN_BACKUP_DIRECTORY,
+            expected_revision=active_revision,
+            validate_backup=False,
+        ) as backup:
+            store_uploaded_plan(PLAN_CSV, contents)
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except OSError:
+        app.logger.exception("Could not import uploaded weight plan")
+        return jsonify(error="Could not safely import the uploaded plan"), 500
+    return jsonify(
+        message="Uploaded plan imported",
+        backup=backup.name if backup else None,
+    )
+
+
 @app.post("/weight/plan/defaults")
 def weight_plan_defaults():
     try:
@@ -370,6 +440,30 @@ def weight_plan_defaults():
         duration_days=DEFAULT_PLAN_DURATION_DAYS,
         taper=0.0,
     )
+
+
+def _uploaded_plan() -> tuple[bytes, str]:
+    upload = request.files.get("plan")
+    if upload is None or not upload.filename:
+        raise ValueError("Choose a plan CSV file")
+    if not upload.filename.lower().endswith(".csv"):
+        raise ValueError("Choose a CSV file")
+    contents = upload.stream.read(MAX_PLAN_UPLOAD_BYTES + 1)
+    if len(contents) > MAX_PLAN_UPLOAD_BYTES:
+        raise ValueError("Plan CSV must be 2 MB or smaller")
+    return contents, Path(upload.filename).name
+
+
+def _read_active_plan_for_preview() -> tuple[list[date], list[float], bytes]:
+    try:
+        contents = PLAN_CSV.read_bytes()
+    except FileNotFoundError:
+        return [], [], b""
+    try:
+        dates, plan = read_series_bytes(contents)
+    except (KeyError, UnicodeError, ValueError):
+        return [], [], contents
+    return dates, plan, contents
 
 
 @app.post("/weight")

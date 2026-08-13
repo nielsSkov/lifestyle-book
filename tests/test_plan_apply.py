@@ -2,7 +2,7 @@ import math
 from datetime import date
 from pathlib import Path
 
-from plan_apply import merge_plan_intervals, store_active_plan
+from plan_apply import merge_plan_intervals, store_active_plan, store_uploaded_plan
 from weight_data import read_series
 
 
@@ -73,3 +73,13 @@ def test_store_active_plan_removes_file_for_empty_plan(tmp_path: Path):
     store_active_plan(path, [], [])
 
     assert not path.exists()
+
+
+def test_store_uploaded_plan_preserves_valid_csv_bytes(tmp_path: Path):
+    path = tmp_path / "plan.csv"
+    contents = b"\xef\xbb\xbfdate,weight_kg\r\n2026-08-01,100\r\n"
+
+    store_uploaded_plan(path, contents)
+
+    assert path.read_bytes() == contents
+    assert path.stat().st_mode & 0o777 == 0o600

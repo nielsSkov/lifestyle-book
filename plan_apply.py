@@ -3,7 +3,7 @@ import os
 from datetime import date, timedelta
 from pathlib import Path
 
-from weight_data import store_series
+from weight_data import store_series, validate_csv_bytes
 
 ParsedInterval = tuple[date, date, list[date] | None, list[float] | None, bool]
 
@@ -35,6 +35,21 @@ def store_active_plan(path: Path, dates: list[date], weights: list[float]) -> No
         return
     path.unlink(missing_ok=True)
     _sync_directory(path.parent)
+
+
+def store_uploaded_plan(path: Path, contents: bytes) -> None:
+    validate_csv_bytes(contents, allow_gaps=True)
+    temporary = path.with_suffix(".upload.tmp")
+    try:
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "wb") as plan_file:
+            plan_file.write(contents)
+            plan_file.flush()
+            os.fsync(plan_file.fileno())
+        os.replace(temporary, path)
+        _sync_directory(path.parent)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _sync_directory(directory: Path) -> None:

@@ -51,6 +51,39 @@
     </form>
   </dialog>
 
+  <section class="plan-import-card" data-plan-import>
+    <div>
+      <p class="eyebrow">Import</p>
+      <h2>Upload Plan CSV</h2>
+      <p>Select a complete plan file to validate and preview it in blue before importing.</p>
+    </div>
+    <div class="plan-import-controls">
+      <label class="plan-file-picker">
+        <input type="file" accept=".csv,text/csv" data-plan-file>
+        <span data-plan-file-label>Choose CSV File</span>
+      </label>
+      <button class="apply-plan-button" type="button" data-import-plan disabled>Import Previewed Plan</button>
+    </div>
+    <dl class="plan-import-summary" data-import-summary hidden>
+      <div><dt>Rows</dt><dd data-import-rows></dd></div>
+      <div><dt>Period</dt><dd data-import-period></dd></div>
+      <div><dt>Gaps</dt><dd data-import-gaps></dd></div>
+    </dl>
+    <p class="planning-status plan-import-status" data-import-status aria-live="polite"></p>
+  </section>
+
+  <dialog class="planning-confirm-dialog" data-import-dialog>
+    <form method="dialog">
+      <p class="eyebrow">Import plan</p>
+      <h2>Replace the active plan?</h2>
+      <p>Import <strong data-import-filename></strong>? The current active plan will be backed up and any candidate intervals will be discarded.</p>
+      <div class="planning-confirm-actions">
+        <button class="planning-confirm-cancel" type="submit" value="cancel">Cancel</button>
+        <button class="apply-confirm-button" type="submit" value="import">Import Plan</button>
+      </div>
+    </form>
+  </dialog>
+
   <section class="plan-backups-card" data-active-plan-revision="{{ active_plan_revision }}">
     <div class="plan-backups-heading">
       <div>
@@ -164,6 +197,10 @@
     const applyButton = document.querySelector("[data-apply-plan]");
     const restoreDialog = document.querySelector("[data-restore-dialog]");
     const backupStatus = document.querySelector("[data-backup-status]");
+    const importDialog = document.querySelector("[data-import-dialog]");
+    const planFileInput = document.querySelector("[data-plan-file]");
+    const importButton = document.querySelector("[data-import-plan]");
+    const importStatus = document.querySelector("[data-import-status]");
     const plotlyConfig = {{ plotly_config | tojson }};
     const baseFigure = {{ graph_json | safe }};
     const plotElement = document.getElementById("planning-weight-plot");
@@ -192,6 +229,9 @@
     let pendingRestoreRevision = null;
     let backupPreviewController = null;
     let backupPreviewVersion = 0;
+    let uploadPreviewController = null;
+    let uploadPreviewVersion = 0;
+    let previewedUpload = null;
     const draftStorageKey = "lifestyle-book.weight-plan-draft.v1";
 
     function field(card, name) { return card.querySelector(`[data-field="${name}"]`); }
@@ -499,7 +539,7 @@
         : undefined).catch(() => {});
     }
 
-    function cancelPendingPreview() {
+    function cancelPendingPreview(preserveUpload = false) {
       window.clearTimeout(previewTimer);
       previewController?.abort();
       previewVersion += 1;
@@ -509,6 +549,7 @@
       backupPreviewController?.abort();
       backupPreviewVersion += 1;
       document.querySelectorAll("[data-backup-preview]").forEach((input) => input.checked = false);
+      if (!preserveUpload) invalidateUploadPreview();
     }
 
     function setStatus(message, state = "") {
@@ -521,6 +562,11 @@
       backupStatus.dataset.state = state;
     }
 
+    function setImportStatus(message, state = "") {
+      importStatus.textContent = message;
+      importStatus.dataset.state = state;
+    }
+
     function markPreviewUnchanged(items) {
       items.forEach((item) => {
         item.endDate = null;
@@ -531,6 +577,7 @@
     }
 
     function schedulePreview() {
+      invalidateUploadPreview();
       previewedPayloads = null;
       previewedRevision = null;
       applyButton.disabled = true;
@@ -884,6 +931,102 @@
           plotUpdates = plotUpdates.then(() => renderFigure(baseFigure)).catch(() => {});
         }
       });
+    });
+
+    function invalidateUploadPreview(resetGraph = true) {
+      uploadPreviewController?.abort();
+      uploadPreviewVersion += 1;
+      previewedUpload = null;
+      importButton.disabled = true;
+      document.querySelector("[data-import-summary]").hidden = true;
+      if (resetGraph) {
+        displayedFigure = baseFigure;
+        plotUpdates = plotUpdates.then(() => renderFigure(baseFigure)).catch(() => {});
+      }
+    }
+
+    planFileInput.addEventListener("change", async () => {
+      invalidateUploadPreview(false);
+      const file = planFileInput.files?.[0];
+      document.querySelector("[data-plan-file-label]").textContent = file?.name ?? "Choose CSV File";
+      if (!file) { setImportStatus(""); return; }
+      cancelPendingPreview(true);
+      const version = uploadPreviewVersion;
+      uploadPreviewController = new AbortController();
+      setImportStatus("Validating uploaded plan...");
+      const form = new FormData();
+      form.append("plan", file);
+      try {
+        const response = await fetch("{{ url_for('preview_uploaded_weight_plan') }}", {
+          method: "POST",
+          body: form,
+          signal: uploadPreviewController.signal,
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Could not preview the uploaded plan");
+        if (version !== uploadPreviewVersion || planFileInput.files?.[0] !== file) return;
+        previewedUpload = {
+          file,
+          uploadRevision: result.upload_revision,
+          activeRevision: result.active_revision,
+          filename: result.filename,
+        };
+        document.querySelector("[data-import-rows]").textContent = result.row_count;
+        document.querySelector("[data-import-period]").textContent = `${result.start_date} – ${result.end_date}`;
+        document.querySelector("[data-import-gaps]").textContent = result.gap_count;
+        document.querySelector("[data-import-summary]").hidden = false;
+        importButton.disabled = false;
+        displayedFigure = result.figure;
+        setImportStatus(`Previewing ${result.filename}`);
+        plotUpdates = plotUpdates.then(() => version === uploadPreviewVersion
+          ? renderFigure(result.figure)
+          : undefined).catch(() => {});
+      } catch (error) {
+        if (error.name === "AbortError" || version !== uploadPreviewVersion) return;
+        displayedFigure = baseFigure;
+        setImportStatus(error.message, "error");
+        plotUpdates = plotUpdates.then(() => renderFigure(baseFigure)).catch(() => {});
+        planFileInput.value = "";
+      }
+    });
+
+    async function importUploadedPlan() {
+      if (!previewedUpload) return;
+      const upload = previewedUpload;
+      previewedUpload = null;
+      importButton.disabled = true;
+      planFileInput.disabled = true;
+      setImportStatus("Importing uploaded plan...");
+      const form = new FormData();
+      form.append("plan", upload.file);
+      form.append("upload_revision", upload.uploadRevision);
+      form.append("active_revision", upload.activeRevision);
+      try {
+        const response = await fetch("{{ url_for('apply_uploaded_weight_plan') }}", {
+          method: "POST",
+          body: form,
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error ?? "Could not import the uploaded plan");
+        clearDraft();
+        window.location.reload();
+      } catch (error) {
+        planFileInput.disabled = false;
+        setImportStatus(error.message, "error");
+        planFileInput.dispatchEvent(new Event("change"));
+      }
+    }
+
+    importDialog.addEventListener("close", () => {
+      if (importDialog.returnValue === "import") importUploadedPlan();
+      importDialog.returnValue = "";
+    });
+
+    importButton.addEventListener("click", () => {
+      if (!previewedUpload) return;
+      importDialog.querySelector("[data-import-filename]").textContent = previewedUpload.filename;
+      if (typeof importDialog.showModal === "function") importDialog.showModal();
+      else if (window.confirm(`Import ${previewedUpload.filename} as the active plan?`)) importUploadedPlan();
     });
 
     function addInterval(draft = null) {

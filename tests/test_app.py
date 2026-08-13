@@ -1,6 +1,7 @@
 import hashlib
 import math
 from datetime import date, datetime
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -159,6 +160,11 @@ def test_weight_plan_page_starts_without_a_candidate_interval(client):
     assert b"previewedPayloads = payloads" in response.data
     assert b"clearDraft();" in response.data
     assert b"window.location.reload();" in response.data
+    assert b"Upload Plan CSV" in response.data
+    assert b"data-plan-file" in response.data
+    assert b"Import Previewed Plan" in response.data
+    assert b'fetch("/weight/plan/upload-preview"' in response.data
+    assert b'fetch("/weight/plan/upload-apply"' in response.data
 
 
 def test_weight_plan_page_lists_automatic_backups(client):
@@ -321,6 +327,158 @@ def test_weight_plan_download_returns_not_found_without_active_plan(client):
 
     assert response.status_code == 404
     assert b"No active weight plan is available" in response.data
+
+
+def test_weight_plan_upload_preview_validates_and_shows_candidate(client):
+    contents = b"date,weight_kg\n2026-09-01,90\n2026-09-02,NaN\n2026-09-03,89\n"
+
+    response = client.post(
+        "/weight/plan/upload-preview",
+        data={"plan": (BytesIO(contents), "future-plan.csv")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.json["filename"] == "future-plan.csv"
+    assert response.json["row_count"] == 3
+    assert response.json["start_date"] == "01 Sep 2026"
+    assert response.json["end_date"] == "03 Sep 2026"
+    assert response.json["gap_count"] == 1
+    assert response.json["upload_revision"] == hashlib.sha256(contents).hexdigest()
+    candidate = next(
+        trace for trace in response.json["figure"]["data"] if trace.get("name") == "Candidate plan"
+    )
+    assert candidate["y"] == [90.0, None, 89.0]
+    assert candidate["connectgaps"] is False
+
+
+def test_weight_plan_upload_preview_rejects_invalid_csv(client):
+    response = client.post(
+        "/weight/plan/upload-preview",
+        data={"plan": (BytesIO(b"wrong,header\n2026-09-01,90\n"), "plan.csv")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Expected header: date,weight_kg"}
+
+
+def test_weight_plan_upload_preview_rejects_oversized_request(client):
+    response = client.post(
+        "/weight/plan/upload-preview",
+        data={"plan": (BytesIO(b"x" * (3 * 1024 * 1024)), "plan.csv")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 413
+    assert response.json == {"error": "Plan CSV must be 2 MB or smaller"}
+
+
+def test_weight_plan_upload_preview_rejects_malformed_weight_syntax(client):
+    response = client.post(
+        "/weight/plan/upload-preview",
+        data={"plan": (BytesIO(b"date,weight_kg\n2026-09-01,9_0\n"), "plan.csv")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Line 2: invalid weight '9_0'"}
+
+
+def test_weight_plan_upload_preview_rejects_noncanonical_date(client):
+    response = client.post(
+        "/weight/plan/upload-preview",
+        data={"plan": (BytesIO(b"date,weight_kg\n20260901,90\n"), "plan.csv")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Line 2: invalid date '20260901'"}
+
+
+def test_weight_plan_upload_apply_backs_up_and_preserves_exact_upload(client):
+    original = app_module.PLAN_CSV.read_bytes()
+    contents = b"\xef\xbb\xbfdate,weight_kg\r\n2026-09-01,90\r\n2026-09-02,NaN\r\n"
+
+    response = client.post(
+        "/weight/plan/upload-apply",
+        data={
+            "plan": (BytesIO(contents), "import.csv"),
+            "upload_revision": hashlib.sha256(contents).hexdigest(),
+            "active_revision": hashlib.sha256(original).hexdigest(),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert response.json["message"] == "Uploaded plan imported"
+    assert app_module.PLAN_CSV.read_bytes() == contents
+    backup = app_module.PLAN_BACKUP_DIRECTORY / response.json["backup"]
+    assert backup.read_bytes() == original
+
+
+def test_weight_plan_upload_apply_rejects_changed_file_without_backup(client):
+    original = app_module.PLAN_CSV.read_bytes()
+    contents = b"date,weight_kg\n2026-09-01,90\n"
+
+    response = client.post(
+        "/weight/plan/upload-apply",
+        data={
+            "plan": (BytesIO(contents), "import.csv"),
+            "upload_revision": "stale",
+            "active_revision": hashlib.sha256(original).hexdigest(),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert response.json == {
+        "error": "The selected file changed. Preview it again before importing."
+    }
+    assert app_module.PLAN_CSV.read_bytes() == original
+    assert not app_module.PLAN_BACKUP_DIRECTORY.exists()
+
+
+def test_weight_plan_upload_apply_rejects_changed_active_plan(client):
+    original = app_module.PLAN_CSV.read_bytes()
+    contents = b"date,weight_kg\n2026-09-01,90\n"
+    revision = hashlib.sha256(original).hexdigest()
+    app_module.PLAN_CSV.write_text("date,weight_kg\n2026-08-01,80\n", encoding="utf-8")
+
+    response = client.post(
+        "/weight/plan/upload-apply",
+        data={
+            "plan": (BytesIO(contents), "import.csv"),
+            "upload_revision": hashlib.sha256(contents).hexdigest(),
+            "active_revision": revision,
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert b"active plan changed" in response.data
+    assert app_module.PLAN_CSV.read_text(encoding="utf-8").endswith("2026-08-01,80\n")
+
+
+def test_weight_plan_upload_apply_recovers_invalid_active_plan(client):
+    damaged = b"invalid,data\n"
+    app_module.PLAN_CSV.write_bytes(damaged)
+    contents = b"date,weight_kg\n2026-09-01,90\n"
+
+    response = client.post(
+        "/weight/plan/upload-apply",
+        data={
+            "plan": (BytesIO(contents), "import.csv"),
+            "upload_revision": hashlib.sha256(contents).hexdigest(),
+            "active_revision": hashlib.sha256(damaged).hexdigest(),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert app_module.PLAN_CSV.read_bytes() == contents
+    backup = app_module.PLAN_BACKUP_DIRECTORY / response.json["backup"]
+    assert backup.read_bytes() == damaged
 
 
 def test_weight_plan_initialization_defaults_to_current_plan_when_measurement_is_old(client):

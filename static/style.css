@@ -372,6 +372,113 @@ input {
   background: #15111f;
 }
 
+.plan-import-card {
+  display: grid;
+  margin-top: 20px;
+  padding: 22px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px 28px;
+  border: 1px solid #30283e;
+  border-radius: 18px;
+  background: #15111f;
+}
+
+.plan-import-card h2 {
+  margin: 4px 0 8px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.plan-import-card > div:first-child > p:last-child {
+  max-width: 38rem;
+  margin: 0;
+  color: #91869e;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.plan-import-controls {
+  display: grid;
+  width: min(100%, 240px);
+  gap: 8px;
+}
+
+.plan-file-picker {
+  display: flex;
+  min-height: 42px;
+  padding: 0 14px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #4b405d;
+  border-radius: 11px;
+  color: #c9b6f4;
+  background: #21192e;
+  font-size: 0.82rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.plan-file-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.plan-file-picker:focus-within {
+  border-color: #8354e8;
+  box-shadow: 0 0 0 3px rgb(131 84 232 / 18%);
+}
+
+.plan-file-picker span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-import-controls .apply-plan-button {
+  margin: 0;
+}
+
+.plan-import-summary {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 12px 14px;
+  gap: 14px;
+  border: 1px solid #383047;
+  border-radius: 11px;
+  background: #110d19;
+}
+
+.plan-import-summary[hidden] {
+  display: none;
+}
+
+.plan-import-summary dt {
+  color: #81768e;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.plan-import-summary dd {
+  margin: 3px 0 0;
+  color: #d8cfee;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.plan-import-status {
+  grid-column: 1 / -1;
+  margin: -8px 0 0;
+}
+
 .plan-recovery-warning {
   margin: 0 0 20px;
   padding: 14px 16px;
@@ -1367,6 +1474,14 @@ input {
   .planning-preview-card {
     position: static;
   }
+
+  .plan-import-card {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-import-controls {
+    width: 100%;
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1448,6 +1563,15 @@ input {
 
   .add-interval-button {
     width: 100%;
+  }
+
+  .plan-import-card,
+  .plan-backups-card {
+    padding: 18px 14px;
+  }
+
+  .plan-import-summary {
+    grid-template-columns: 1fr;
   }
 
   .entry-card {
